@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INTERCOM</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:       #080a0b;
+  --surface:  #0e1114;
+  --border:   #1a2028;
+  --border2:  #242e38;
+  --green:    #00e5a0;
+  --red:      #ff3d5a;
+  --amber:    #ffb830;
+  --blue:     #38b6ff;
+  --text:     #dde4ea;
+  --muted:    #4a5560;
+  --mono:     'Share Tech Mono', monospace;
+  --display:  'Bebas Neue', sans-serif;
+  --sans:     'Barlow Condensed', sans-serif;
+}
+
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden}
+
+/* scanlines */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);
+}
+
+/* ── LAYOUT ── */
+#app{display:grid;grid-template-rows:auto 1fr auto auto;height:100vh;padding:14px;gap:10px}
+
+/* ── HEADER ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);padding-bottom:10px;
+}
+.logo{
+  font-family:var(--display);font-size:28px;letter-spacing:6px;
+  color:var(--green);line-height:1;
+}
+.logo em{color:var(--muted);font-style:normal;font-size:16px;letter-spacing:10px;margin-left:4px}
+
+.hdr-right{display:flex;align-items:center;gap:20px}
+.conn-badge{
+  font-family:var(--mono);font-size:10px;letter-spacing:2px;
+  display:flex;align-items:center;gap:7px;color:var(--muted);
+}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:all .3s}
+.dot.green{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.amber{background:var(--amber);box-shadow:0 0 8px var(--amber);animation:blink .8s infinite}
+.dot.red{background:var(--red);box-shadow:0 0 8px var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ── MIDDLE SECTION ── */
+.middle{display:flex;gap:10px;min-height:0}
+
+/* ── VIDEO AREA ── */
+.video-area{flex:1;position:relative;background:#040506;border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center}
+
+#remoteVideo{width:100%;height:100%;object-fit:cover;display:block}
+
+.vid-label{
+  position:absolute;top:10px;left:10px;
+  font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--green);
+  background:rgba(0,0,0,.75);padding:3px 8px;text-transform:uppercase;
+}
+
+/* idle overlay */
+.idle-overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;
+  background:var(--bg);transition:opacity .4s;
+}
+.idle-overlay.hidden{opacity:0;pointer-events:none}
+.idle-glyph{font-size:56px;opacity:.12}
+.idle-text{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase}
+
+/* PIP */
+.pip{
+  position:absolute;bottom:14px;right:14px;
+  width:148px;height:111px;border:2px solid var(--border2);
+  overflow:hidden;background:#000;display:none;
+}
+.pip video{width:100%;height:100%;object-fit:cover}
+.pip-lbl{
+  position:absolute;bottom:4px;left:5px;
+  font-family:var(--mono);font-size:8px;color:var(--green);
+  background:rgba(0,0,0,.7);padding:1px 5px;letter-spacing:2px;
+}
+
+/* corner brackets */
+.cbrkt{position:absolute;width:16px;height:16px;border-color:var(--green);border-style:solid;opacity:.35}
+.cbrkt.tl{top:7px;left:7px;border-width:2px 0 0 2px}
+.cbrkt.tr{top:7px;right:7px;border-width:2px 2px 0 0}
+.cbrkt.bl{bottom:7px;left:7px;border-width:0 0 2px 2px}
+.cbrkt.br{bottom:7px;right:7px;border-width:0 2px 2px 0}
+
+/* ── SIDEBAR ── */
+.sidebar{width:210px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+
+.sbox{
+  border:1px solid var(--border);background:var(--surface);
+  padding:12px;position:relative;
+}
+.sbox-title{
+  font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--muted);
+  text-transform:uppercase;margin-bottom:10px;
+}
+
+/* role pills */
+.role-grid{display:flex;flex-direction:column;gap:5px}
+.role-pill{
+  display:flex;align-items:center;gap:8px;padding:5px 8px;
+  border:1px solid transparent;cursor:pointer;transition:border .15s;
+  font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:1px;
+  text-transform:uppercase;color:var(--muted);
+}
+.role-pill:hover{border-color:var(--border2)}
+.role-pill input{display:none}
+.rk{
+  width:11px;height:11px;border:1px solid var(--muted);border-radius:50%;
+  display:grid;place-items:center;flex-shrink:0;transition:border-color .15s;
+}
+.rk::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);display:none}
+.role-pill input:checked~.rk{border-color:var(--green)}
+.role-pill input:checked~.rk::after{display:block}
+.role-pill input:checked~span{color:var(--text)}
+
+/* peer info */
+.info-row{margin-bottom:9px}
+.info-lbl{font-family:var(--mono);font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:3px;text-transform:uppercase}
+.info-val{font-family:var(--mono);font-size:12px;color:var(--green);word-break:break-all;line-height:1.5}
+
+/* peer list */
+.peer-list{display:flex;flex-direction:column;gap:5px;min-height:32px}
+.peer-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 8px;border:1px solid var(--border);cursor:pointer;
+  transition:border .15s;font-family:var(--mono);font-size:11px;
+}
+.peer-item:hover{border-color:var(--green)}
+.peer-item.selected{border-color:var(--green);background:rgba(0,229,160,.05)}
+.peer-item span{color:var(--green)}
+.peer-item small{color:var(--muted);font-size:9px}
+.no-peers{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1px;padding:4px 0}
+
+/* ── BIG BUTTON ZONE ── */
+.btn-zone{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;padding:6px 0;flex-shrink:0;
+}
+
+.btn-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+
+/* pulse rings */
+.ring{
+  position:absolute;width:128px;height:128px;border-radius:50%;
+  border:2px solid var(--green);opacity:0;pointer-events:none;
+}
+.ring2{width:152px;height:152px;animation-delay:.35s!important}
+@keyframes ring-out{
+  0%{transform:scale(.8);opacity:.7}
+  100%{transform:scale(1.2);opacity:0}
+}
+.ringing .ring{animation:ring-out 1.3s ease-out infinite}
+.ringing .ring2{animation:ring-out 1.3s ease-out .35s infinite}
+
+/* THE BUTTON */
+#callBtn{
+  width:114px;height:114px;border-radius:50%;
+  border:3px solid var(--green);
+  background:radial-gradient(circle at 38% 32%, #0d2e1e 0%, #040c08 70%);
+  cursor:pointer;position:relative;z-index:1;outline:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  transition:transform .15s,box-shadow .2s,border-color .2s;
+  box-shadow:0 0 28px rgba(0,229,160,.12),inset 0 0 24px rgba(0,229,160,.04);
+}
+#callBtn:hover:not(:disabled){
+  transform:scale(1.05);
+  box-shadow:0 0 52px rgba(0,229,160,.3),inset 0 0 32px rgba(0,229,160,.08);
+}
+#callBtn:active:not(:disabled){transform:scale(.96)}
+#callBtn:disabled{opacity:.3;cursor:not-allowed;transform:none!important}
+
+#callBtn.mode-end{
+  border-color:var(--red);
+  background:radial-gradient(circle at 38% 32%, #2e0d12 0%, #0c0406 70%);
+  box-shadow:0 0 28px rgba(255,61,90,.12),inset 0 0 24px rgba(255,61,90,.04);
+}
+#callBtn.mode-end:hover:not(:disabled){
+  box-shadow:0 0 52px rgba(255,61,90,.3),inset 0 0 32px rgba(255,61,90,.1);
+}
+#callBtn.mode-answer{
+  border-color:var(--amber);
+  background:radial-gradient(circle at 38% 32%, #2e1e0d 0%, #0c0804 70%);
+  animation:answer-pulse 1.1s ease-in-out infinite alternate;
+}
+@keyframes answer-pulse{
+  from{box-shadow:0 0 28px rgba(255,184,48,.12),inset 0 0 24px rgba(255,184,48,.04)}
+  to  {box-shadow:0 0 64px rgba(255,184,48,.45),inset 0 0 36px rgba(255,184,48,.14)}
+}
+
+.btn-icon{font-size:30px;line-height:1;transition:transform .2s}
+.btn-lbl{
+  font-family:var(--mono);font-size:9px;letter-spacing:3px;
+  color:var(--green);text-transform:uppercase;transition:color .2s;
+}
+#callBtn.mode-end .btn-lbl{color:var(--red)}
+#callBtn.mode-answer .btn-lbl{color:var(--amber)}
+
+/* status + timer */
+.status-row{
+  font-family:var(--mono);font-size:11px;letter-spacing:2px;
+  color:var(--muted);text-transform:uppercase;text-align:center;min-height:16px;
+}
+.timer{
+  font-family:var(--display);font-size:22px;letter-spacing:4px;
+  color:var(--red);text-align:center;min-height:28px;
+}
+
+/* in-call controls */
+.ctrl-row{display:flex;gap:10px;justify-content:center}
+.ctrl-btn{
+  width:40px;height:40px;border-radius:50%;border:1px solid var(--border);
+  background:var(--surface);color:var(--muted);cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;outline:none;
+}
+.ctrl-btn:hover{border-color:var(--green);color:var(--green)}
+.ctrl-btn.off{border-color:var(--red);color:var(--red)}
+
+/* ── LOG ── */
+.log-strip{
+  border-top:1px solid var(--border);padding-top:6px;
+  max-height:52px;overflow-y:auto;flex-shrink:0;
+}
+.log-strip::-webkit-scrollbar{width:3px}
+.log-strip::-webkit-scrollbar-thumb{background:var(--border)}
+.lg{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.5px;line-height:1.75}
+.lg.ok{color:var(--green)}.lg.err{color:var(--red)}.lg.warn{color:var(--amber)}.lg.info{color:var(--blue)}
+
+/* ── INCOMING MODAL ── */
+.modal-wrap{
+  position:fixed;inset:0;background:rgba(0,0,0,.82);
+  display:flex;align-items:center;justify-content:center;z-index:500;
+  backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.modal-wrap.show{opacity:1;pointer-events:all}
+.modal{
+  border:1px solid var(--amber);background:var(--surface);
+  padding:36px 32px;text-align:center;position:relative;min-width:290px;
+}
+.modal .cbrkt{opacity:.5}
+.modal h2{
+  font-family:var(--display);font-size:32px;letter-spacing:6px;
+  color:var(--amber);margin-bottom:6px;
+}
+.modal p{font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:26px;letter-spacing:1px}
+.modal-from{color:var(--text)!important;font-size:12px!important;margin-bottom:4px!important}
+.mbtn-row{display:flex;gap:14px;justify-content:center}
+.mbtn{
+  font-family:var(--mono);font-size:11px;letter-spacing:3px;
+  border:1px solid;padding:11px 28px;cursor:pointer;
+  text-transform:uppercase;background:transparent;transition:all .15s;
+}
+.mbtn.yes{border-color:var(--green);color:var(--green)}
+.mbtn.yes:hover{background:rgba(0,229,160,.1)}
+.mbtn.no{border-color:var(--red);color:var(--red)}
+.mbtn.no:hover{background:rgba(255,61,90,.1)}
+
+/* responsive */
+@media(max-width:600px){
+  .sidebar{display:none}
+  .pip{width:105px;height:79px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">INTERCOM <em>LAN</em></div>
+    <div class="hdr-right">
+      <div class="conn-badge"><div class="dot" id="wsDot"></div><span id="wsLbl">CONNECTING</span></div>
+      <div class="conn-badge"><div class="dot" id="callDot"></div><span id="callLbl">IDLE</span></div>
+    </div>
+  </header>
+
+  <!-- MIDDLE -->
+  <div class="middle">
+
+    <!-- VIDEO -->
+    <div class="video-area">
+      <div class="cbrkt tl"></div><div class="cbrkt tr"></div>
+      <div class="cbrkt bl"></div><div class="cbrkt br"></div>
+      <video id="remoteVideo" autoplay playsinline></video>
+      <div class="vid-label">REMOTE FEED</div>
+      <div class="idle-overlay" id="idleOverlay">
+        <div class="idle-glyph">📡</div>
+        <div class="idle-text">No active call</div>
+      </div>
+      <div class="pip" id="pip">
+        <video id="localVideo" autoplay playsinline muted></video>
+        <div class="pip-lbl">YOU</div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+      <!-- Role -->
+      <div class="sbox">
+        <div class="sbox-title">// Role</div>
+        <div class="role-grid">
+          <label class="role-pill"><input type="radio" name="role" value="both" checked><div class="rk"></div><span>Both sides</span></label>
+          <label class="role-pill"><input type="radio" name="role" value="caller"><div class="rk"></div><span>Caller only</span></label>
+          <label class="role-pill"><input type="radio" name="role" value="receiver"><div class="rk"></div><span>Receiver only</span></label>
+        </div>
+      </div>
+
+      <!-- Your ID -->
+      <div class="sbox">
+        <div class="sbox-title">// Your Device</div>
+        <div class="info-row">
+          <div class="info-lbl">Device ID</div>
+          <div class="info-val" id="myIdDisplay">—</div>
+        </div>
+        <div class="info-row" style="margin-bottom:0">
+          <div class="info-lbl">Online peers</div>
+          <div id="peerList" class="peer-list">
+            <div class="no-peers">Waiting for peers…</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CALL BUTTON ZONE -->
+  <div class="btn-zone">
+    <div class="btn-wrap" id="btnWrap">
+      <div class="ring"></div>
+      <div class="ring ring2"></div>
+      <button id="callBtn" onclick="handleBtn()" disabled>
+        <div class="btn-icon" id="btnIcon">📞</div>
+        <div class="btn-lbl" id="btnLbl">CALL</div>
+      </button>
+    </div>
+    <div class="status-row" id="statusRow">CONNECTING…</div>
+    <div class="timer" id="timer"></div>
+    <div class="ctrl-row" id="ctrlRow" style="display:none">
+      <button class="ctrl-btn" id="muteBtn" onclick="toggleMute()" title="Mute">🎤</button>
+      <button class="ctrl-btn" id="camBtn"  onclick="toggleCam()"  title="Camera">📷</button>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-strip" id="logStrip"></div>
+
+</div>
+
+<!-- INCOMING MODAL -->
+<div class="modal-wrap" id="modal">
+  <div class="modal">
+    <div class="cbrkt tl"></div><div class="cbrkt br"></div>
+    <h2>📞 INCOMING</h2>
+    <p class="modal-from" id="modalFrom">from unknown</p>
+    <p>Accept this call?</p>
+    <div class="mbtn-row">
+      <button class="mbtn yes" onclick="acceptCall()">ACCEPT</button>
+      <button class="mbtn no"  onclick="rejectCall()">REJECT</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const S = {
+  myId: null,
+  peerId: null,       // currently selected peer
+  peers: [],          // list of online peers
+  ws: null,
+  pc: null,           // RTCPeerConnection
+  localStream: null,
+  callState: 'idle',  // idle | outgoing | incoming | in-call
+  muted: false,
+  camOff: false,
+  timerInt: null,
+  timerStart: null,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  LOGGING
+// ─────────────────────────────────────────────────────────────────────────────
+function log(msg, t='') {
+  const strip = document.getElementById('logStrip');
+  const d = document.createElement('div');
+  d.className = 'lg ' + t;
+  const ts = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  d.textContent = `[${ts}] ${msg}`;
+  strip.prepend(d);
+  while(strip.children.length > 30) strip.lastChild.remove();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  STATUS UI
+// ─────────────────────────────────────────────────────────────────────────────
+function setStatus(txt, mode='idle') {
+  document.getElementById('statusRow').textContent = txt;
+  const dot = document.getElementById('callDot');
+  const lbl = document.getElementById('callLbl');
+  const modes = {
+    'idle':   ['var(--muted)', 'IDLE'],
+    'ready':  ['var(--green)', 'READY'],
+    'calling':['var(--amber)', 'CALLING'],
+    'in-call':['var(--red)',   'IN CALL'],
+  };
+  const [color, label] = modes[mode] || modes.idle;
+  dot.style.background = color;
+  dot.style.boxShadow = `0 0 8px ${color}`;
+  lbl.textContent = label;
+}
+
+function setWS(connected) {
+  const dot = document.getElementById('wsDot');
+  const lbl = document.getElementById('wsLbl');
+  if(connected) {
+    dot.className = 'dot green'; lbl.textContent = 'SERVER OK';
+  } else {
+    dot.className = 'dot red'; lbl.textContent = 'DISCONNECTED';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  BUTTON MODES
+// ─────────────────────────────────────────────────────────────────────────────
+function setBtn(mode) {
+  const btn = document.getElementById('callBtn');
+  const icon = document.getElementById('btnIcon');
+  const lbl  = document.getElementById('btnLbl');
+  const wrap = document.getElementById('btnWrap');
+  const ctrl = document.getElementById('ctrlRow');
+  btn.className = ''; btn.disabled = false;
+  wrap.classList.remove('ringing');
+  ctrl.style.display = 'none';
+  if(mode==='call')   { icon.textContent='📞'; lbl.textContent='CALL'; }
+  if(mode==='end')    { btn.classList.add('mode-end'); icon.textContent='📵'; lbl.textContent='END'; ctrl.style.display='flex'; }
+  if(mode==='answer') { btn.classList.add('mode-answer'); wrap.classList.add('ringing'); icon.textContent='📲'; lbl.textContent='ANSWER'; }
+  if(mode==='cancel') { btn.classList.add('mode-end'); icon.textContent='📵'; lbl.textContent='CANCEL'; }
+  if(mode==='off')    { btn.disabled=true; icon.textContent='📞'; lbl.textContent='CALL'; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PEER LIST UI
+// ─────────────────────────────────────────────────────────────────────────────
+function renderPeers() {
+  const box = document.getElementById('peerList');
+  box.innerHTML = '';
+  const others = S.peers.filter(id => id !== S.myId);
+  if(!others.length) {
+    box.innerHTML = '<div class="no-peers">No peers online…</div>';
+    return;
+  }
+  others.forEach(id => {
+    const el = document.createElement('div');
+    el.className = 'peer-item' + (id===S.peerId ? ' selected' : '');
+    el.innerHTML = `<span>${id}</span><small>● ONLINE</small>`;
+    el.onclick = () => selectPeer(id);
+    box.appendChild(el);
+  });
+}
+
+function selectPeer(id) {
+  S.peerId = id;
+  renderPeers();
+  log(`Selected peer: ${id}`, 'info');
+  if(S.callState==='idle') updateReadyState();
+}
+
+function updateReadyState() {
+  if(S.callState !== 'idle') return;
+  const role = getRole();
+  if(S.peerId && (role==='both'||role==='caller')) {
+    setBtn('call');
+    setStatus('SELECT PEER & PRESS CALL', 'ready');
+  } else if(S.peerId && role==='receiver') {
+    setBtn('off');
+    setStatus('WAITING FOR CALL…', 'ready');
+  } else {
+    setBtn('off');
+    setStatus('SELECT A PEER', 'idle');
+  }
+}
+
+const getRole = () => document.querySelector('input[name=role]:checked').value;
+const canCall = () => { const r=getRole(); return r==='both'||r==='caller'; };
+const canRecv = () => { const r=getRole(); return r==='both'||r==='receiver'; };
+
+document.querySelectorAll('input[name=role]').forEach(r => r.addEventListener('change', () => {
+  log('Role: ' + getRole().toUpperCase(), 'info');
+  if(S.callState==='idle') updateReadyState();
+}));
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  WEBSOCKET SIGNALING
+// ─────────────────────────────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${proto}://${location.host}`);
+  S.ws = ws;
+
+  ws.onopen = () => {
+    setWS(true);
+    log('Connected to signaling server', 'ok');
+    ws.send(JSON.stringify({ type: 'register', id: S.myId }));
+  };
+
+  ws.onclose = () => {
+    setWS(false);
+    log('Server disconnected — retrying in 3s…', 'err');
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => log('WebSocket error', 'err');
+
+  ws.onmessage = ({ data }) => {
+    let msg;
+    try { msg = JSON.parse(data); } catch { return; }
+    handleSignal(msg);
+  };
+}
+
+function wsSend(obj) {
+  if(S.ws && S.ws.readyState === WebSocket.OPEN) {
+    S.ws.send(JSON.stringify(obj));
+  }
+}
+
+function handleSignal(msg) {
+  switch(msg.type) {
+    case 'peers':
+      S.peers = msg.peers;
+      renderPeers();
+      log(`Peers online: ${msg.peers.length}`, 'info');
+      updateReadyState();
+      break;
+
+    case 'peer-joined':
+      if(!S.peers.includes(msg.id)) S.peers.push(msg.id);
+      renderPeers();
+      log(`Peer joined: ${msg.id}`, 'ok');
+      updateReadyState();
+      break;
+
+    case 'peer-left':
+      S.peers = S.peers.filter(id => id !== msg.id);
+      if(S.peerId === msg.id) {
+        S.peerId = null;
+        if(S.callState === 'in-call') onCallEnded('Peer disconnected');
+      }
+      renderPeers();
+      log(`Peer left: ${msg.id}`, 'warn');
+      updateReadyState();
+      break;
+
+    case 'call-request':
+      if(!canRecv()) {
+        wsSend({ type: 'call-reject', to: msg.from, reason: 'receiver-only' });
+        return;
+      }
+      if(S.callState !== 'idle') {
+        wsSend({ type: 'call-reject', to: msg.from, reason: 'busy' });
+        return;
+      }
+      S.callState = 'incoming';
+      S.peerId = msg.from;
+      document.getElementById('modalFrom').textContent = `from  ${msg.from}`;
+      document.getElementById('modal').classList.add('show');
+      setBtn('answer');
+      setStatus('INCOMING CALL', 'calling');
+      log(`Incoming call from ${msg.from}`, 'warn');
+      break;
+
+    case 'call-reject':
+      if(S.callState === 'outgoing') {
+        cleanupCall();
+        const reason = msg.reason === 'busy' ? 'BUSY' : 'DECLINED';
+        setStatus(reason);
+        log(`Call rejected: ${msg.reason}`, 'warn');
+      }
+      break;
+
+    case 'offer':
+      handleRemoteOffer(msg);
+      break;
+
+    case 'answer':
+      handleRemoteAnswer(msg);
+      break;
+
+    case 'ice-candidate':
+      if(S.pc) {
+        S.pc.addIceCandidate(new RTCIceCandidate(msg.candidate))
+          .catch(e => log('ICE err: '+e.message,'err'));
+      }
+      break;
+
+    case 'call-end':
+      if(S.callState === 'in-call' || S.callState === 'outgoing') {
+        onCallEnded('Call ended by peer');
+      }
+      break;
+
+    case 'error':
+      log('Server error: ' + msg.message, 'err');
+      break;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MEDIA
+// ─────────────────────────────────────────────────────────────────────────────
+async function getMedia() {
+  if(S.localStream) return S.localStream;
+  try {
+    S.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    log('Camera + mic ready', 'ok');
+  } catch {
+    try {
+      S.localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+      log('Mic ready (no camera)', 'warn');
+    } catch(e) {
+      log('Media denied: ' + e.message, 'err');
+      return null;
+    }
+  }
+  return S.localStream;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  WebRTC
+// ─────────────────────────────────────────────────────────────────────────────
+function createPC() {
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ]
+  });
+
+  pc.onicecandidate = ({ candidate }) => {
+    if(candidate) wsSend({ type: 'ice-candidate', to: S.peerId, candidate });
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    log('ICE: ' + pc.iceConnectionState);
+    if(pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+      onConnected();
+    } else if(['disconnected','failed','closed'].includes(pc.iceConnectionState)) {
+      if(S.callState === 'in-call') onCallEnded('Connection lost');
+    }
+  };
+
+  pc.ontrack = ({ track, streams }) => {
+    log('Remote track received', 'ok');
+    const rv = document.getElementById('remoteVideo');
+    if(streams[0]) rv.srcObject = streams[0];
+    document.getElementById('idleOverlay').classList.add('hidden');
+  };
+
+  return pc;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CALL FLOW
+// ─────────────────────────────────────────────────────────────────────────────
+function handleBtn() {
+  if(S.callState === 'idle')     startCall();
+  else if(S.callState === 'outgoing') cancelCall();
+  else if(S.callState === 'incoming') acceptCall();
+  else if(S.callState === 'in-call')  hangUp();
+}
+
+async function startCall() {
+  if(!S.peerId) { log('Select a peer first', 'warn'); return; }
+  if(!canCall()) { log('Role is Receiver Only', 'warn'); return; }
+
+  const stream = await getMedia();
+  if(!stream) return;
+
+  S.callState = 'outgoing';
+  setBtn('cancel');
+  setStatus('CALLING ' + S.peerId + '…', 'calling');
+
+  // Tell the peer we want to call them
+  wsSend({ type: 'call-request', to: S.peerId });
+
+  // Create PC + offer
+  S.pc = createPC();
+  stream.getTracks().forEach(t => S.pc.addTrack(t, stream));
+
+  // Show local PIP
+  document.getElementById('localVideo').srcObject = stream;
+  document.getElementById('pip').style.display = 'block';
+
+  const offer = await S.pc.createOffer();
+  await S.pc.setLocalDescription(offer);
+  wsSend({ type: 'offer', to: S.peerId, sdp: S.pc.localDescription });
+  log('Offer sent to ' + S.peerId, 'info');
+}
+
+function cancelCall() {
+  wsSend({ type: 'call-end', to: S.peerId });
+  cleanupCall();
+  setStatus('CANCELLED');
+  log('Call cancelled');
+}
+
+async function handleRemoteOffer(msg) {
+  // Offer from remote side AFTER call-request was accepted
+  if(!S.pc) {
+    log('Got offer but no PC — rejecting', 'warn');
+    return;
+  }
+  await S.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+  const answer = await S.pc.createAnswer();
+  await S.pc.setLocalDescription(answer);
+  wsSend({ type: 'answer', to: S.peerId, sdp: S.pc.localDescription });
+  log('Answer sent to ' + S.peerId, 'info');
+}
+
+async function handleRemoteAnswer(msg) {
+  if(!S.pc) return;
+  await S.pc.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+  log('Remote answer applied', 'ok');
+}
+
+async function acceptCall() {
+  document.getElementById('modal').classList.remove('show');
+  S.callState = 'connecting';
+
+  const stream = await getMedia();
+  if(!stream) { rejectCall(); return; }
+
+  // Setup PC BEFORE offer arrives
+  S.pc = createPC();
+  stream.getTracks().forEach(t => S.pc.addTrack(t, stream));
+
+  document.getElementById('localVideo').srcObject = stream;
+  document.getElementById('pip').style.display = 'block';
+
+  // Tell caller we accepted — they will send the offer
+  wsSend({ type: 'call-reject', to: S.peerId, reason: 'accepted' }); // reuse channel as "accepted" ack
+  // Actually just wait — caller already sent offer right after call-request,
+  // it may arrive now or have arrived already (buffered by WS ordering)
+  setBtn('end');
+  setStatus('CONNECTING…', 'calling');
+  log('Call accepted — connecting…', 'ok');
+}
+
+function rejectCall() {
+  document.getElementById('modal').classList.remove('show');
+  wsSend({ type: 'call-reject', to: S.peerId, reason: 'rejected' });
+  S.callState = 'idle';
+  S.peerId = null;
+  setBtn('call');
+  setStatus('CALL REJECTED');
+  log('Incoming call rejected');
+  updateReadyState();
+}
+
+function onConnected() {
+  S.callState = 'in-call';
+  setBtn('end');
+  setStatus('IN CALL ● ' + S.peerId, 'in-call');
+  S.timerStart = Date.now();
+  S.timerInt = setInterval(tickTimer, 500);
+  log('Call connected!', 'ok');
+}
+
+function tickTimer() {
+  const s = Math.floor((Date.now()-S.timerStart)/1000);
+  const m = String(Math.floor(s/60)).padStart(2,'0');
+  const sec = String(s%60).padStart(2,'0');
+  document.getElementById('timer').textContent = m + ':' + sec;
+}
+
+function hangUp() {
+  wsSend({ type: 'call-end', to: S.peerId });
+  onCallEnded('Call ended');
+}
+
+function onCallEnded(reason) {
+  cleanupCall();
+  setStatus(reason.toUpperCase());
+  log(reason, 'warn');
+  setTimeout(() => updateReadyState(), 100);
+}
+
+function cleanupCall() {
+  clearInterval(S.timerInt);
+  document.getElementById('timer').textContent = '';
+  document.getElementById('idleOverlay').classList.remove('hidden');
+  document.getElementById('pip').style.display = 'none';
+  document.getElementById('remoteVideo').srcObject = null;
+  document.getElementById('localVideo').srcObject = null;
+  if(S.pc) { S.pc.close(); S.pc = null; }
+  if(S.localStream) { S.localStream.getTracks().forEach(t=>t.stop()); S.localStream=null; }
+  S.callState = 'idle';
+  S.muted = false; S.camOff = false;
+  document.getElementById('muteBtn').textContent='🎤';
+  document.getElementById('muteBtn').classList.remove('off');
+  document.getElementById('camBtn').textContent='📷';
+  document.getElementById('camBtn').classList.remove('off');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CONTROLS
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleMute() {
+  if(!S.localStream) return;
+  S.muted = !S.muted;
+  S.localStream.getAudioTracks().forEach(t => t.enabled = !S.muted);
+  const b = document.getElementById('muteBtn');
+  b.textContent = S.muted ? '🔇' : '🎤';
+  b.classList.toggle('off', S.muted);
+}
+
+function toggleCam() {
+  if(!S.localStream) return;
+  S.camOff = !S.camOff;
+  S.localStream.getVideoTracks().forEach(t => t.enabled = !S.camOff);
+  const b = document.getElementById('camBtn');
+  b.textContent = S.camOff ? '🚫' : '📷';
+  b.classList.toggle('off', S.camOff);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────────────────────
+function genId() {
+  return [...crypto.getRandomValues(new Uint8Array(3))]
+    .map(b => b.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+
+(function init() {
+  S.myId = genId();
+  document.getElementById('myIdDisplay').textContent = S.myId;
+  setStatus('CONNECTING…');
+  setBtn('off');
+  connectWS();
+  log('Intercom starting — ID: ' + S.myId, 'ok');
+})();
+</script>
+</body>
+</html>

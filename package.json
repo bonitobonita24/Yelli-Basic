@@ -1,0 +1,12 @@
+{
+  "name": "intercom",
+  "version": "1.0.0",
+  "description": "Local network 1-on-1 video intercom",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}
