@@ -589,9 +589,66 @@ header{
 <script>
 const S = {
   myId: null, peerId: null, peers: [], ws: null, pc: null,
+  displayName: null,
+  names: {},  // peerId → displayName
   localStream: null, callState: 'idle',
   muted: false, camOff: false, timerInt: null, timerStart: null,
 };
+
+// ── Display-name modal ─────────────────────────────────────────────
+const NAME_KEY = 'yelli.displayName';
+
+function loadStoredName() {
+  try { return (localStorage.getItem(NAME_KEY) || '').trim() || null; }
+  catch { return null; }
+}
+function storeName(name) {
+  try { localStorage.setItem(NAME_KEY, name); } catch {}
+}
+
+function openNameModal({ mode }) {
+  const modal  = document.getElementById('name-modal');
+  const title  = document.getElementById('name-modal-title');
+  const input  = document.getElementById('name-modal-input');
+  const save   = document.getElementById('name-modal-save');
+  const cancel = document.getElementById('name-modal-cancel');
+
+  title.textContent = mode === 'edit' ? 'Edit your name' : 'What should we call you?';
+  cancel.hidden     = mode !== 'edit';
+  input.value       = mode === 'edit' ? (S.displayName || '') : '';
+  modal.hidden      = false;
+  setTimeout(() => input.focus(), 0);
+
+  return new Promise((resolve) => {
+    function cleanup(result) {
+      save.onclick    = null;
+      cancel.onclick  = null;
+      input.onkeydown = null;
+      modal.hidden    = true;
+      resolve(result);
+    }
+    function commit() {
+      const v = input.value.trim().slice(0, 30);
+      if (!v) { input.focus(); return; }
+      cleanup(v);
+    }
+    save.onclick    = commit;
+    cancel.onclick  = () => cleanup(null);
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') commit();
+      else if (e.key === 'Escape' && mode === 'edit') cleanup(null);
+    };
+  });
+}
+
+async function ensureDisplayName() {
+  const stored = loadStoredName();
+  if (stored) { S.displayName = stored; return stored; }
+  const chosen = await openNameModal({ mode: 'first' });
+  S.displayName = chosen;
+  storeName(chosen);
+  return chosen;
+}
 
 function log(msg, t='') {
   const strip = document.getElementById('logStrip');
@@ -1019,7 +1076,8 @@ function genId() {
     .map(b => b.toString(16).padStart(2,'0')).join('').toUpperCase();
 }
 
-(function init() {
+(async function init() {
+  await ensureDisplayName();
   S.myId = genId();
   document.getElementById('myIdDisplay').textContent = S.myId;
   setStatus('CONNECTING…');
