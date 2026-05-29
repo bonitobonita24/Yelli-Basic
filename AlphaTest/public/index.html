@@ -647,6 +647,7 @@ function openNameModal({ mode }) {
     function commit() {
       const v = input.value.trim().slice(0, 30);
       if (!v) { input.focus(); return; }
+      Ringer.unlock();
       cleanup(v);
     }
     save.onclick    = commit;
@@ -663,9 +664,55 @@ function setEditNameEnabled(enabled) {
   if (btn) btn.disabled = !enabled;
 }
 
+// ── Ringback tone (synthesized via Web Audio) ──────────────────────
+const Ringer = (() => {
+  let ctx = null, gain = null, osc1 = null, osc2 = null, interval = null, on = false;
+
+  function unlock() {
+    if (ctx) return;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch {}
+  }
+
+  function start() {
+    if (on) return;
+    unlock();
+    if (!ctx) return;
+    on = true;
+    gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(ctx.destination);
+    osc1 = ctx.createOscillator(); osc1.frequency.value = 440; osc1.connect(gain); osc1.start();
+    osc2 = ctx.createOscillator(); osc2.frequency.value = 480; osc2.connect(gain); osc2.start();
+    function ring() {
+      const t = ctx.currentTime;
+      gain.gain.setValueAtTime(0.05, t);
+      gain.gain.setValueAtTime(0, t + 2);
+    }
+    ring();
+    interval = setInterval(ring, 6000);
+  }
+
+  function stop() {
+    if (!on) return;
+    on = false;
+    if (interval) { clearInterval(interval); interval = null; }
+    if (gain) { try { gain.gain.cancelScheduledValues(0); gain.gain.value = 0; } catch {} }
+    if (osc1) { try { osc1.stop(); osc1.disconnect(); } catch {} osc1 = null; }
+    if (osc2) { try { osc2.stop(); osc2.disconnect(); } catch {} osc2 = null; }
+    if (gain) { try { gain.disconnect(); } catch {} gain = null; }
+  }
+
+  return { unlock, start, stop };
+})();
+
 function setCallState(s) {
   S.callState = s;
   setEditNameEnabled(s === 'idle');
+  if (s === 'outgoing' || s === 'incoming') Ringer.start();
+  else Ringer.stop();
 }
 
 function refreshOwnNameLabel() {
