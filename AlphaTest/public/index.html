@@ -732,8 +732,7 @@ document.querySelectorAll('input[name=role]').forEach(r => r.addEventListener('c
 }));
 
 // ── PEER PICKER ──
-function openPicker() {
-  if(!canCall()) { log('Role is Receiver Only', 'warn'); return; }
+function renderPicker() {
   const list = document.getElementById('pickerList');
   list.innerHTML = '';
   const others = S.peers.filter(id => id !== S.myId);
@@ -741,15 +740,21 @@ function openPicker() {
     list.innerHTML = '<div class="picker-empty">No peers online right now.<br>Open INTERCOM on another device.</div>';
   } else {
     others.forEach(id => {
+      const label = S.names[id] || id;
       const el = document.createElement('div');
       el.className = 'picker-item';
-      const pid = document.createElement('div'); pid.className = 'pid'; pid.textContent = id;
+      const pid = document.createElement('div'); pid.className = 'pid'; pid.textContent = label;
       const tag = document.createElement('div'); tag.className = 'pcall'; tag.textContent = 'CALL';
       el.append(pid, tag);
       el.onclick = () => { closePicker(); startCall(id); };
       list.appendChild(el);
     });
   }
+}
+
+function openPicker() {
+  if(!canCall()) { log('Role is Receiver Only', 'warn'); return; }
+  renderPicker();
   document.getElementById('pickerModal').classList.add('show');
 }
 
