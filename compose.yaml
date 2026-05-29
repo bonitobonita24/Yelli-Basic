@@ -1,0 +1,30 @@
+services:
+  yelli:
+    container_name: yelli-maes
+    build:
+      context: ./AlphaTest
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - proxy
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.yelli-maes.entrypoints: websecure
+      traefik.http.routers.yelli-maes.rule: "Host(`yelli-maes.powerbyte.app`)"
+      traefik.http.routers.yelli-maes.tls: "true"
+      traefik.http.routers.yelli-maes.tls.certresolver: letsencrypt
+      traefik.http.services.yelli-maes.loadbalancer.server.port: "8080"
+
+networks:
+  proxy:
+    external: true
