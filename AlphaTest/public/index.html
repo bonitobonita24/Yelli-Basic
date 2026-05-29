@@ -619,6 +619,7 @@ function loadStoredName() {
   catch { return null; }
 }
 function storeName(name) {
+  if (!name) return;
   try { localStorage.setItem(NAME_KEY, name); } catch {}
 }
 
@@ -676,6 +677,7 @@ async function ensureDisplayName() {
   const stored = loadStoredName();
   if (stored) { S.displayName = stored; refreshOwnNameLabel(); return stored; }
   const chosen = await openNameModal({ mode: 'first' });
+  if (!chosen) return null;
   S.displayName = chosen;
   storeName(chosen);
   refreshOwnNameLabel();
