@@ -12,6 +12,12 @@ const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3000;
 
+function sanitizeName(raw) {
+  const s = (typeof raw === 'string' ? raw : '').trim();
+  if (!s) return 'Guest';
+  return s.slice(0, 30);
+}
+
 // ── HTTP(S) server (serves static files from /public) ──────────────────────
 const PUBLIC_DIR = path.resolve(__dirname, 'public');
 
@@ -64,7 +70,8 @@ const httpServer = useHttps
 const wss = new WebSocketServer({ server: httpServer });
 
 // clients: Map<id, ws>
-const clients = new Map();
+const clients = new Map();           // id → ws
+const names   = new Map();           // id → displayName
 
 function send(ws, obj) {
   if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
@@ -88,15 +95,28 @@ wss.on('connection', (ws) => {
       // Client announces itself
       case 'register': {
         myId = msg.id;
+        const displayName = sanitizeName(msg.displayName);
         clients.set(myId, ws);
-        console.log(`[+] Registered: ${myId}  (total: ${clients.size})`);
+        names.set(myId, displayName);
+        console.log(`[+] Registered: ${myId} as "${displayName}"  (total: ${clients.size})`);
 
         // Tell this client who else is online
-        const others = [...clients.keys()].filter(id => id !== myId);
+        const others = [...clients.keys()]
+          .filter(id => id !== myId)
+          .map(id => ({ id, displayName: names.get(id) }));
         send(ws, { type: 'peers', peers: others });
 
         // Tell others this client joined
-        broadcast({ type: 'peer-joined', id: myId }, myId);
+        broadcast({ type: 'peer-joined', id: myId, displayName }, myId);
+        break;
+      }
+
+      case 'rename': {
+        if (!myId) break;
+        const displayName = sanitizeName(msg.displayName);
+        names.set(myId, displayName);
+        console.log(`[~] Renamed: ${myId} → "${displayName}"`);
+        broadcast({ type: 'peer-renamed', id: myId, displayName }, myId);
         break;
       }
 
@@ -122,6 +142,7 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     if (myId) {
       clients.delete(myId);
+      names.delete(myId);
       console.log(`[-] Left: ${myId}  (total: ${clients.size})`);
       broadcast({ type: 'peer-left', id: myId });
     }
