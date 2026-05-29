@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     networks:
-      - proxy
+      - internal
     environment:
       NODE_ENV: production
       PORT: "8080"
@@ -16,15 +16,17 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-    labels:
-      traefik.enable: "true"
-      traefik.docker.network: proxy
-      traefik.http.routers.yelli-maes.entrypoints: websecure
-      traefik.http.routers.yelli-maes.rule: "Host(`yelli-maes.powerbyte.app`)"
-      traefik.http.routers.yelli-maes.tls: "true"
-      traefik.http.routers.yelli-maes.tls.certresolver: letsencrypt
-      traefik.http.services.yelli-maes.loadbalancer.server.port: "8080"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: yelli-maes-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
+    networks:
+      - internal
+    depends_on:
+      - yelli
 
 networks:
-  proxy:
-    external: true
+  internal:
+    driver: bridge
