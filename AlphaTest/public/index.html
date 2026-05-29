@@ -797,9 +797,10 @@ function wsSend(obj) {
 }
 
 function setCallOverlay(peerId, status) {
-  document.getElementById('callOverlayPeer').textContent = peerId || '—';
+  const label = (peerId && S.names[peerId]) || peerId || '—';
+  document.getElementById('callOverlayPeer').textContent = label;
   document.getElementById('callOverlayStatus').textContent = status;
-  document.getElementById('callPeerWho').textContent = peerId || '—';
+  document.getElementById('callPeerWho').textContent = label;
   document.getElementById('callPeerWhat').textContent = status;
 }
 
@@ -846,11 +847,11 @@ function handleSignal(msg) {
       if(S.callState !== 'idle') { wsSend({ type: 'call-reject', to: msg.from, reason: 'busy' }); return; }
       S.callState = 'incoming';
       S.peerId = msg.from;
-      document.getElementById('modalFrom').textContent = `from  ${msg.from}`;
+      document.getElementById('modalFrom').textContent = `from  ${S.names[msg.from] || msg.from}`;
       document.getElementById('modal').classList.add('show');
       setBtn('answer');
       setStatus('INCOMING CALL', 'calling');
-      log(`Incoming call from ${msg.from}`, 'warn');
+      log(`Incoming call from ${S.names[msg.from] || msg.from}`, 'warn');
       break;
 
     case 'call-accept':
@@ -950,7 +951,7 @@ async function startCall(peerId) {
   if(!stream) { S.peerId = null; return; }
 
   S.callState = 'outgoing';
-  setStatus('CALLING ' + peerId + '…', 'calling');
+  setStatus('CALLING ' + (S.names[peerId] || peerId) + '…', 'calling');
   setCallOverlay(peerId, 'RINGING…');
 
   setView('call');
@@ -959,7 +960,7 @@ async function startCall(peerId) {
   document.getElementById('pip').classList.add('show');
 
   wsSend({ type: 'call-request', to: peerId });
-  log('Ringing ' + peerId + '…', 'info');
+  log('Ringing ' + (S.names[peerId] || peerId) + '…', 'info');
 }
 
 async function sendOfferAfterAccept() {
@@ -1026,7 +1027,7 @@ function rejectCall() {
 function onConnected() {
   if(S.callState === 'in-call') return;
   S.callState = 'in-call';
-  setStatus('IN CALL ● ' + S.peerId, 'in-call');
+  setStatus('IN CALL ● ' + (S.names[S.peerId] || S.peerId), 'in-call');
   setCallOverlay(S.peerId, 'CONNECTED');
   S.timerStart = Date.now();
   S.timerInt = setInterval(tickTimer, 500);
