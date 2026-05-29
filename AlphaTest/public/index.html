@@ -131,6 +131,15 @@ header{
   font-family:var(--display);font-size:22px;font-weight:800;
   color:var(--brand-teal);letter-spacing:-0.5px;
 }
+.device-bar .your-name{ text-align:left; }
+.device-bar .your-name .val{ display:inline-flex; align-items:center; gap:.4rem; }
+.edit-name-btn{
+  background:none; border:1px solid transparent; border-radius:6px;
+  cursor:pointer; padding:.1rem .35rem; font-size:.95rem; line-height:1;
+  color:#64748b;
+}
+.edit-name-btn:hover{ background:#f1f5f9; color:#0f172a; }
+.edit-name-btn[disabled]{ opacity:.35; cursor:not-allowed; }
 
 /* hero zone */
 .hero-zone{
@@ -492,6 +501,13 @@ header{
         <div class="lbl">Device ID</div>
         <div class="val" id="myIdDisplay">—</div>
       </div>
+      <div class="your-name">
+        <div class="lbl">You</div>
+        <div class="val">
+          <span id="yourNameLabel">—</span>
+          <button id="editNameBtn" type="button" class="edit-name-btn" title="Edit name">✎</button>
+        </div>
+      </div>
       <div class="peers-online">
         <div class="lbl">Online</div>
         <div class="val" id="peersOnlineCount">0</div>
@@ -641,12 +657,18 @@ function openNameModal({ mode }) {
   });
 }
 
+function refreshOwnNameLabel() {
+  const lbl = document.getElementById('yourNameLabel');
+  if (lbl) lbl.textContent = S.displayName || '—';
+}
+
 async function ensureDisplayName() {
   const stored = loadStoredName();
-  if (stored) { S.displayName = stored; return stored; }
+  if (stored) { S.displayName = stored; refreshOwnNameLabel(); return stored; }
   const chosen = await openNameModal({ mode: 'first' });
   S.displayName = chosen;
   storeName(chosen);
+  refreshOwnNameLabel();
   return chosen;
 }
 
@@ -1106,6 +1128,17 @@ function genId() {
   connectWS();
   log('Intercom starting — ID: ' + S.myId, 'ok');
 })();
+
+document.getElementById('editNameBtn')?.addEventListener('click', async () => {
+  const updated = await openNameModal({ mode: 'edit' });
+  if (!updated || updated === S.displayName) return;
+  S.displayName = updated;
+  storeName(updated);
+  refreshOwnNameLabel();
+  if (S.ws && S.ws.readyState === WebSocket.OPEN) {
+    S.ws.send(JSON.stringify({ type: 'rename', displayName: updated }));
+  }
+});
 </script>
 </body>
 </html>
