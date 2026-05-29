@@ -1,0 +1,9 @@
+# Per-machine Claude Code state (project skills, scan results, settings)
+.claude/
+
+# SpecStory session artifacts (generated locally, never committed)
+.specstory/history/
+.specstory/statistics.json
+
+# Node
+node_modules/
