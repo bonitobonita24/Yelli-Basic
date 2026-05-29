@@ -21,7 +21,9 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: yelli-maes-tunnel
     restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${CF_TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN}
     networks:
       - internal
     depends_on:
