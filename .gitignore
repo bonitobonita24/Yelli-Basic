@@ -7,3 +7,6 @@
 
 # Node
 node_modules/
+
+# Self-signed TLS certs — generated locally, never committed (private key!)
+AlphaTest/certs/

@@ -1,0 +1,59 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - text: INTERCOM
+        - emphasis [ref=e5]: LAN
+      - generic [ref=e6]:
+        - generic [ref=e9]: SERVER OK
+        - generic [ref=e12]: IDLE
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e16]: REMOTE FEED
+        - generic [ref=e17]:
+          - generic [ref=e18]: 📡
+          - generic [ref=e19]: No active call
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: // Role
+          - generic [ref=e23]:
+            - generic [ref=e26] [cursor=pointer]: Both sides
+            - generic [ref=e29] [cursor=pointer]: Caller only
+            - generic [ref=e32] [cursor=pointer]: Receiver only
+        - generic [ref=e33]:
+          - generic [ref=e34]: // Your Device
+          - generic [ref=e35]:
+            - generic [ref=e36]: Device ID
+            - generic [ref=e37]: D94472
+          - generic [ref=e38]:
+            - generic [ref=e39]: Online peers
+            - generic [ref=e40]:
+              - generic [ref=e41] [cursor=pointer]:
+                - generic [ref=e42]: 59BF38
+                - generic [ref=e43]: ● ONLINE
+                - generic [ref=e44]: TAP
+              - generic [ref=e45] [cursor=pointer]:
+                - generic [ref=e46]: C208F1
+                - generic [ref=e47]: ● ONLINE
+                - generic [ref=e48]: TAP
+              - generic [ref=e49] [cursor=pointer]:
+                - generic [ref=e50]: 415C1F
+                - generic [ref=e51]: ● ONLINE
+                - generic [ref=e52]: TAP
+    - generic [ref=e53]:
+      - button "📞 CALL" [disabled] [ref=e55]:
+        - generic [ref=e56]: 📞
+        - generic [ref=e57]: CALL
+      - generic [ref=e58]: 👆 TAP A PEER TO START
+    - generic [ref=e59]:
+      - generic [ref=e60]: "[09:21:33] Peers online: 3"
+      - generic [ref=e61]: "[09:21:33] Connected to signaling server"
+      - generic [ref=e62]: "[09:21:33] Intercom starting — ID: D94472"
+  - generic:
+    - generic:
+      - heading "📞 INCOMING" [level=2]
+      - paragraph: from unknown
+      - paragraph: Accept this call?
+      - generic:
+        - button "ACCEPT"
+        - button "REJECT"

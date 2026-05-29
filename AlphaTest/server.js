@@ -4,17 +4,25 @@
  * Then open http://<your-ip>:3000 on both devices
  */
 
-const http = require('http');
-const fs   = require('fs');
-const path = require('path');
+const http  = require('http');
+const https = require('https');
+const fs    = require('fs');
+const path  = require('path');
 const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3000;
 
-// ── HTTP server (serves static files from /public) ──────────────────────────
+// ── HTTP(S) server (serves static files from /public) ──────────────────────
 const PUBLIC_DIR = path.resolve(__dirname, 'public');
 
-const httpServer = http.createServer((req, res) => {
+// Auto-detect self-signed cert. WebRTC's getUserMedia is gated on HTTPS for
+// non-localhost origins, so LAN devices need TLS to grant camera/mic access.
+// Generate with: ./scripts/gen-cert.sh
+const CERT_PATH = path.join(__dirname, 'certs', 'cert.pem');
+const KEY_PATH  = path.join(__dirname, 'certs', 'key.pem');
+const useHttps  = fs.existsSync(CERT_PATH) && fs.existsSync(KEY_PATH);
+
+const requestHandler = (req, res) => {
   let urlPath;
   try {
     urlPath = decodeURIComponent((req.url === '/' ? '/index.html' : req.url).split('?')[0]);
@@ -42,9 +50,17 @@ const httpServer = http.createServer((req, res) => {
       res.end(data);
     }
   });
-});
+};
+
+const httpServer = useHttps
+  ? https.createServer({
+      cert: fs.readFileSync(CERT_PATH),
+      key:  fs.readFileSync(KEY_PATH),
+    }, requestHandler)
+  : http.createServer(requestHandler);
 
 // ── WebSocket signaling ──────────────────────────────────────────────────────
+// WebSocketServer rides the same server, so ws→wss is automatic when TLS is on.
 const wss = new WebSocketServer({ server: httpServer });
 
 // clients: Map<id, ws>
@@ -84,11 +100,12 @@ wss.on('connection', (ws) => {
         break;
       }
 
-      // Relay: offer, answer, ice-candidate, call-request, call-reject, call-end
+      // Relay: offer, answer, ice-candidate, call-request, call-accept, call-reject, call-end
       case 'offer':
       case 'answer':
       case 'ice-candidate':
       case 'call-request':
+      case 'call-accept':
       case 'call-reject':
       case 'call-end': {
         const target = clients.get(msg.to);
@@ -113,20 +130,24 @@ wss.on('connection', (ws) => {
 
 // ── Start ────────────────────────────────────────────────────────────────────
 httpServer.listen(PORT, '0.0.0.0', () => {
-  // Print all local IPs
+  const proto = useHttps ? 'https' : 'http';
   const { networkInterfaces } = require('os');
   const nets = networkInterfaces();
   console.log('\n┌─────────────────────────────────────────┐');
-  console.log('│           INTERCOM SERVER READY          │');
+  console.log(`│        INTERCOM SERVER READY (${useHttps ? 'TLS' : 'PLN'})       │`);
   console.log('├─────────────────────────────────────────┤');
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        console.log(`│  http://${net.address}:${PORT}`.padEnd(43) + '│');
+        console.log(`│  ${proto}://${net.address}:${PORT}`.padEnd(43) + '│');
       }
     }
   }
-  console.log(`│  http://localhost:${PORT}`.padEnd(43) + '│');
+  console.log(`│  ${proto}://localhost:${PORT}`.padEnd(43) + '│');
   console.log('└─────────────────────────────────────────┘');
+  if (!useHttps) {
+    console.log('\n⚠ Plain HTTP — getUserMedia only works on localhost.');
+    console.log('  Run ./scripts/gen-cert.sh to enable HTTPS for LAN devices.');
+  }
   console.log('\nOpen the URL on BOTH devices on the same network.\n');
 });
