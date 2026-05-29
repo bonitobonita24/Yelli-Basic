@@ -770,7 +770,7 @@ function connectWS() {
   ws.onopen = () => {
     setWS(true);
     log('Connected to signaling server', 'ok');
-    ws.send(JSON.stringify({ type: 'register', id: S.myId }));
+    ws.send(JSON.stringify({ type: 'register', id: S.myId, displayName: S.displayName }));
   };
   ws.onclose = () => {
     setWS(false);
@@ -801,24 +801,39 @@ function setCallOverlay(peerId, status) {
 function handleSignal(msg) {
   switch(msg.type) {
     case 'peers':
-      S.peers = msg.peers;
+      S.peers = msg.peers.map(p => p.id);
+      S.names = {};
+      msg.peers.forEach(p => { S.names[p.id] = p.displayName; });
       log(`Peers online: ${msg.peers.length}`, 'info');
       updateReadyState();
+      renderPicker();
       break;
 
     case 'peer-joined':
       if(!S.peers.includes(msg.id)) S.peers.push(msg.id);
-      log(`Peer joined: ${msg.id}`, 'ok');
+      S.names[msg.id] = msg.displayName;
+      log(`Joined: ${msg.displayName}`, 'info');
       updateReadyState();
+      renderPicker();
       break;
 
     case 'peer-left':
       S.peers = S.peers.filter(id => id !== msg.id);
+      delete S.names[msg.id];
+      renderPicker();
       if(S.peerId === msg.id && S.callState !== 'idle') {
         onCallEnded('Peer disconnected');
       }
       log(`Peer left: ${msg.id}`, 'warn');
       updateReadyState();
+      break;
+
+    case 'peer-renamed':
+      S.names[msg.id] = msg.displayName;
+      renderPicker();
+      if (S.peerId === msg.id) {
+        setCallOverlay(msg.id, document.getElementById('callOverlayStatus')?.textContent);
+      }
       break;
 
     case 'call-request':
