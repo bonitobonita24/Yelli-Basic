@@ -11,6 +11,7 @@ const path  = require('path');
 const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3000;
+const APP_NAME = process.env.APP_NAME || 'INTERCOM';
 
 function sanitizeName(raw) {
   const s = (typeof raw === 'string' ? raw : '').trim();
@@ -52,6 +53,9 @@ const requestHandler = (req, res) => {
     if (err) {
       res.writeHead(404); res.end('Not found');
     } else {
+      if (ext === '.html') {
+        data = Buffer.from(data.toString('utf8').replace(/\{\{APP_NAME\}\}/g, APP_NAME));
+      }
       res.writeHead(200, { 'Content-Type': mime });
       res.end(data);
     }
@@ -155,7 +159,7 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   const { networkInterfaces } = require('os');
   const nets = networkInterfaces();
   console.log('\n┌─────────────────────────────────────────┐');
-  console.log(`│        INTERCOM SERVER READY (${useHttps ? 'TLS' : 'PLN'})       │`);
+  console.log(`│        ${APP_NAME} SERVER READY (${useHttps ? 'TLS' : 'PLN'})       │`);
   console.log('├─────────────────────────────────────────┤');
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {

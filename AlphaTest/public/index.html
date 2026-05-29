@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>INTERCOM</title>
+<title>{{APP_NAME}}</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -489,7 +489,7 @@ header{
   <div id="idleView">
 
     <header>
-      <div class="logo">INTERCOM <em>LAN</em></div>
+      <div class="logo">{{APP_NAME}} <em>LAN</em></div>
       <div class="hdr-right">
         <div class="conn-badge"><div class="dot" id="wsDot"></div><span id="wsLbl">CONNECTING</span></div>
         <div class="conn-badge"><div class="dot" id="callDot"></div><span id="callLbl">IDLE</span></div>
@@ -771,7 +771,7 @@ function renderPicker() {
   list.innerHTML = '';
   const others = S.peers.filter(id => id !== S.myId);
   if(!others.length) {
-    list.innerHTML = '<div class="picker-empty">No peers online right now.<br>Open INTERCOM on another device.</div>';
+    list.innerHTML = '<div class="picker-empty">No peers online right now.<br>Open {{APP_NAME}} on another device.</div>';
   } else {
     others.forEach(id => {
       const label = S.names[id] || id;
@@ -1138,7 +1138,7 @@ function genId() {
   setStatus('CONNECTING…');
   setBtn('off');
   connectWS();
-  log('Intercom starting — ID: ' + S.myId, 'ok');
+  log('{{APP_NAME}} starting — ID: ' + S.myId, 'ok');
 })();
 
 document.getElementById('editNameBtn')?.addEventListener('click', async () => {
