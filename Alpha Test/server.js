@@ -12,9 +12,19 @@ const { WebSocketServer } = require('ws');
 const PORT = process.env.PORT || 3000;
 
 // ── HTTP server (serves static files from /public) ──────────────────────────
+const PUBLIC_DIR = path.resolve(__dirname, 'public');
+
 const httpServer = http.createServer((req, res) => {
-  let filePath = path.join(__dirname, 'public',
-    req.url === '/' ? 'index.html' : req.url);
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent((req.url === '/' ? '/index.html' : req.url).split('?')[0]);
+  } catch {
+    res.writeHead(400); res.end('Bad request'); return;
+  }
+  const filePath = path.resolve(PUBLIC_DIR, '.' + urlPath);
+  if (filePath !== PUBLIC_DIR && !filePath.startsWith(PUBLIC_DIR + path.sep)) {
+    res.writeHead(403); res.end('Forbidden'); return;
+  }
 
   const ext = path.extname(filePath);
   const mime = {
