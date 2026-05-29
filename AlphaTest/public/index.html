@@ -657,6 +657,16 @@ function openNameModal({ mode }) {
   });
 }
 
+function setEditNameEnabled(enabled) {
+  const btn = document.getElementById('editNameBtn');
+  if (btn) btn.disabled = !enabled;
+}
+
+function setCallState(s) {
+  S.callState = s;
+  setEditNameEnabled(s === 'idle');
+}
+
 function refreshOwnNameLabel() {
   const lbl = document.getElementById('yourNameLabel');
   if (lbl) lbl.textContent = S.displayName || '—';
@@ -867,7 +877,7 @@ function handleSignal(msg) {
     case 'call-request':
       if(!canRecv()) { wsSend({ type: 'call-reject', to: msg.from, reason: 'receiver-only' }); return; }
       if(S.callState !== 'idle') { wsSend({ type: 'call-reject', to: msg.from, reason: 'busy' }); return; }
-      S.callState = 'incoming';
+      setCallState('incoming');
       S.peerId = msg.from;
       document.getElementById('modalFrom').textContent = `from  ${S.names[msg.from] || msg.from}`;
       document.getElementById('modal').classList.add('show');
@@ -878,7 +888,7 @@ function handleSignal(msg) {
 
     case 'call-accept':
       if(S.callState === 'outgoing' && msg.from === S.peerId) {
-        S.callState = 'connecting';
+        setCallState('connecting');
         setStatus('CONNECTING…', 'calling');
         setCallOverlay(S.peerId, 'CONNECTING…');
         log('Peer accepted — sending offer', 'ok');
@@ -972,7 +982,7 @@ async function startCall(peerId) {
   const stream = await getMedia();
   if(!stream) { S.peerId = null; return; }
 
-  S.callState = 'outgoing';
+  setCallState('outgoing');
   setStatus('CALLING ' + (S.names[peerId] || peerId) + '…', 'calling');
   setCallOverlay(peerId, 'RINGING…');
 
@@ -1017,7 +1027,7 @@ async function handleRemoteAnswer(msg) {
 
 async function acceptCall() {
   document.getElementById('modal').classList.remove('show');
-  S.callState = 'connecting';
+  setCallState('connecting');
 
   const stream = await getMedia();
   if(!stream) { rejectCall(); return; }
@@ -1039,7 +1049,7 @@ async function acceptCall() {
 function rejectCall() {
   document.getElementById('modal').classList.remove('show');
   wsSend({ type: 'call-reject', to: S.peerId, reason: 'rejected' });
-  S.callState = 'idle';
+  setCallState('idle');
   S.peerId = null;
   setStatus('CALL REJECTED');
   log('Incoming call rejected');
@@ -1048,7 +1058,7 @@ function rejectCall() {
 
 function onConnected() {
   if(S.callState === 'in-call') return;
-  S.callState = 'in-call';
+  setCallState('in-call');
   setStatus('IN CALL ● ' + (S.names[S.peerId] || S.peerId), 'in-call');
   setCallOverlay(S.peerId, 'CONNECTED');
   S.timerStart = Date.now();
@@ -1084,7 +1094,7 @@ function cleanupCall() {
   document.getElementById('localVideo').srcObject = null;
   if(S.pc) { S.pc.close(); S.pc = null; }
   if(S.localStream) { S.localStream.getTracks().forEach(t=>t.stop()); S.localStream=null; }
-  S.callState = 'idle';
+  setCallState('idle');
   S.peerId = null;
   S.muted = false; S.camOff = false;
   document.getElementById('muteBtn').textContent='🎤';
