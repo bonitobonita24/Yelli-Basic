@@ -674,10 +674,18 @@ const Ringer = (() => {
   (function probe() {
     audio = new Audio(MP3_PATH);
     audio.volume = 0.5;
-    audio.loop = true;
     audio.addEventListener('canplaythrough', () => { mp3Ok = true; }, { once: true });
     audio.addEventListener('error', () => { mp3Ok = false; audio = null; }, { once: true });
   })();
+
+  let pauseTimer = null;
+  function scheduleNextRing() {
+    pauseTimer = setTimeout(() => {
+      pauseTimer = null;
+      if (!on || !audio) return;
+      try { audio.currentTime = 0; audio.play().catch(() => {}); } catch {}
+    }, 4000);
+  }
 
   function unlock() {
     if (ctx) return;
@@ -689,6 +697,7 @@ const Ringer = (() => {
 
   function startMp3() {
     on = true;
+    audio.onended = scheduleNextRing;
     try { audio.currentTime = 0; audio.play().catch(() => {}); } catch {}
   }
 
@@ -720,7 +729,8 @@ const Ringer = (() => {
     if (!on) return;
     on = false;
     if (interval) { clearInterval(interval); interval = null; }
-    if (audio) { try { audio.pause(); audio.currentTime = 0; } catch {} }
+    if (pauseTimer) { clearTimeout(pauseTimer); pauseTimer = null; }
+    if (audio) { try { audio.onended = null; audio.pause(); audio.currentTime = 0; } catch {} }
     if (gain) { try { gain.gain.cancelScheduledValues(0); gain.gain.value = 0; } catch {} }
     if (osc1) { try { osc1.stop(); osc1.disconnect(); } catch {} osc1 = null; }
     if (osc2) { try { osc2.stop(); osc2.disconnect(); } catch {} osc2 = null; }
