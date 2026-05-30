@@ -754,13 +754,19 @@ function refreshOwnNameLabel() {
 
 async function ensureDisplayName() {
   const stored = loadStoredName();
-  if (stored) { S.displayName = stored; refreshOwnNameLabel(); return stored; }
-  const chosen = await openNameModal({ mode: 'first' });
-  if (!chosen) return null;
-  S.displayName = chosen;
-  storeName(chosen);
-  refreshOwnNameLabel();
-  return chosen;
+  if (stored) { S.displayName = stored; refreshOwnNameLabel(); }
+  else {
+    const chosen = await openNameModal({ mode: 'first' });
+    if (!chosen) return null;
+    S.displayName = chosen;
+    storeName(chosen);
+    refreshOwnNameLabel();
+  }
+  // Pre-warm camera/mic in receiver mode so auto-answer doesn't trigger prompts mid-call
+  if (getRole() === 'receiver') {
+    getMedia().catch(() => {});
+  }
+  return S.displayName;
 }
 
 function log(msg, t='') {
@@ -825,7 +831,7 @@ function updateReadyState() {
   const others = S.peers.filter(id => id !== S.myId);
   if(role==='receiver') {
     setBtn('off');
-    setStatus('WAITING FOR CALL…', 'ready');
+    setStatus('AUTO-ANSWERING — WAITING FOR CALL', 'ready');
   } else if(others.length === 0) {
     setBtn('off');
     setStatus('WAITING FOR A PEER…', 'idle');
@@ -839,7 +845,27 @@ const getRole = () => document.querySelector('input[name=role]:checked').value;
 const canCall = () => { const r=getRole(); return r==='both'||r==='caller'; };
 const canRecv = () => { const r=getRole(); return r==='both'||r==='receiver'; };
 
+// ── Role persistence (?mode=receiver and localStorage) ──
+const ROLE_KEY = 'yelli.role';
+const VALID_ROLES = ['both', 'caller', 'receiver'];
+function loadStoredRole() {
+  try { const r = localStorage.getItem(ROLE_KEY); return VALID_ROLES.includes(r) ? r : null; }
+  catch { return null; }
+}
+function storeRole(role) {
+  try { localStorage.setItem(ROLE_KEY, role); } catch {}
+}
+(function applyInitialRole() {
+  const urlMode = new URLSearchParams(window.location.search).get('mode');
+  let role = VALID_ROLES.includes(urlMode) ? urlMode : loadStoredRole();
+  if (!role) return;
+  if (VALID_ROLES.includes(urlMode)) storeRole(urlMode);
+  const el = document.querySelector(`input[name=role][value="${role}"]`);
+  if (el) el.checked = true;
+})();
+
 document.querySelectorAll('input[name=role]').forEach(r => r.addEventListener('change', () => {
+  storeRole(getRole());
   log('Role: ' + getRole().toUpperCase(), 'info');
   if(S.callState==='idle') updateReadyState();
 }));
@@ -960,11 +986,17 @@ function handleSignal(msg) {
       if(S.callState !== 'idle') { wsSend({ type: 'call-reject', to: msg.from, reason: 'busy' }); return; }
       setCallState('incoming');
       S.peerId = msg.from;
-      document.getElementById('modalFrom').textContent = `from  ${S.names[msg.from] || msg.from}`;
-      document.getElementById('modal').classList.add('show');
-      setBtn('answer');
-      setStatus('INCOMING CALL', 'calling');
       log(`Incoming call from ${S.names[msg.from] || msg.from}`, 'warn');
+      if (getRole() === 'receiver') {
+        // Auto-answer: skip the accept/reject modal entirely
+        setStatus('AUTO-ANSWERING…', 'calling');
+        acceptCall();
+      } else {
+        document.getElementById('modalFrom').textContent = `from  ${S.names[msg.from] || msg.from}`;
+        document.getElementById('modal').classList.add('show');
+        setBtn('answer');
+        setStatus('INCOMING CALL', 'calling');
+      }
       break;
 
     case 'call-accept':
