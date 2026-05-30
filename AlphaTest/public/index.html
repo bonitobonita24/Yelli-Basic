@@ -664,9 +664,19 @@ function setEditNameEnabled(enabled) {
   if (btn) btn.disabled = !enabled;
 }
 
-// ── Ringback tone (synthesized via Web Audio) ──────────────────────
+// ── Ringback tone (mp3 if present at /sounds/ringback.mp3, synth fallback) ──
 const Ringer = (() => {
+  const MP3_PATH = '/sounds/ringback.mp3';
+  let audio = null, mp3Ok = false;
   let ctx = null, gain = null, osc1 = null, osc2 = null, interval = null, on = false;
+
+  // Probe once; falls back silently to synth if missing or unplayable
+  (function probe() {
+    audio = new Audio(MP3_PATH);
+    audio.volume = 0.5;
+    audio.addEventListener('canplaythrough', () => { mp3Ok = true; }, { once: true });
+    audio.addEventListener('error', () => { mp3Ok = false; audio = null; }, { once: true });
+  })();
 
   function unlock() {
     if (ctx) return;
@@ -676,8 +686,16 @@ const Ringer = (() => {
     } catch {}
   }
 
-  function start() {
-    if (on) return;
+  function startMp3() {
+    on = true;
+    function ring() {
+      try { audio.currentTime = 0; audio.play().catch(() => {}); } catch {}
+    }
+    ring();
+    interval = setInterval(ring, 6000);
+  }
+
+  function startSynth() {
     unlock();
     if (!ctx) return;
     on = true;
@@ -695,10 +713,17 @@ const Ringer = (() => {
     interval = setInterval(ring, 6000);
   }
 
+  function start() {
+    if (on) return;
+    if (mp3Ok && audio) startMp3();
+    else startSynth();
+  }
+
   function stop() {
     if (!on) return;
     on = false;
     if (interval) { clearInterval(interval); interval = null; }
+    if (audio) { try { audio.pause(); audio.currentTime = 0; } catch {} }
     if (gain) { try { gain.gain.cancelScheduledValues(0); gain.gain.value = 0; } catch {} }
     if (osc1) { try { osc1.stop(); osc1.disconnect(); } catch {} osc1 = null; }
     if (osc2) { try { osc2.stop(); osc2.disconnect(); } catch {} osc2 = null; }
