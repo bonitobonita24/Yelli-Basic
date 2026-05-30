@@ -674,6 +674,7 @@ const Ringer = (() => {
   (function probe() {
     audio = new Audio(MP3_PATH);
     audio.volume = 0.5;
+    audio.loop = true;
     audio.addEventListener('canplaythrough', () => { mp3Ok = true; }, { once: true });
     audio.addEventListener('error', () => { mp3Ok = false; audio = null; }, { once: true });
   })();
@@ -688,11 +689,7 @@ const Ringer = (() => {
 
   function startMp3() {
     on = true;
-    function ring() {
-      try { audio.currentTime = 0; audio.play().catch(() => {}); } catch {}
-    }
-    ring();
-    interval = setInterval(ring, 6000);
+    try { audio.currentTime = 0; audio.play().catch(() => {}); } catch {}
   }
 
   function startSynth() {
