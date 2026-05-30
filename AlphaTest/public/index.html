@@ -666,7 +666,7 @@ function setEditNameEnabled(enabled) {
 
 // ── Ringback tone (mp3 if present at /sounds/ringback.mp3, synth fallback) ──
 const Ringer = (() => {
-  const MP3_PATH = '/sounds/ringback.mp3';
+  const MP3_PATH = '/sounds/ringtone.mp3';
   let audio = null, mp3Ok = false;
   let ctx = null, gain = null, osc1 = null, osc2 = null, interval = null, on = false;
 
