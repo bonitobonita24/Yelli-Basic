@@ -47,6 +47,11 @@ const requestHandler = (req, res) => {
     '.js':   'text/javascript',
     '.css':  'text/css',
     '.ico':  'image/x-icon',
+    '.mp3':  'audio/mpeg',
+    '.ogg':  'audio/ogg',
+    '.wav':  'audio/wav',
+    '.png':  'image/png',
+    '.svg':  'image/svg+xml',
   }[ext] || 'application/octet-stream';
 
   fs.readFile(filePath, (err, data) => {
