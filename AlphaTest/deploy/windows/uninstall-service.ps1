@@ -13,6 +13,12 @@ if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
     Write-Host "Service removed: $ServiceName"
 }
 
+$taskName = 'YelliIpWatchdog'
+if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+    Write-Host "Scheduled task removed: $taskName"
+}
+
 $ruleName = "Yelli LAN $Port"
 if (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue) {
     Remove-NetFirewallRule -DisplayName $ruleName

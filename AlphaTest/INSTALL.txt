@@ -23,6 +23,11 @@ ONE-CLICK INSTALL
 
   The Yelli service starts automatically at boot - no sign-in required.
 
+  IP-change resilience:
+    A scheduled task (YelliIpWatchdog) runs every 5 minutes and at boot.
+    If the server's LAN IP changes, it regenerates the cert and restarts
+    the service automatically. Watchdog log: C:\Yelli\logs\watchdog.log
+
 VERIFY
   Get-Service Yelli                # should show Running
   Reboot the PC. Do not sign in. Hit the URL from your phone - it should answer.

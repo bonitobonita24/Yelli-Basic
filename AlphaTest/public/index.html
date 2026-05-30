@@ -480,6 +480,40 @@ header{
   background:#2563eb; border-color:#2563eb; color:#fff;
 }
 .modal-actions button:disabled{ opacity:.5; cursor:not-allowed; }
+
+/* ---- brand logo (from /branding/logo when set) ---- */
+.brand-logo{
+  height:42px;width:auto;max-width:160px;
+  vertical-align:middle;margin-right:10px;
+  object-fit:contain;border-radius:4px;
+}
+.logo{display:flex;align-items:center;gap:0}
+
+/* ---- scrollable online users list ---- */
+.peers-list{
+  margin-top:8px;max-height:110px;overflow-y:auto;
+  font-size:12px;text-align:right;display:none;
+  padding-right:2px;
+}
+.peers-list.has-peers{display:block}
+.peers-list .peer-item{
+  display:flex;align-items:center;justify-content:flex-end;
+  gap:6px;padding:3px 2px;
+  border-top:1px solid rgba(26,58,58,0.08);
+  color:var(--brand-teal);
+}
+.peers-list .peer-item:first-child{border-top:none}
+.peers-list .peer-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--brand-mint);flex-shrink:0;
+}
+.peers-list .peer-name{
+  font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;
+}
+.peers-list::-webkit-scrollbar{width:4px}
+.peers-list::-webkit-scrollbar-thumb{background:rgba(26,58,58,0.2);border-radius:2px}
+.peers-list::-webkit-scrollbar-track{background:transparent}
 </style>
 </head>
 <body>
@@ -489,7 +523,10 @@ header{
   <div id="idleView">
 
     <header>
-      <div class="logo">{{APP_NAME}}</div>
+      <div class="logo">
+        <img id="brandLogo" class="brand-logo" src="/branding/logo" alt="" onerror="this.style.display='none'">
+        <span id="brandText">{{APP_NAME}}</span>
+      </div>
       <div class="hdr-right">
         <div class="conn-badge"><div class="dot" id="wsDot"></div><span id="wsLbl">CONNECTING</span></div>
         <div class="conn-badge"><div class="dot" id="callDot"></div><span id="callLbl">IDLE</span></div>
@@ -511,6 +548,7 @@ header{
       <div class="peers-online">
         <div class="lbl">Online</div>
         <div class="val" id="peersOnlineCount">0</div>
+        <div class="peers-list" id="peersList" aria-label="Online users"></div>
       </div>
     </div>
 
@@ -822,6 +860,33 @@ function setBtn(mode) {
 function updatePeersCount() {
   const others = S.peers.filter(id => id !== S.myId);
   document.getElementById('peersOnlineCount').textContent = others.length;
+  renderPeersList(others);
+}
+
+function renderPeersList(others) {
+  const list = document.getElementById('peersList');
+  if (!list) return;
+  list.replaceChildren();
+  if (others.length === 0) {
+    list.classList.remove('has-peers');
+    return;
+  }
+  list.classList.add('has-peers');
+  const sorted = others.slice().sort((a, b) =>
+    (S.names[a] || a).localeCompare(S.names[b] || b, undefined, { sensitivity: 'base' })
+  );
+  for (const id of sorted) {
+    const row  = document.createElement('div');
+    row.className = 'peer-item';
+    const dot  = document.createElement('span');
+    dot.className = 'peer-dot';
+    const name = document.createElement('span');
+    name.className = 'peer-name';
+    name.textContent = S.names[id] || id;
+    row.appendChild(dot);
+    row.appendChild(name);
+    list.appendChild(row);
+  }
 }
 
 function updateReadyState() {
@@ -976,6 +1041,7 @@ function handleSignal(msg) {
     case 'peer-renamed':
       S.names[msg.id] = msg.displayName;
       renderPicker();
+      updatePeersCount();
       if (S.peerId === msg.id) {
         setCallOverlay(msg.id, document.getElementById('callOverlayStatus')?.textContent);
       }

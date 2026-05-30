@@ -150,6 +150,27 @@ try {
         }
     } finally { Pop-Location }
 
+    # --- 5b. Set up update source (git clone for admin self-update) -----------
+    $gitExe = Find-Cmd 'git' @('C:\Program Files\Git\bin\git.exe', 'C:\Program Files\Git\cmd\git.exe')
+    $updateSrc = "$InstallRoot\.update-source"
+    if (-not $gitExe) {
+        Write-Host '[!!]   git not found -- admin "Update Now" will not work until git is on PATH'
+    } else {
+        if (Test-Path "$updateSrc\.git") {
+            Write-Host '[..]   Refreshing update-source repo (git pull)'
+            & $gitExe -C $updateSrc pull --ff-only 2>&1 | Out-Null
+            Write-Host '[ok]   Update source refreshed'
+        } else {
+            Write-Host '[..]   Cloning repo to .update-source (one-time, ~5 MB shallow)'
+            & $gitExe clone --depth 50 'https://github.com/bonitobonita24/Yelli-Basic.git' $updateSrc 2>&1 | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host '[!!]   git clone failed; admin "Update Now" will not work until fixed'
+            } else {
+                Write-Host '[ok]   Update source ready'
+            }
+        }
+    }
+
     # --- 6. Generate cert for current LAN IP ------------------------------------
     & "$InstallRoot\deploy\windows\regen-cert.ps1" -InstallRoot $InstallRoot -OpensslExe $opensslExe
 
@@ -185,7 +206,28 @@ try {
         Write-Host '[ok]   Firewall rule already present'
     }
 
-    # --- 9. Start ---------------------------------------------------------------
+    # --- 9. IP-change watchdog (scheduled task) --------------------------------
+    $taskName = 'YelliIpWatchdog'
+    if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+    }
+    $watchScript = "$InstallRoot\deploy\windows\watch-ip.ps1"
+    $taskAction  = New-ScheduledTaskAction -Execute 'powershell.exe' `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$watchScript`""
+    $taskTrigger1 = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) `
+        -RepetitionInterval (New-TimeSpan -Minutes 5)
+    $taskTrigger2 = New-ScheduledTaskTrigger -AtStartup
+    $taskPrincipal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -RunLevel Highest
+    $taskSettings  = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+        -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
+    Register-ScheduledTask -TaskName $taskName `
+        -Action $taskAction -Trigger @($taskTrigger1, $taskTrigger2) `
+        -Principal $taskPrincipal -Settings $taskSettings `
+        -Description 'Yelli: watches for LAN IP changes; refreshes cert and restarts service when needed.' | Out-Null
+    Write-Host '[ok]   IP watchdog scheduled (every 5 min + at boot)'
+
+    # --- 10. Start --------------------------------------------------------------
     Write-Host '[..]   Starting service'
     & $nssmExe start $ServiceName | Out-Null
     Start-Sleep -Seconds 2
