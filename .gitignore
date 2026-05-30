@@ -9,9 +9,9 @@
 node_modules/
 
 # Self-signed TLS certs — generated locally, never committed (private key!)
-AlphaTest/certs/
+certs/
 
 # Per-install runtime data: branding + logo uploads, service logs, update-source clone
-AlphaTest/data/
-AlphaTest/logs/
-AlphaTest/.update-source/
+data/
+logs/
+.update-source/

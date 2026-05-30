@@ -2,7 +2,7 @@ services:
   yelli:
     container_name: yelli-maes
     build:
-      context: ./AlphaTest
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     networks:

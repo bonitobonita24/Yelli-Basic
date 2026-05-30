@@ -130,8 +130,8 @@ try {
     Write-Host "Copying from $src  ->  $InstallRoot"
     New-Item -ItemType Directory -Force -Path $InstallRoot | Out-Null
     & robocopy $src $InstallRoot /E /R:1 /W:1 `
-        /XD certs logs .git .specstory `
-        /XF Install-Yelli.cmd Install-Yelli.ps1 fly.toml `
+        /XD certs logs .git .specstory .claude .vscode docs `
+        /XF Install-Yelli.cmd Install-Yelli.ps1 fly.toml AlphaTest.zip PRODUCT.md Product_md_Planning_Assistant_v31.md compose.yaml `
         /NFL /NDL /NJH /NJS /NC /NS | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy failed (exit $LASTEXITCODE)" }
     $global:LASTEXITCODE = 0

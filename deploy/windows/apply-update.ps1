@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Continue'
 $InstallRoot = 'C:\Yelli'
 $ServiceName = 'Yelli'
 $RepoSource  = Join-Path $InstallRoot '.update-source'
-$AppSource   = Join-Path $RepoSource  'AlphaTest'
+$AppSource   = $RepoSource
 $LogDir      = Join-Path $InstallRoot 'logs'
 $LogFile     = Join-Path $LogDir       'update.log'
 
@@ -60,8 +60,8 @@ try {
 
     Log "Syncing files (robocopy)..."
     & robocopy $AppSource $InstallRoot /E /R:1 /W:1 `
-        /XD data logs certs node_modules .git .update-source `
-        /XF Install-Yelli.cmd Install-Yelli.ps1 `
+        /XD data logs certs node_modules .git .update-source .claude .specstory .vscode docs `
+        /XF Install-Yelli.cmd Install-Yelli.ps1 AlphaTest.zip PRODUCT.md Product_md_Planning_Assistant_v31.md compose.yaml fly.toml `
         /NFL /NDL /NJH /NJS /NC /NS | Out-Null
     if ($LASTEXITCODE -ge 8) {
         Log "ERROR: robocopy failed (exit $LASTEXITCODE)"

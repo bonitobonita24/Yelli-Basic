@@ -380,7 +380,7 @@ Industry category:  Communications Platform (SaaS + self-host)
 Dark mode required: no (out of scope per Section 11)
 Key constraint:     WCAG AA accessibility
 Theming approach:   shadcn/ui CSS variables (`--primary`, `--secondary`, etc.) — customized in `globals.css` per Clay-derived tokens
-Design system:      see `docs/DESIGN.md` (Clay aesthetic — DESIGN.md exists at `AlphaTest/DESIGN.md` from prior session; carry forward into Phase 2.6)
+Design system:      see `DESIGN.md` at project root (Clay aesthetic — promoted from `AlphaTest/DESIGN.md` on 2026-05-30; carry forward into Phase 2.6)
 Reference:          https://ui.shadcn.com/docs/theming · Dark mode docs: https://ui.shadcn.com/docs/dark-mode
 
 ## Out of Scope
@@ -433,9 +433,9 @@ Reference:          https://ui.shadcn.com/docs/theming · Dark mode docs: https:
 
 **Stack migration — Prompt 1.5 territory:**
 
-The existing Yelli LAN MVP at `AlphaTest/` is built on a different stack than this PRODUCT.md targets. Phase 3 must generate `inputs.yml` with `migration.brownfield: true` and Phase 4 Part 1 must rewrite the signaling layer rather than retrofit the framework around the existing code.
+The existing Yelli LAN MVP (now at the project root, promoted from `AlphaTest/` on 2026-05-30) is built on a different stack than this PRODUCT.md targets. Phase 3 must generate `inputs.yml` with `migration.brownfield: true` and Phase 4 Part 1 must rewrite the signaling layer rather than retrofit the framework around the existing code.
 
-| Concern | Current (AlphaTest/) | Framework target (this PRODUCT.md) |
+| Concern | Current (project root) | Framework target (this PRODUCT.md) |
 |---|---|---|
 | Backend runtime | Vanilla Node.js (http + ws) | Next.js 16 + Node 24 |
 | API style | Raw WebSocket message types | tRPC + WebSocket subscription for signaling |
@@ -446,7 +446,7 @@ The existing Yelli LAN MVP at `AlphaTest/` is built on a different stack than th
 | Container | Dockerfile present (single-stage) | Multi-service compose + Traefik (Cloud); minimal compose (LAN) |
 | Deployment | Manual `node server.js` + cloudflared tunnel | Komodo + Traefik + Docker Hub (Cloud); `docker compose up` (LAN) |
 
-**Phase 2.8 Visual Checkpoint:** **SATISFIED** — working UI artifact exists at `AlphaTest/public/index.html` (Clay design tokens already applied). React mockup generation skipped per SITUATION D step 6. The existing client is the reference for the Phase 4 React rebuild.
+**Phase 2.8 Visual Checkpoint:** **SATISFIED** — working UI artifact exists at `public/index.html` (Clay design tokens already applied). React mockup generation skipped per SITUATION D step 6. The existing client is the reference for the Phase 4 React rebuild.
 
 **Audit trail of decisions captured during reverse-extraction interview (SITUATION D):**
 - Dual-deployment (LAN + Cloud, feature parity) — top-level architectural rule
