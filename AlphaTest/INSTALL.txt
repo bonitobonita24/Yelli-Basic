@@ -1,0 +1,41 @@
+YELLI LAN  -  Windows install
+
+ONE-CLICK INSTALL
+  1. Copy this entire folder to the target PC (USB stick, network share, etc.)
+  2. Double-click  Install-Yelli.cmd
+  3. Click YES on the UAC prompt
+  4. Wait. The installer auto-handles everything.
+
+  Requirements:
+    - Windows 10 (1809+) or Windows 11
+    - Internet access on first install (downloads Node.js, Git, NSSM)
+    - winget (built into Windows 11; on Win10 install "App Installer" from Microsoft Store)
+
+  Note: this bundle ships with node_modules pre-installed (pure JS, platform-
+  agnostic), so the installer skips `npm install` and is fully offline once
+  Node/Git/NSSM are present.
+
+  When the installer is done it prints URLs like:
+    https://<this-PC-IP>:8443
+
+  Open one of those from any phone/tablet/laptop on the same WiFi/LAN.
+  Accept the self-signed cert warning. Pick a display name. Make calls.
+
+  The Yelli service starts automatically at boot - no sign-in required.
+
+VERIFY
+  Get-Service Yelli                # should show Running
+  Reboot the PC. Do not sign in. Hit the URL from your phone - it should answer.
+
+UPDATE
+  Replace the folder contents with a new bundle, then run Install-Yelli.cmd
+  again. It is fully idempotent.
+
+UNINSTALL
+  Elevated PowerShell:
+    cd C:\Yelli\deploy\windows
+    .\uninstall-service.ps1
+  Then delete C:\Yelli\ manually.
+
+LOGS
+  C:\Yelli\logs\service.log
