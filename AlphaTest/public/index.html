@@ -1056,8 +1056,14 @@ async function getMedia() {
 function createPC() {
   const pc = new RTCPeerConnection({
     iceServers: [
+      // STUN — discovers external IPs, enables direct P2P when NAT allows
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
+      // TURN (Open Relay, free public) — relays media when NAT blocks direct P2P.
+      // Multiple ports/transports to maximize chance of getting through restrictive networks.
+      { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
     ]
   });
   pc.onicecandidate = ({ candidate }) => {
