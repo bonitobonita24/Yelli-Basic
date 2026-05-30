@@ -20,7 +20,7 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 3. **Either side ends or cancels a call.** In-call → END button → both sides cleanup + return to idle. *Errors/edges:* peer disconnects mid-call → "Peer disconnected" + cleanup; ICE drops → "Connection lost" + cleanup; caller cancels while ringing → callee modal auto-dismisses.
 
-4. **A Member picks their device's call role.** Tap "Both / Caller only / Receiver only" chip → state persists in localStorage → CALL button disables for `receiver-only`. *Edge:* role change during active call doesn't disrupt it; takes effect after end.
+4. **A LAN Admin assigns a device's call role.** Admin → Devices → row → set role (Both / Caller / Receiver) → save → server persists assignment in the device registry → all online sessions for that device receive a role-update event within 5s → caller-side UIs across the LAN re-render so the CALL button hides for any peer whose role is `receiver` (and likewise for `caller`-only peers on the receiver side). *Defaults:* every newly-joined device starts at `receiver` until an admin promotes it. *Enforcement:* defense-in-depth — UI hides forbidden CALL buttons AND the server rejects any `call.invite` whose target role forbids the action (returns `forbidden_by_role`). *Edge:* role change during an active call does not disrupt it; the new role takes effect after the call ends.
 
 5. **A Member toggles mute or camera mid-call.** Tap mute icon → audio track disabled → icon updates. Same for camera. *Edge:* peer sees a "muted" indicator on top overlay; cam-off shows placeholder avatar with peer's display name initial.
 
@@ -59,7 +59,9 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 - Auto-end on peer disconnect, ICE failure, or sustained signaling drop
 - Local PIP preview, fullscreen remote video, call timer
 - Connection-state badge: CONNECTING → READY → CALLING → IN CALL
-- Per-device call role: both / caller-only / receiver-only
+- Per-device call role: both / caller / receiver — admin-assigned, default `receiver` on first join
+- Call-role enforcement: UI hides CALL button against forbidden peers; server rejects `call.invite` with `forbidden_by_role` (defense in depth)
+- Device registry: server persistently stores every device that has ever joined + its assigned role; admin UI defaults to showing online + 24hr-recent, with a toggle to view the full history
 
 ### Directory (both editions)
 - Live list of online peers scoped to the deployment (LAN: same signaling server; Cloud: same tenant)
@@ -113,7 +115,7 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 | Role | Can do | Cannot do |
 |------|--------|-----------|
-| **Device User** *(LAN anonymous mode only)* | Set device display name and role; place 1-on-1 calls to any peer on the same LAN; accept/reject incoming calls; mute/cam toggle mid-call | Access any admin/settings page; persist identity across browsers; see anything outside the on-network peer directory |
+| **Device User** *(LAN anonymous mode only)* | Set device display name (subject to global rename-lock toggle); place 1-on-1 calls to any peer whose role permits it; accept/reject incoming calls; mute/cam toggle mid-call | Set or change own call role (admin-assigned only); access any admin/settings page; persist identity across browsers; see anything outside the on-network peer directory |
 | **Member** *(Cloud + LAN account mode)* | Log in with email + password (or magic link); set per-device display name + role; place/receive calls within own tenant's directory; reset own password; toggle mute/cam mid-call | See members of other tenants; modify tenant branding; invite or remove other members; access `/_pwbt/` |
 | **Tenant Admin** *(inherits Member)* | Invite members by email; suspend or remove members; transfer admin role; configure branding (header text + logo); change tenant display name; run first-run wizard (LAN) | See or affect any other tenant; bypass own tenant's session policies; access `/_pwbt/` |
 | **Powerbyte Super-Admin** *(Cloud only; `/_pwbt/`)* | List all tenants; view tenant metadata (display name, slug, member count, isSuspended, createdAt); toggle a tenant's `isSuspended` | Read any tenant's user data, branding files, or call content; impersonate Members or Admins; access tenant-scoped tRPC routers; view call media (P2P — never reaches the server in any case) |
@@ -126,13 +128,13 @@ Role scope: Device User per-device; Member and Tenant Admin tenant-scoped (JWT c
 
 **User**: id (uuid), tenantId (fk), email (unique within tenant), emailVerifiedAt (nullable), passwordHash (Argon2id via Auth.js v5), displayName (account-level; ≤24 chars), role (enum: admin | member), isSuspended (bool, default false), createdAt, updatedAt, lastLoginAt (nullable). Belongs to Tenant; has many Devices, Sessions, Invitations (as inviter).
 
-**Device**: id (uuid), tenantId (fk), userId (fk, nullable for LAN anonymous mode), displayName (≤24 chars), callRole (enum: both | caller | receiver), browserFingerprint (client-generated, persisted to localStorage), lastSeenAt, createdAt. Belongs to Tenant; belongs to User (optional).
+**Device**: id (uuid), tenantId (fk), userId (fk, nullable for LAN anonymous mode), displayName (≤24 chars; locked after first set when global rename-lock is ON), callRole (enum: both | caller | receiver — admin-assigned only; default `receiver` on first join), browserFingerprint (client-generated, persisted to localStorage), assignedRoleAt (nullable; timestamp of last admin role change), lastSeenAt, archivedAt (nullable; set when device is 90 days offline), createdAt. Belongs to Tenant; belongs to User (optional). Persistence: rows are retained after first join so admin can pre-assign roles before a device comes online. Lifecycle: devices not seen for 90 days are auto-archived (`archivedAt` set; hidden from default admin views; still queryable and restorable). Admin UI defaults to online + 24hr-recent; toggles available for "All active" and "Archived". Hard-delete only on explicit admin removal.
 
 **Invitation**: id (uuid), tenantId (fk), invitedByUserId (fk), email (invitee), tokenHash (one-way hash; raw token only in the email), expiresAt (7 days from creation), acceptedAt (nullable), createdAt. Belongs to Tenant; belongs to inviting User.
 
-**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable), action (string enum: member.invite | member.suspend | member.remove | tenant.brand.update | tenant.suspend | auth.login.success | auth.login.fail | etc.), targetType (User | Tenant | Invitation), targetId (uuid), payload (jsonb; minimal context, no sensitive data), createdAt. Retention: 7 years. L5 always-active.
+**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | tenant.brand.update | tenant.suspend | device.first_join | device.role.assign | device.archive | device.remove | auth.login.success | auth.login.fail | etc.), targetType (User | Tenant | Invitation | Device), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair), createdAt. Retention: 7 years. L5 always-active.
 
-**CallSession**: id (uuid), tenantId (fk), callerDeviceId (fk Device), calleeDeviceId (fk Device), startedAt (when ringing began), connectedAt (nullable — null if never connected), endedAt, durationSec (computed; null until ended), endReason (enum: completed | declined | busy | no-answer | peer-disconnect | ice-failed | cancelled). Belongs to Tenant; belongs to two Devices. Indexes: (tenantId, startedAt DESC). Retention: 1 year.
+**CallSession**: id (uuid), tenantId (fk), callerDeviceId (fk Device), calleeDeviceId (fk Device), callerRoleAtCall (enum: both | caller | receiver — snapshot of caller's callRole at invite time), calleeRoleAtCall (enum: both | caller | receiver — snapshot of callee's callRole at invite time), startedAt (when ringing began), connectedAt (nullable — null if never connected), endedAt, durationSec (computed; null until ended), endReason (enum: completed | declined | busy | no-answer | peer-disconnect | ice-failed | cancelled | forbidden-by-role). Belongs to Tenant; belongs to two Devices. Indexes: (tenantId, startedAt DESC). Retention: 1 year. Role snapshots make audit queries decidable without walking the AuditLog timeline (e.g. "show all calls placed by a `receiver`-only device" returns instantly even after the role was later changed).
 
 **WebPushSubscription**: id (uuid), tenantId (fk; null for LAN anon), userId (fk; nullable for LAN anon), deviceId (fk Device), endpoint (text; Web Push endpoint URL), p256dh (key), auth (key), expiresAt (nullable), createdAt, lastUsedAt. Belongs to Device (1-to-many — one device may have multiple subscriptions across browsers).
 
@@ -214,7 +216,7 @@ Role scope: Device User per-device; Member and Tenant Admin tenant-scoped (JWT c
 
 Performance:    Signaling relay <100ms at 200 concurrent peers per node; call-setup latency <2s from CALL tap → callee ringing; media is P2P (no server hop). Marketing/auth pages <2s load on mobile 4G.
 Uptime:         Yelli Cloud prod 99.5% SLA (≤43min downtime/month). Staging best-effort. LAN N/A (customer-controlled infra).
-Data retention: AuditLog 7 years (PH BIR / compliance norm). CallSession metadata 1 year. User accounts indefinite while active; soft-delete grace 7 days then hard delete. VerificationTokens auto-expire per type (1h reset / 7d invite / 24h verify).
+Data retention: AuditLog 7 years (PH BIR / compliance norm). CallSession metadata 1 year. User accounts indefinite while active; soft-delete grace 7 days then hard delete. Device rows retained indefinitely while active; auto-archived after 90 days offline (hidden from default admin views, still queryable and restorable); hard-delete only on explicit admin removal. VerificationTokens auto-expire per type (1h reset / 7d invite / 24h verify).
 Compliance:     PH DPA (RA 10173) primary. GDPR opt-in (export + delete on request) for any EU customer. No PCI-DSS scope in MVP. No HIPAA scope. SOC 2 / ISO 27001 deferred until enterprise customers ask.
 Accessibility:  WCAG 2.1 AA — framework V23 default; enforced by `a11y` skill pre-delivery checklist. Set `accessibility: wcag_aa` in inputs.yml.
 Encryption:     HTTPS in transit everywhere (Let's Encrypt via Cloudflare + Traefik in Cloud; self-signed cert for LAN). WebRTC media DTLS-SRTP end-to-end (peer-to-peer, never decryptable by signaling server). At-rest filesystem-level encryption on host (Komodo-managed) for Cloud.
