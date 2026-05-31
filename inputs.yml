@@ -11,6 +11,7 @@ app:
   tagline: "Video calling for your network — your LAN or our cloud, your call."
   owner: "Powerbyte IT Solutions"
   edition_model: dual                  # OSS LAN + SaaS Cloud, single codebase, feature parity
+  admin_email: bonitobonita24@gmail.com  # Phase 2 Op interview 2026-06-01 — seed.ts webmaster
 
 # ---- Brownfield migration flag ----
 migration:
@@ -187,18 +188,18 @@ domains:
 # ---- Ports (Phase 3 generates random base in 40000-49999) ----
 ports:
   dev:
-    base: null                          # Phase 3 assigns
-    db: null
-    pgbouncer: null
-    redis: null
-    minio: null
-    minio_console: null
-    mailhog: null
-    mailhog_ui: null
-    pgadmin: null
-    app: null
-    worker: null
-    prisma_studio: null
+    base: 46838                         # Phase 3 assigned 2026-06-01
+    db: 46838
+    pgbouncer: 46839
+    redis: 46840
+    minio: 46841
+    minio_console: 46842
+    mailhog: 46843
+    mailhog_ui: 46844
+    pgadmin: 46845
+    app: 46848
+    worker: 46849
+    prisma_studio: 46858
 
 # ---- Tenant slug rules ----
 tenant_slugs:
@@ -226,6 +227,19 @@ tenant_slugs:
     - help
     - auth
     - cdn
+
+# ---- CORS allowed origins (Step 6 V25 anti-tenant-switching) ----
+cors:
+  dev:
+    - "http://localhost:46848"
+    - "http://127.0.0.1:46848"
+    - "http://localhost:3000"
+  staging:
+    - "https://yelli-staging.app"
+    - "https://*.yelli-staging.app"
+  prod:
+    - "https://yelli.app"
+    - "https://*.yelli.app"
 
 # ---- Operations (Step 9) ----
 operations:

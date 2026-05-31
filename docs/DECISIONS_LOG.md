@@ -99,3 +99,12 @@ PATH A: shadcn `<Skeleton>` for shadcn-composed UI. PATH B: `@aejkatappaja/phant
 
 ## LOCKED: MCP Server Set (2026-06-01)
 Active: socraticode (Qdrant + Ollama codebase search) + context7 (live library docs). DEFERRED: shadcn MCP — add when first UI Phase 7 introduces React/shadcn work (per AskUserQuestion 2026-06-01). Reason: existing public/index.html is vanilla HTML/CSS; shadcn MCP would be dead weight until Phase 4 Part 5.
+
+## LOCKED: Webmaster admin email
+[Phase 2 Op 2026-06-01] First super-admin seed account uses bonitobonita24@gmail.com — real inbox for password recovery if CREDENTIALS.md plaintext is lost. Seeded by pnpm db:seed in all envs. Plaintext password lives only in CREDENTIALS.md; bcrypt hash in seed.ts. Change immediately after first prod login.
+
+## LOCKED: Dev port assignment strategy
+[Phase 2 Op 2026-06-01] Random base 46838 in 40000-49999 range (Rule 22). Service offsets: db=+0, pgbouncer=+1, valkey=+2, minio=+3, minio_console=+4, mailhog=+5, mailhog_ui=+6, pgadmin=+7, app=+10, worker=+11, prisma_studio=+20. Stored in inputs.yml ports.dev. App dev port = 46848. Never reused across projects on same machine. Staging/prod use standard ports.
+
+## LOCKED: CORS origin source
+[Phase 2 Op 2026-06-01] CORS origins derived strictly from PRODUCT.md Step 7 domain locks. Prod: yelli.app + *.yelli.app. Staging: yelli-staging.app + *.yelli-staging.app. Dev: localhost:46848 + localhost:3000 + 127.0.0.1:46848. Excludes legacy yelli-maes.powerbyte.app (migration cutover domain — not part of permanent CORS).

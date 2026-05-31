@@ -10,3 +10,4 @@
 2026-06-01 00:00 | CLAUDE_CODE | DEPLOY_V31 | deploy-v31.sh idempotent sync — framework files byte-identical, .gitignore intact, NEVER-TOUCH guard verified
 2026-06-01 00:00 | CLAUDE_CODE | STACK_TRUTH | PRODUCT.md target stack wins over Path A memory per Rule 28 (AskUserQuestion confirmed)
 2026-06-01 00:00 | CLAUDE_CODE | 1.5.4 | BROWNFIELD_ADOPTION — wrote 9 governance + state files; existing app retained as Phase 4 Part 1 reference
+2026-06-01 | CLAUDE_CODE | Phase 2 Op Interview complete | inputs.yml ports+cors+admin_email filled; CREDENTIALS.md written (114L, gitignored); .env.{dev,staging,prod,example} written; scripts/sync-credentials-to-env.sh written. 5 Sonnet dispatches. NEXT: Phase 4 Part 1 (root config rewrite).
