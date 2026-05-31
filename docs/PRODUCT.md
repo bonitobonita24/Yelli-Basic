@@ -54,6 +54,14 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 18. **A LAN Server Admin signs in to the admin console (anonymous mode).** First-run wizard captured an admin passphrase (Argon2id-hashed, stored on the implicit Tenant row). Admin visits `/admin/login` → enters passphrase → server verifies hash → issues HttpOnly admin cookie (`yelli_admin_session`, 30-day rolling, scoped `/admin/*` + `/setup`, `SameSite=Lax`, `Secure` when HTTPS) → redirects to `/admin/branding`. *Errors:* wrong passphrase → generic "Couldn't sign in" + AuditLog `lan.admin.login.fail`; rate limit 5/min/IP at the `/admin/login` route. *Edge:* forgotten passphrase → admin must SSH into the host and run `./scripts/reset-admin-passphrase.sh` (clears `adminPassphraseHash`, AuditLog `lan.admin.passphrase.reset`, forces the first-run wizard to re-collect on next visit). *Parity:* LAN account mode hides this flow entirely (admins use the regular Auth.js login at `/login`); Cloud mode never exposes `/admin/login` (admin authority is derived from `User.role === admin` after standard Auth.js login).
 
+### PWA + offline (both editions)
+
+19. **A user installs Yelli as a PWA.** First visit: app loads normally, no install prompt. Second visit (detected via `localStorage.yelli_visited === '1'` set on first load): if the browser fires `beforeinstallprompt`, the event is intercepted and a Clay-styled banner appears at the top of the idle screen — "Install Yelli for incoming-call ringing" + **Install** / **Dismiss**. Install → `event.prompt()` → on accept, banner removes + (Cloud) AuditLog `pwa.install` written with `{platform: ios | android | desktop}` (inferred from `navigator.userAgentData` / fallback UA sniff). Dismiss → 30-day snooze stored at `localStorage.yelli_install_snoozed_until`. *Edges:* iOS Safari does not fire `beforeinstallprompt` → banner is suppressed entirely; instead, the directory's "Install Yelli to receive call notifications" inline hint links to **Settings → Install on iOS** which shows the Share-sheet → Add-to-Home-Screen walkthrough with screenshots; already-installed (`window.matchMedia('(display-mode: standalone)').matches` or `navigator.standalone === true`) → all install affordances suppressed.
+
+20. **A backgrounded user receives a push-notified incoming call.** Callee's tab is closed or backgrounded. Caller presses CALL → server `call.invite` fans the WebSocket signal AND enqueues Web Push to every row in `WebPushSubscription` for the callee's Device → notification fires with body `{callerDisplayName} is calling` + tag `incoming-call-{callSessionId}` + **no action buttons** (consistent cross-platform behavior, including iOS PWA which does not support action buttons) → user taps the notification → service worker runs `clients.matchAll()` → if an app client exists it's focused and posted `{type: 'incoming-call', callSessionId}`; otherwise `clients.openWindow('/app?incoming={callSessionId}')` → app reads the `incoming` param OR receives the postMessage → reconnects WS → re-fetches pending call state via `call.pending` query → renders the standard Accept/Reject modal from flow #2. *Edges:* push delivered after caller cancelled → tap opens app to idle (server returns `endReason=cancelled` on `call.pending`, modal suppressed with toast "Missed call from {name}"); notification permission never granted → no subscription row created, callee depends on the tab being open; user dismisses notification without tapping → call times out per the 30s rule in flow #2; expired/invalid subscription endpoint (410 GONE from push service) → server deletes the row inline and continues with the remaining endpoints.
+
+21. **A user loses network while the directory is open.** WebSocket `close` or `error` fires → app shell stays mounted (service worker serves cached HTML + JS + CSS + last directory snapshot from cache storage) → top-of-app banner appears: "Reconnecting…" with an animated indicator; every CALL button is disabled (visually greyed) while disconnected → reconnect loop runs with exponential backoff `1s → 2s → 5s → 15s → 60s` then steady 60s; offline >5 min → banner upgrades to "Still trying — check your network" + a manual **Retry now** button → on reconnect: banner clears, directory re-syncs from a fresh `directory.list` query, CALL buttons re-enable. *Edges:* user navigates while offline → routes resolve from the service-worker cache; mutating actions (settings save, branding save) carry an idempotency key (UUIDv7) and queue with a toast "Will retry when reconnected", replayed in order on reconnect (server dedupes on `(actorId, idempotencyKey)` within 24h); non-idempotent ops (`call.invite`) are NOT queued — they require a live WS connection and surface "Reconnect to call" if attempted offline; tab fully closed during offline → on relaunch the service worker resumes from cache then the live reconnect runs.
+
 ## Modules + Features
 
 ### Calling (both editions)
@@ -73,6 +81,7 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 - Role-broadcast transport: admin role changes propagate via the existing WebSocket signaling channel; Valkey pub/sub fans events across signaling instances (Cloud + LAN account mode); LAN anonymous mode uses in-process fan-out only
 - Device auto-archive: BullMQ cron sweeps devices not seen in 90 days and sets `archivedAt`; runs daily 03:00 UTC, iterates tenants explicitly per V25 cron rule
 - Archived-device reconnect: an archived device that reconnects is auto-unarchived (prior `callRole` restored, AuditLog `device.unarchive` written); orphaned devices (owner User hard-deleted during archival window) are blocked pending admin reassignment
+- Web Push tap-to-open for incoming calls: `call.invite` enqueues a Web Push notification (body `{callerDisplayName} is calling`, tag `incoming-call-{callSessionId}`, NO action buttons — uniform cross-platform behavior including iOS PWA); tap focuses or opens the app, app re-fetches pending call state via `call.pending`, then renders the standard Accept/Reject modal
 
 ### Directory (both editions)
 - Live list of online peers scoped to the deployment (LAN: same signaling server; Cloud: same tenant)
@@ -80,6 +89,7 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 - Real-time join/leave updates via WebSocket broadcast
 - Tap-to-call from row
 - Empty-state guidance
+- Cached shell + "Reconnecting…" banner on transient WebSocket loss; CALL buttons disabled while offline; exponential backoff 1s → 2s → 5s → 15s → 60s then steady; >5 min upgrades to "Still trying — check your network" with manual Retry; idempotent mutations queue with toast "Will retry when reconnected" and replay on reconnect (server dedupes by `(actorId, idempotencyKey)` within 24h)
 
 ### Device Identity (both editions)
 - First-launch display-name prompt
@@ -124,6 +134,17 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 - Powerbyte Super-Admin minimal console at `/_pwbt/` — separate tRPC router + dedicated Prisma client (V25 isolation): list tenants, view metadata (name, slug, member count, status, createdAt), toggle isSuspended
 - Tenant data export (GDPR/DPA): Tenant Admin requests JSON bundle of own tenant's Users + Devices + AuditLog + CallSession; BullMQ job assembles + uploads to S3/MinIO + emails signed 24h link; rate-limited 1/tenant/24h; AuditLog records request, complete, and failed events
 
+### PWA + offline (both editions)
+- Custom install banner triggered on 2nd visit via intercepted `beforeinstallprompt`; Clay-styled top-of-idle banner with **Install** / **Dismiss**; Dismiss snoozes 30 days via `localStorage.yelli_install_snoozed_until`
+- iOS Safari fallback: `beforeinstallprompt` not supported → banner suppressed; inline directory hint + Settings → "Install on iOS" walkthrough (screenshots of Share → Add to Home Screen)
+- Already-installed detection (`display-mode: standalone` or `navigator.standalone`) hides all install affordances
+- Service-worker shell caching (Workbox precache: app HTML/JS/CSS + last directory snapshot via stale-while-revalidate)
+- Auto-reconnect WS with exponential backoff (1s → 2s → 5s → 15s → 60s steady); CALL disabled while offline; >5 min surfaces manual Retry
+- Mutation replay queue: idempotent procedures carry UUIDv7 `idempotencyKey`; offline queue replays in order on reconnect; server dedupes `(actorId, idempotencyKey)` within 24h
+- Non-idempotent calls (`call.invite`) are NOT queued — require live WS; offline attempt shows "Reconnect to call"
+- Web Push subscription lifecycle: registered after notification-permission grant in the standalone PWA only; expired/invalid endpoint (`410 GONE`) auto-pruned by the server on next send
+- AuditLog `pwa.install` recorded on successful install acceptance in Cloud mode (LAN anonymous mode skips — no user binding)
+
 ## Roles + Permissions
 
 | Role | Can do | Cannot do |
@@ -162,7 +183,7 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 
 **Invitation**: id (uuid), tenantId (fk), invitedByUserId (fk), email (invitee), tokenHash (one-way hash; raw token only in the email), expiresAt (7 days from creation), acceptedAt (nullable), createdAt. Belongs to Tenant; belongs to inviting User.
 
-**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | member.role.promote | member.role.demote | tenant.brand.update | tenant.suspend | tenant.export.request | tenant.export.complete | tenant.export.failed | device.first_join | device.role.assign | device.archive | device.unarchive | device.remove | auth.login.success | auth.login.fail | superadmin.tenant.suspend | superadmin.tenant.unsuspend | superadmin.tenant.import | lan.tenant.export | lan.admin.login.success | lan.admin.login.fail | lan.admin.passphrase.reset | etc.), targetType (User | Tenant | Invitation | Device | ExportJob), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair; member.role.promote/demote carries `{from, to}` enum pair; tenant.export.complete carries `{bytes, sha256, expiresAt}`; device.unarchive carries `{restoredCallRole, archivedDurationDays}`; superadmin.tenant.suspend carries `{reason}` if provided), createdAt. Retention: 7 years. L5 always-active. Super-admin entries are queryable via the dedicated `/_pwbt/audit` view (filters `tenantId IS NULL`); tenant admins never see them.
+**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | member.role.promote | member.role.demote | tenant.brand.update | tenant.suspend | tenant.export.request | tenant.export.complete | tenant.export.failed | device.first_join | device.role.assign | device.archive | device.unarchive | device.remove | auth.login.success | auth.login.fail | superadmin.tenant.suspend | superadmin.tenant.unsuspend | superadmin.tenant.import | lan.tenant.export | lan.admin.login.success | lan.admin.login.fail | lan.admin.passphrase.reset | pwa.install | etc.), targetType (User | Tenant | Invitation | Device | ExportJob), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair; member.role.promote/demote carries `{from, to}` enum pair; tenant.export.complete carries `{bytes, sha256, expiresAt}`; device.unarchive carries `{restoredCallRole, archivedDurationDays}`; superadmin.tenant.suspend carries `{reason}` if provided; pwa.install carries `{platform}` where platform ∈ {ios, android, desktop}), createdAt. Retention: 7 years. L5 always-active. Super-admin entries are queryable via the dedicated `/_pwbt/audit` view (filters `tenantId IS NULL`); tenant admins never see them.
 
 **CallSession**: id (uuid), tenantId (fk), callerDeviceId (fk Device), calleeDeviceId (fk Device), callerRoleAtCall (enum: both | caller | receiver — snapshot of caller's callRole at invite time), calleeRoleAtCall (enum: both | caller | receiver — snapshot of callee's callRole at invite time), startedAt (when ringing began), connectedAt (nullable — null if never connected), endedAt, durationSec (computed; null until ended), endReason (enum: completed | declined | busy | no-answer | peer-disconnect | ice-failed | cancelled | forbidden-by-role). Belongs to Tenant; belongs to two Devices. Indexes: (tenantId, startedAt DESC). Retention: 1 year. Role snapshots make audit queries decidable without walking the AuditLog timeline (e.g. "show all calls placed by a `receiver`-only device" returns instantly even after the role was later changed).
 
@@ -243,7 +264,9 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 - **Both strategies use shadcn/ui** — difference is breakpoint priority, never the component library.
 - **Tailwind breakpoints:** `sm:` (640px), `md:` (768px), `lg:` (1024px), `xl:` (1280px). Mobile First = base + `md:` enhancements. Mobile Ready = base + `max-md:` fallbacks or conditional rendering.
 
-**Push notifications:** Web Push API + Service Worker (PWA) for incoming-call ringing when tab is backgrounded/closed. Subscriptions stored in `WebPushSubscription` table.
+**Push notifications:** Web Push API + Service Worker (PWA) for incoming-call ringing when tab is backgrounded/closed. Subscriptions stored in `WebPushSubscription` table. Notification UX = tap-to-open with NO action buttons (see flow #20); iOS PWA action-button limitation drove the cross-platform choice.
+
+**PWA install + offline UX:** see flows #19–21. Install affordances suppressed for already-installed contexts (`display-mode: standalone` / `navigator.standalone`). iOS Safari gets an inline directory hint + Settings → "Install on iOS" walkthrough with Share-sheet screenshots in place of the native banner.
 
 ## Non-functional Requirements
 
@@ -338,6 +361,8 @@ Session kill:     hybrid pull + push — tRPC `requireFreshAccount` middleware r
 LAN admin auth:   anonymous mode admin gate = Argon2id passphrase hash on `Tenant.adminPassphraseHash` (collected at first-run wizard) + HttpOnly `yelli_admin_session` cookie (30-day rolling, `SameSite=Lax`, `Secure` when HTTPS, scope `/admin/*` + `/setup`); rate limit 5/min/IP on `/admin/login`; reset only via host-side `./scripts/reset-admin-passphrase.sh`. LAN account mode + Cloud do NOT use this path (admin authority derived from `User.role === admin` via standard Auth.js login).
 Last-admin guard: tenant must always have ≥1 admin — last-admin demotion, removal, and suspension are blocked at the API layer; transfer-admin (atomic promote+demote) is the documented escape hatch.
 Role enforcement: privileges checked exclusively server-side (UI hiding is UX, not security); every role-mutating procedure (`member.invite`, `member.suspend`, `member.remove`, `member.role.promote`, `member.role.demote`, `device.role.assign`, `tenant.brand.update`, `tenant.export.request`) writes an AuditLog entry before returning.
+Replay queue:     offline-queued mutations (settings save, branding save, etc.) MUST carry an idempotency key (UUIDv7); server deduplicates by `(actorUserId, idempotencyKey)` within a 24h sliding window before mutating. Idempotency keys are stored in a Valkey `SET` with 24h TTL per `actorUserId` namespace. Non-idempotent procedures (`call.invite`, `call.accept`, `call.reject`, `call.end`) are never queued — they require a live WebSocket and surface "Reconnect to call" if attempted offline.
+PWA install:      `pwa.install` AuditLog (Cloud only) recorded only on the user's first successful install per device (deduped by `deviceId`); re-install events are not logged. Platform field is advisory (UA-derived), never used for authorization.
 
 ## App Footer (overrides framework default per user instruction)
 
@@ -447,6 +472,13 @@ Theming approach:   shadcn/ui CSS variables (`--primary`, `--secondary`, etc.) �
 Design system:      see `DESIGN.md` at project root (Clay aesthetic — promoted from `AlphaTest/DESIGN.md` on 2026-05-30; carry forward into Phase 2.6)
 Reference:          https://ui.shadcn.com/docs/theming · Dark mode docs: https://ui.shadcn.com/docs/dark-mode
 
+**Design tokens architecture (locked Step 8):**
+- **Single source of truth**: `src/styles/tokens.css` declares every Clay token as a CSS custom property — canvas (`--clay-cream-canvas: #fffaf0`), navy primary (`--clay-navy-primary: #0a0a0a`), 6-color brand palette (`--clay-pink`, `--clay-teal`, `--clay-lavender`, `--clay-peach`, `--clay-ochre`, `--clay-mint`), radii (`--clay-radius-button: 12px`, `--clay-radius-card: 24px`), and Inter-based type scale (`--clay-fs-display`, `--clay-fs-h1`, `--clay-fs-body`, plus `--clay-tracking-tight` for the Plain-Black substitute).
+- **shadcn/ui mapping**: `src/styles/globals.css` declares shadcn's `--primary`, `--secondary`, `--background`, `--foreground`, `--muted`, `--accent`, `--destructive`, `--border`, `--input`, `--ring`, `--radius` and maps each one FROM `tokens.css` (e.g. `--primary: var(--clay-navy-primary); --background: var(--clay-cream-canvas); --radius: var(--clay-radius-button);`). No literal hex values in `globals.css`.
+- **Tailwind mapping**: `tailwind.config.ts` `theme.extend.colors` references `hsl(var(--primary))` / `hsl(var(--background))` etc. so Tailwind utility classes share the same tokens with no duplication.
+- **Non-CSS consumers**: a small hand-maintained `src/styles/tokens.ts` re-exports the same values as TypeScript constants for places CSS vars cannot reach (icon stroke colors set via React props, future chart palettes). Drift between `tokens.css` and `tokens.ts` is caught by a Vitest token-parity test.
+- **Outcome**: one edit to `tokens.css` propagates to shadcn primitives, Tailwind utilities, and raw CSS simultaneously — no codegen step, no YAML, no build-time generation.
+
 ## Out of Scope
 
 **Communication features:**
@@ -539,3 +571,11 @@ The existing Yelli LAN MVP (now at the project root, promoted from `AlphaTest/` 
 - Postgres backup = daily 02:00 UTC `pg_dump` → `s3://yelli-backups-prod/postgres/`, 30-day retention, Glacier IR transition after 7 days; restore tested quarterly; PITR (wal-g) deferred until first enterprise ask
 - S3 bucket lifecycle = `yelli-prod-uploads` versioned + no TTL (user content); `yelli-backups-prod` 30d expiry on `postgres/`, 24h expiry on `tenant-exports/`
 - LAN → Cloud migration = `./scripts/export-lan-tenant.sh` bundle + `/_pwbt/import` endpoint; documented, Powerbyte-assisted (not self-service in MVP); auto-tested coverage is a known gap; AuditLog extended with `lan.tenant.export` + `superadmin.tenant.import`
+
+**Step 8 lock (Mobile + UI/UX + Design + PWA + Tech Stack, 2026-05-31):**
+- PWA install = custom Clay-styled banner triggered on 2nd visit by intercepted `beforeinstallprompt`; **Install** / **Dismiss**; Dismiss snoozes 30 days via `localStorage.yelli_install_snoozed_until`; iOS Safari (no `beforeinstallprompt`) falls back to inline directory hint + Settings → "Install on iOS" walkthrough; already-installed detection suppresses all affordances
+- Web Push UX for incoming calls = tap-to-open + in-app modal (NO action buttons — uniform cross-platform behavior including iOS PWA which doesn't support them); service worker focuses existing client or opens `/app?incoming={callSessionId}`; expired endpoints auto-pruned on 410
+- Offline behaviour = service-worker cached shell + "Reconnecting…" banner; CALL disabled while offline; exponential backoff `1s → 2s → 5s → 15s → 60s steady`; >5 min upgrades to "Still trying — check your network" + manual Retry; idempotent mutations queue with UUIDv7 keys and replay on reconnect; non-idempotent (`call.invite/accept/reject/end`) never queued
+- Replay queue dedup = server stores keys in Valkey `SET` keyed by `actorUserId`, 24h TTL; rejects duplicate `(actorUserId, idempotencyKey)` mutations
+- Design tokens = single `src/styles/tokens.css` source declares Clay tokens as CSS vars; `globals.css` maps shadcn `--primary`/etc. FROM the Clay tokens; `tailwind.config.ts` references the same vars; hand-maintained `tokens.ts` for non-CSS consumers; Vitest token-parity test catches drift; one edit to `tokens.css` propagates everywhere with no codegen
+- AuditLog enum extended with `pwa.install` (Cloud only; deduped per-device; platform field advisory only)
