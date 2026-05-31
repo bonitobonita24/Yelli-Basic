@@ -341,9 +341,13 @@ Component voltage comes from **saturated single-color feature cards** in a 6-col
 - **On Primary / On Dark** (`{colors.on-primary}` — #ffffff): Text on primary buttons + dark feature cards (teal).
 
 ### Semantic
-- **Success** (`{colors.success}` — #22c55e): Success states.
-- **Warning** (`{colors.warning}` — #f59e0b): Warning callouts.
-- **Error** (`{colors.error}` — #ef4444): Validation errors.
+- **Primary Active** (`{colors.primary-active}` — #1f1f1f): Primary-CTA hover/active state. Sits one shade above `{colors.primary}`; do NOT substitute `{colors.body-strong}` here — the slots are not interchangeable.
+- **Success** (`{colors.success}` — #22c55e): Success states (fills, dots, success-tinted backgrounds).
+- **Success Strong** (`{colors.success-strong}` — #15803d): Success TEXT on cream canvas — the lighter `#22c55e` fails WCAG AA contrast against `{colors.canvas}` as a text color. Use `{colors.success}` for fills and dots, `{colors.success-strong}` for text labels.
+- **Warning** (`{colors.warning}` — #f59e0b): Warning callouts (fills, banners, badges).
+- **Warning Strong** (`{colors.warning-strong}` — #b45309): Warning TEXT on cream canvas. Same rationale as success-strong.
+- **Error** (`{colors.error}` — #ef4444): Error states (destructive button fills, alert dots).
+- **Error Strong** (`{colors.error-strong}` — #b91c1c): Error TEXT on cream canvas (validation messages, "Remove" links, danger-zone copy). Use `{colors.error}` for fills, `{colors.error-strong}` for text.
 
 ## Typography
 
