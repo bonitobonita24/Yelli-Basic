@@ -50,6 +50,10 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 16. **An archived device reconnects.** Device offline ≥90 days → cron archives it (`device.archive` AuditLog) → device later opens app and connects → server detects `archivedAt IS NOT NULL` → auto-clears `archivedAt`, restores the prior admin-assigned `callRole`, AuditLog records `device.unarchive` → directory broadcasts the device as online to peers → admin's "Archived" view drops the row and "Online" view picks it up. *Edge:* if the device's owner User was hard-deleted during the archival window (Cloud), the device row is treated as orphaned and auto-unarchive is blocked pending admin reassignment.
 
+17. **A Tenant Admin promotes a Member to co-admin (or demotes a co-admin back to Member).** Admin → Members → row menu → Promote to Admin (or Demote to Member) → confirm → `User.role` flips → Valkey pub/sub publishes `session.invalidate` to the target user's WS-connected sessions so the client re-fetches role on the next request → AuditLog records `member.role.promote` (or `member.role.demote`) with payload `{from, to}`. *Errors/edges:* attempting to demote the sole remaining admin → blocked with "Tenant must have at least one admin"; attempting to demote self while sole admin → same block ("Transfer admin role first"); transfer-admin = atomic transaction (promote target, then demote self, all-or-nothing); target user is suspended → promote allowed (role change preserved through suspension lift); cross-tenant — `targetUserId` cross-checked to belong to same tenant before commit (V25). *Parity:* LAN account mode uses the same flow; LAN anonymous mode hides the feature (no Member entity to promote).
+
+18. **A LAN Server Admin signs in to the admin console (anonymous mode).** First-run wizard captured an admin passphrase (Argon2id-hashed, stored on the implicit Tenant row). Admin visits `/admin/login` → enters passphrase → server verifies hash → issues HttpOnly admin cookie (`yelli_admin_session`, 30-day rolling, scoped `/admin/*` + `/setup`, `SameSite=Lax`, `Secure` when HTTPS) → redirects to `/admin/branding`. *Errors:* wrong passphrase → generic "Couldn't sign in" + AuditLog `lan.admin.login.fail`; rate limit 5/min/IP at the `/admin/login` route. *Edge:* forgotten passphrase → admin must SSH into the host and run `./scripts/reset-admin-passphrase.sh` (clears `adminPassphraseHash`, AuditLog `lan.admin.passphrase.reset`, forces the first-run wizard to re-collect on next visit). *Parity:* LAN account mode hides this flow entirely (admins use the regular Auth.js login at `/login`); Cloud mode never exposes `/admin/login` (admin authority is derived from `User.role === admin` after standard Auth.js login).
+
 ## Modules + Features
 
 ### Calling (both editions)
@@ -112,7 +116,8 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 ### Admin Console (both editions)
 - First-run setup wizard (LAN: anonymous vs account mode, org name, logo)
-- Members page: list, invite, suspend, remove
+- Members page: list, invite, suspend, remove, promote to admin, demote to member (last-admin demotion blocked at API + UI)
+- LAN admin login page (`/admin/login`, anonymous mode only) — passphrase entry, rate-limited, HttpOnly admin cookie
 - Branding settings page
 - Org settings: display name, slug (Cloud)
 - Seat count + plan badge (Cloud, display-only in MVP)
@@ -130,9 +135,26 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 Role scope: Device User per-device; Member and Tenant Admin tenant-scoped (JWT carries tenantId); Powerbyte Super-Admin global (separate router per V25).
 
+**Role transitions:**
+- Promote Member → Tenant Admin: any existing Tenant Admin can perform; AuditLog `member.role.promote` (payload `{from: member, to: admin}`); Valkey pub/sub publishes `session.invalidate` to target's sessions.
+- Demote Tenant Admin → Member: any existing Tenant Admin can perform; blocked if target is the sole admin (transfer first); same broadcast as promote.
+- Transfer admin (self-demotion + promote another): single atomic transaction — promote target then demote self, all-or-nothing.
+- Suspend Member (flow #14): sets `User.isSuspended = true`; per-request middleware blocks all subsequent calls; `session.invalidate` broadcast forces WS-connected clients to logout within 30s; idle tabs invalidate on next action.
+- Remove Member (flow #14): 7-day soft-delete grace; `isSuspended = true` set immediately so session-kill applies the same way; hard delete after 7 days via BullMQ cron.
+- Powerbyte Super-Admin tenant suspension/unsuspension: AuditLog written with `tenantId = NULL`, `actorUserId = <superAdminId>`, action `superadmin.tenant.suspend` / `superadmin.tenant.unsuspend`, targetType `Tenant`; `session.invalidate` broadcast to every session in that tenant simultaneously.
+
+**Server-side enforcement (tRPC middleware order):**
+1. `requireSession` — verifies Auth.js session cookie (or `yelli_admin_session` LAN admin cookie for `/admin/*` routes in anonymous mode); rejects 401 if missing/expired.
+2. `requireFreshAccount` — re-validates `user.isSuspended === false` AND `tenant.isSuspended === false`; 30s Valkey cache keyed by sessionId; rejects 403 if either flag is true.
+3. `requireTenantMatch` — V25 cross-check: `session.tenantId === resolvedTenantId` (from subdomain or payload `tenantId`); rejects 403 on mismatch.
+4. `requireRole(roles)` — RBAC check against `session.user.role`; rejects 403 if role not in allowed set.
+5. Procedure-specific guards (e.g. `call.invite` checks both peers' `callRole` per the defense-in-depth rule from flow #4; `member.role.demote` checks last-admin invariant).
+
+The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `requireSuperAdmin` middleware against a dedicated Prisma client per V25 isolation. LAN anonymous mode collapses steps 2–4 into a single admin-cookie check (no Member entity, single implicit tenant).
+
 ## Data Entities
 
-**Tenant**: id (uuid), slug (unique; subdomain), displayName (≤40 chars), logoUrl (nullable; S3/MinIO path), isSuspended (bool, default false), createdAt, updatedAt. Has many Users, Devices, Invitations, AuditLogs. LAN mode: single implicit tenant row created at first-run with slug="default".
+**Tenant**: id (uuid), slug (unique; subdomain), displayName (≤40 chars), logoUrl (nullable; S3/MinIO path), isSuspended (bool, default false), adminPassphraseHash (nullable; Argon2id; populated only in LAN anonymous mode by the first-run wizard — null in Cloud and LAN account mode where admin authority is derived from `User.role === admin`), createdAt, updatedAt. Has many Users, Devices, Invitations, AuditLogs. LAN mode: single implicit tenant row created at first-run with slug="default".
 
 **User**: id (uuid), tenantId (fk), email (unique within tenant), emailVerifiedAt (nullable), passwordHash (Argon2id via Auth.js v5), displayName (account-level; ≤24 chars), role (enum: admin | member), isSuspended (bool, default false), createdAt, updatedAt, lastLoginAt (nullable). Belongs to Tenant; has many Devices, Sessions, Invitations (as inviter).
 
@@ -140,7 +162,7 @@ Role scope: Device User per-device; Member and Tenant Admin tenant-scoped (JWT c
 
 **Invitation**: id (uuid), tenantId (fk), invitedByUserId (fk), email (invitee), tokenHash (one-way hash; raw token only in the email), expiresAt (7 days from creation), acceptedAt (nullable), createdAt. Belongs to Tenant; belongs to inviting User.
 
-**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | tenant.brand.update | tenant.suspend | tenant.export.request | tenant.export.complete | tenant.export.failed | device.first_join | device.role.assign | device.archive | device.unarchive | device.remove | auth.login.success | auth.login.fail | etc.), targetType (User | Tenant | Invitation | Device | ExportJob), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair; tenant.export.complete carries `{bytes, sha256, expiresAt}`; device.unarchive carries `{restoredCallRole, archivedDurationDays}`), createdAt. Retention: 7 years. L5 always-active.
+**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | member.role.promote | member.role.demote | tenant.brand.update | tenant.suspend | tenant.export.request | tenant.export.complete | tenant.export.failed | device.first_join | device.role.assign | device.archive | device.unarchive | device.remove | auth.login.success | auth.login.fail | superadmin.tenant.suspend | superadmin.tenant.unsuspend | lan.admin.login.success | lan.admin.login.fail | lan.admin.passphrase.reset | etc.), targetType (User | Tenant | Invitation | Device | ExportJob), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair; member.role.promote/demote carries `{from, to}` enum pair; tenant.export.complete carries `{bytes, sha256, expiresAt}`; device.unarchive carries `{restoredCallRole, archivedDurationDays}`; superadmin.tenant.suspend carries `{reason}` if provided), createdAt. Retention: 7 years. L5 always-active. Super-admin entries are queryable via the dedicated `/_pwbt/audit` view (filters `tenantId IS NULL`); tenant admins never see them.
 
 **CallSession**: id (uuid), tenantId (fk), callerDeviceId (fk Device), calleeDeviceId (fk Device), callerRoleAtCall (enum: both | caller | receiver — snapshot of caller's callRole at invite time), calleeRoleAtCall (enum: both | caller | receiver — snapshot of callee's callRole at invite time), startedAt (when ringing began), connectedAt (nullable — null if never connected), endedAt, durationSec (computed; null until ended), endReason (enum: completed | declined | busy | no-answer | peer-disconnect | ice-failed | cancelled | forbidden-by-role). Belongs to Tenant; belongs to two Devices. Indexes: (tenantId, startedAt DESC). Retention: 1 year. Role snapshots make audit queries decidable without walking the AuditLog timeline (e.g. "show all calls placed by a `receiver`-only device" returns instantly even after the role was later changed).
 
@@ -152,7 +174,7 @@ Role scope: Device User per-device; Member and Tenant Admin tenant-scoped (JWT c
 
 - **Auth.js v5** — email/password + magic-link auth, sessions in PostgreSQL — OSS (MIT)
 - **PostgreSQL** — primary database — OSS
-- **Valkey + BullMQ** — async jobs and crons: invitation/verify/reset emails, logo image processing, 7-day soft-delete cron, **device-archive cron** (daily 03:00 UTC, sweeps devices offline ≥90d, tenant-scoped per V25), **tenant-export job** (`tenant.export` — assembles JSON, uploads to S3/MinIO, emails signed 24h link, rate-limited 1/tenant/24h); Valkey also serves as the **pub/sub bus for cross-instance signaling events** (admin role-change broadcast, directory join/leave fan-out) — OSS
+- **Valkey + BullMQ** — async jobs and crons: invitation/verify/reset emails, logo image processing, 7-day soft-delete cron, **device-archive cron** (daily 03:00 UTC, sweeps devices offline ≥90d, tenant-scoped per V25), **tenant-export job** (`tenant.export` — assembles JSON, uploads to S3/MinIO, emails signed 24h link, rate-limited 1/tenant/24h); Valkey also serves as the **pub/sub bus for cross-instance signaling events** (admin device-role-change broadcast, directory join/leave fan-out, `session.invalidate` on member-suspend/remove/role-change/tenant-suspend) and as the backing store for the **30s freshness cache** keyed by sessionId (`user.isSuspended` + `tenant.isSuspended` snapshot) — OSS
 - **MinIO (dev) / S3 (prod)** — logo + branding asset storage — OSS dev → AWS prod
 - **Google STUN** (`stun.l.google.com`) — NAT discovery — public/free
 - **coturn (self-hosted)** — TURN relay for users behind strict NAT (Cloud only) — OSS
@@ -277,7 +299,8 @@ Public routes:    `/`, `/pricing`, `/legal/*`, `/signup`, `/login`, `/forgot-pas
 Protected routes: `<slug>.yelli.app/app`, `<slug>.yelli.app/settings` — require authenticated Member or Admin session in matching tenant
 Admin-only:       `<slug>.yelli.app/admin/*` — require Tenant Admin role
 Super-Admin only: `/_pwbt/*` — require Powerbyte Super-Admin role (separate tRPC router + dedicated Prisma client per V25)
-LAN anonymous:    all routes accessible without login; admin-only routes gated by admin session token set during first-run wizard
+LAN anonymous:    device-facing routes (`/`, `/settings`) accessible without login; `/admin/*` + `/setup` gated by the `yelli_admin_session` HttpOnly cookie issued by `/admin/login` (passphrase-based, set during first-run wizard); `/admin/login` itself is public but rate-limited 5/min/IP
+Server enforcement: see "Server-side enforcement (tRPC middleware order)" under Roles + Permissions — every authenticated procedure runs the 5-step middleware chain (session → freshness → tenant-match → role → procedure guard); Super-Admin router runs its own isolated chain.
 
 ## Data Sensitivity
 
@@ -298,6 +321,10 @@ Superadmin:       separate tRPC router + dedicated Prisma client for `/_pwbt/`; 
 Bot protection:   Cloudflare Turnstile on signup, login, password-reset (Cloud only)
 File download:    server verifies tenantId matches storage path prefix before serving (V25 rule for branding logos)
 Cron jobs:        iterate over tenants explicitly when running soft-delete-hard cron AND the daily 03:00 UTC device-archive cron (V25 rule — no unscoped queries). Tenant-export jobs are inherently tenant-scoped (jobId carries tenantId; worker rejects mismatched payloads).
+Session kill:     hybrid pull + push — tRPC `requireFreshAccount` middleware re-checks `user.isSuspended` + `tenant.isSuspended` per request with a 30s Valkey cache keyed by sessionId; Valkey pub/sub publishes `session.invalidate` on suspend/remove/role-change/tenant-suspend so WS-connected clients force-logout within 30s; idle tabs invalidate on next action. 30s ceiling is the SLO.
+LAN admin auth:   anonymous mode admin gate = Argon2id passphrase hash on `Tenant.adminPassphraseHash` (collected at first-run wizard) + HttpOnly `yelli_admin_session` cookie (30-day rolling, `SameSite=Lax`, `Secure` when HTTPS, scope `/admin/*` + `/setup`); rate limit 5/min/IP on `/admin/login`; reset only via host-side `./scripts/reset-admin-passphrase.sh`. LAN account mode + Cloud do NOT use this path (admin authority derived from `User.role === admin` via standard Auth.js login).
+Last-admin guard: tenant must always have ≥1 admin — last-admin demotion, removal, and suspension are blocked at the API layer; transfer-admin (atomic promote+demote) is the documented escape hatch.
+Role enforcement: privileges checked exclusively server-side (UI hiding is UX, not security); every role-mutating procedure (`member.invite`, `member.suspend`, `member.remove`, `member.role.promote`, `member.role.demote`, `device.role.assign`, `tenant.brand.update`, `tenant.export.request`) writes an AuditLog entry before returning.
 
 ## App Footer (overrides framework default per user instruction)
 
