@@ -29,3 +29,10 @@
   per V32 R1. Opus drafted exact content; Sonnet wrote mechanically (3 dispatches:
   governance docs / spec files / runtime state). Only Opus write was .cline/STATE.md
   (the R1 exception). This pattern continues for all subsequent phases.
+
+## 2026-06-01 — 🟤 decision Loading state library dual-path (V31.3)
+- Type:       🟤 decision
+- Phase:     Bootstrap Step 19 retrofit
+- Files:     docs/DECISIONS_LOG.md (L97-98), .claude/rules/ui-rules.md (Rule 11)
+- Concepts:  loading-state, skeleton, phantom-ui, shadcn, ui-rules.Rule-11, dual-path
+- Narrative: V31.3 locks loading states to dual-path. PATH A — shadcn `<Skeleton>` for shadcn-composed UI (Card, Table, Form, Dialog, Tabs, Sheet, Avatar). PATH B — `@aejkatappaja/phantom-ui` (MIT Lit Web Component, ~8KB gzip) for bespoke/custom UI. NEVER hand-roll a `*Skeleton.tsx` twin file — if tempted, use phantom-ui per PATH B. Phase 4 Part 2 installs both libraries and picks correct path per component using Phase 2.8 mockup classification tags. Initial install accepts ^0.10.1; pin to exact resolved version in package.json after install. phantom-ui requires "use client" boundary (browser DOM measurement). JSX intrinsic element declaration mandatory: src/types/phantom-ui.d.ts.
