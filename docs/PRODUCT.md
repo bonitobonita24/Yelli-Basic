@@ -162,7 +162,7 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 
 **Invitation**: id (uuid), tenantId (fk), invitedByUserId (fk), email (invitee), tokenHash (one-way hash; raw token only in the email), expiresAt (7 days from creation), acceptedAt (nullable), createdAt. Belongs to Tenant; belongs to inviting User.
 
-**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | member.role.promote | member.role.demote | tenant.brand.update | tenant.suspend | tenant.export.request | tenant.export.complete | tenant.export.failed | device.first_join | device.role.assign | device.archive | device.unarchive | device.remove | auth.login.success | auth.login.fail | superadmin.tenant.suspend | superadmin.tenant.unsuspend | lan.admin.login.success | lan.admin.login.fail | lan.admin.passphrase.reset | etc.), targetType (User | Tenant | Invitation | Device | ExportJob), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair; member.role.promote/demote carries `{from, to}` enum pair; tenant.export.complete carries `{bytes, sha256, expiresAt}`; device.unarchive carries `{restoredCallRole, archivedDurationDays}`; superadmin.tenant.suspend carries `{reason}` if provided), createdAt. Retention: 7 years. L5 always-active. Super-admin entries are queryable via the dedicated `/_pwbt/audit` view (filters `tenantId IS NULL`); tenant admins never see them.
+**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | member.role.promote | member.role.demote | tenant.brand.update | tenant.suspend | tenant.export.request | tenant.export.complete | tenant.export.failed | device.first_join | device.role.assign | device.archive | device.unarchive | device.remove | auth.login.success | auth.login.fail | superadmin.tenant.suspend | superadmin.tenant.unsuspend | superadmin.tenant.import | lan.tenant.export | lan.admin.login.success | lan.admin.login.fail | lan.admin.passphrase.reset | etc.), targetType (User | Tenant | Invitation | Device | ExportJob), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair; member.role.promote/demote carries `{from, to}` enum pair; tenant.export.complete carries `{bytes, sha256, expiresAt}`; device.unarchive carries `{restoredCallRole, archivedDurationDays}`; superadmin.tenant.suspend carries `{reason}` if provided), createdAt. Retention: 7 years. L5 always-active. Super-admin entries are queryable via the dedicated `/_pwbt/audit` view (filters `tenantId IS NULL`); tenant admins never see them.
 
 **CallSession**: id (uuid), tenantId (fk), callerDeviceId (fk Device), calleeDeviceId (fk Device), callerRoleAtCall (enum: both | caller | receiver — snapshot of caller's callRole at invite time), calleeRoleAtCall (enum: both | caller | receiver — snapshot of callee's callRole at invite time), startedAt (when ringing began), connectedAt (nullable — null if never connected), endedAt, durationSec (computed; null until ended), endReason (enum: completed | declined | busy | no-answer | peer-disconnect | ice-failed | cancelled | forbidden-by-role). Belongs to Tenant; belongs to two Devices. Indexes: (tenantId, startedAt DESC). Retention: 1 year. Role snapshots make audit queries decidable without walking the AuditLog timeline (e.g. "show all calls placed by a `receiver`-only device" returns instantly even after the role was later changed).
 
@@ -191,7 +191,9 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 - Hosting:      VPS + Komodo orchestration + Traefik reverse proxy (V27 stack)
 - Dev mode:     MODE A — WSL2 native (only supported mode — pre-locked)
 - Docker Hub:   enabled — hub_repo: powerbyteit/yelli
-- Komodo:       staging auto-update from Docker Hub (`:staging-latest`), prod manual deploy from Komodo UI (V27 default)
+- Image tags:   staging = `:staging-latest` (floating); prod = `:vX.Y.Z` (immutable semver) AND `:prod` (floating pointer at current prod release). `push.sh` tags every prod-bound build with both. Komodo prod stack pulls `:prod`.
+- Komodo:       staging `auto_update: true` (polls `:staging-latest`); prod `auto_update: false` — release = `push.sh vX.Y.Z` → re-tag `:prod` to that semver → click "Redeploy" in Komodo UI.
+- Rollback:     re-tag `:prod` to a prior `:vX.Y.Z` on Docker Hub → click "Redeploy" in Komodo UI. No rebuild required. Prior 10 semver tags retained on Docker Hub indefinitely (older purged by quarterly retention sweep).
 - TURN:         coturn as Docker service alongside app, ephemeral REST credentials (15-min)
 
 **Yelli LAN:**
@@ -200,6 +202,7 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 - Auto-update:  none — admin pulls newer images manually
 - Base URL:     `http://<lan-ip>:<port>` (HTTPS via self-signed cert when `./scripts/gen-cert.sh` is run)
 - Port:         assigned by Phase 3
+- Cloud export: `./scripts/export-lan-tenant.sh` produces a portable bundle (users, devices, branding, audit, sessions, push subscriptions) for one-way migration to Yelli Cloud — see "LAN → Cloud migration" under Infrastructure Notes
 
 ## Mobile Needs
 
@@ -263,6 +266,15 @@ DB isolation exception: none (no payroll/banking/medical data in MVP)
 
 Single codebase serves both. LAN deployment creates one implicit tenant row at first-run (slug="default") and disables the subdomain router. Cloud deployment runs the full multi-tenant stack with subdomain → tenantId resolution at the proxy layer. V25 anti-tenant-switching cross-check: session.tenantId === resolved.slug.tenantId on every Cloud request.
 
+**Tenant slug rules (Cloud signup):**
+- Length: 3–30 characters
+- Charset: lowercase ASCII letters, digits, hyphens (`^[a-z][a-z0-9-]*[a-z0-9]$`)
+- Must start with a letter; cannot end with a hyphen; no consecutive hyphens
+- Validated server-side at `tenant.signup`; client-side preview is UX only
+- **Immutable after creation** — slug rename is not user-facing in MVP; manual rename = support ticket → Super-Admin DB migration via `/_pwbt/`
+- **Reserved subdomain list** (rejected at signup with generic "slug unavailable" per V25 anti-enumeration): `www`, `api`, `app`, `admin`, `staging`, `dev`, `_pwbt`, `pwbt`, `status`, `blog`, `docs`, `mail`, `smtp`, `mx`, `support`, `help`, `auth`, `cdn`
+- Reserved list lives in `src/config/reserved-slugs.ts` (single source of truth — referenced by `tenant.signup` validator and Traefik subdomain router)
+
 ## User-Facing URLs
 
 **Yelli Cloud (root domain — `yelli.app`):**
@@ -278,6 +290,7 @@ Single codebase serves both. LAN deployment creates one implicit tenant row at f
 - `/invite?token=...`            invitation accept (token-gated)
 - `/_pwbt/`                      Powerbyte Super-Admin console (separate router)
 - `/_pwbt/tenants`               tenant list + suspension toggle (Super-Admin only)
+- `/_pwbt/import`                LAN-tenant import (Super-Admin only) — accepts `export-lan-tenant.sh` bundle, provisions a new tenant + slug, replays data
 
 **Yelli Cloud (tenant subdomain — `<slug>.yelli.app`):**
 - `/`                            redirects to `/app`
@@ -369,9 +382,16 @@ All services run in Docker Compose — mono-server for dev/staging/prod (Cloud) 
 - valkey (account mode only — anonymous mode runs without Valkey/BullMQ)
 - no coturn, no Cloudflare, no Resend, no GlitchTip — LAN is offline-capable by design
 
-**Docker Hub publishing:** enabled — hub_repo: `powerbyteit/yelli`. `push.sh` + `COMMANDS.md` generated by Phase 4 Part 7.
+**Docker Hub publishing:** enabled — hub_repo: `powerbyteit/yelli`. `push.sh` + `COMMANDS.md` generated by Phase 4 Part 7. Tag scheme: every prod-bound build is tagged `:vX.Y.Z` (immutable semver) AND `:prod` (floating pointer). Staging builds tagged `:staging-latest` (floating). Prior 10 semver tags retained on Docker Hub; older purged via quarterly retention sweep.
 
-**Komodo deployment (Cloud):** staging `auto_update: true` (polls Docker Hub for `:staging-latest`), prod `auto_update: false` (manual deploy from Komodo UI per V27).
+**Backups (Cloud postgres):** BullMQ cron at 02:00 UTC daily runs `pg_dump --format=custom --compress=9` → uploads to `s3://yelli-backups-prod/postgres/YYYY-MM-DD.dump`. Retention policy: 30-day lifecycle expiration; transition to Glacier Instant Retrieval after 7 days (warm-side cost optimization while preserving 30-day RPO). Restore tested quarterly into a throwaway staging DB. PITR (wal-g) deferred until first enterprise customer asks. LAN N/A (customer responsibility — `./scripts/backup-lan.sh` provided as a convenience).
+
+**S3 buckets (Cloud):**
+- `yelli-prod-uploads` — branding logos + future user uploads. **Versioning ON** (rollback bad uploads). No TTL — user content. Server-side encryption SSE-S3 (AES-256). Public-read disabled — all reads via signed URLs.
+- `yelli-backups-prod` — postgres dumps + tenant-export artifacts. Versioning OFF. Lifecycle: 30-day expiration on `postgres/`; 24-hour expiration on `tenant-exports/` (matches signed-URL TTL). SSE-S3.
+- `yelli-staging-uploads` / `yelli-backups-staging` — same shape, separate keys.
+
+**Komodo deployment (Cloud):** staging `auto_update: true` (polls Docker Hub for `:staging-latest`), prod `auto_update: false` (manual deploy from Komodo UI per V27, pulls floating `:prod` tag). Release flow: `./scripts/push.sh vX.Y.Z` builds + tags `:vX.Y.Z` + `:prod` + `:staging-latest`, pushes to Docker Hub, then Komodo prod "Redeploy" pulls `:prod`. Rollback = re-tag `:prod` to a prior semver via `docker buildx imagetools create -t powerbyteit/yelli:prod powerbyteit/yelli:vX.Y.Z-1` + Komodo "Redeploy".
 
 **CREDENTIALS.md:** generated by Phase 3 — master credentials list for all envs, strictly gitignored. Bootstrap Step 18 collects: GitHub PAT, Docker Hub token, Resend API key, Cloudflare API token + Turnstile keys, Komodo tokens, coturn shared secret, SMTP fallback creds.
 
@@ -380,6 +400,13 @@ All services run in Docker Compose — mono-server for dev/staging/prod (Cloud) 
 **Spec stress-test (Phase 2.7):** runs automatically before Phase 3 — checks every workflow against both LAN and Cloud editions (feature-parity rule).
 
 **AWS path when ready:** RDS, S3, ElastiCache, SES — update `.env.{env}` only, zero code changes.
+
+**LAN → Cloud migration (one-way, documented but not auto-tested):**
+- **Trigger:** customer outgrows LAN (multi-site, remote-work, or wants Cloud features); migration is opt-in and Powerbyte-assisted in MVP (not self-service).
+- **Step 1 (on-box):** LAN admin runs `./scripts/export-lan-tenant.sh` → emits `yelli-lan-export-<timestamp>.tar.gz` containing: tenant row (slug rewritten to placeholder), users (passwords excluded — Cloud re-issues invitations), devices, branding assets (logo binaries inlined), audit log, call sessions, web-push subscriptions. Schema-versioned (`schema_version` field) so Cloud importer validates compatibility.
+- **Step 2 (Cloud side):** Powerbyte Super-Admin uploads bundle to `/_pwbt/import`, chooses target slug (validated against reserved list + uniqueness), confirms preview, executes. Importer runs inside a single Prisma transaction with V25 cross-checks; on failure, full rollback.
+- **Step 3 (post-import):** Cloud auto-sends fresh email invitations to all imported users (re-onboarding); customer DNS-points existing LAN clients at Cloud subdomain or distributes new URL.
+- **Out of scope:** auto-tested migration coverage (lives in DECISIONS_LOG as a known gap); reverse migration (Cloud → LAN); incremental sync (export is one-shot snapshot).
 
 ## Tech Stack Preferences
 
@@ -505,3 +532,10 @@ The existing Yelli LAN MVP (now at the project root, promoted from `AlphaTest/` 
 - Observability = GlitchTip self-hosted
 - CallSession entity included as audit-only (no UI in MVP)
 - Manual invoicing in MVP; Xendit self-serve billing deferred to v2
+
+**Step 7 lock (deployment + tenancy + URLs + infrastructure, 2026-05-31):**
+- Prod image tag scheme = semver `:vX.Y.Z` (immutable) + floating `:prod` pointer; rollback = re-tag `:prod` to prior semver + Komodo "Redeploy" (no rebuild)
+- Tenant slug rules = 3–30 chars, `^[a-z][a-z0-9-]*[a-z0-9]$`, immutable after creation; reserved subdomain list of 18 entries in `src/config/reserved-slugs.ts` (single source of truth shared by validator + Traefik router)
+- Postgres backup = daily 02:00 UTC `pg_dump` → `s3://yelli-backups-prod/postgres/`, 30-day retention, Glacier IR transition after 7 days; restore tested quarterly; PITR (wal-g) deferred until first enterprise ask
+- S3 bucket lifecycle = `yelli-prod-uploads` versioned + no TTL (user content); `yelli-backups-prod` 30d expiry on `postgres/`, 24h expiry on `tenant-exports/`
+- LAN → Cloud migration = `./scripts/export-lan-tenant.sh` bundle + `/_pwbt/import` endpoint; documented, Powerbyte-assisted (not self-service in MVP); auto-tested coverage is a known gap; AuditLog extended with `lan.tenant.export` + `superadmin.tenant.import`
