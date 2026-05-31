@@ -20,7 +20,7 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 3. **Either side ends or cancels a call.** In-call → END button → both sides cleanup + return to idle. *Errors/edges:* peer disconnects mid-call → "Peer disconnected" + cleanup; ICE drops → "Connection lost" + cleanup; caller cancels while ringing → callee modal auto-dismisses.
 
-4. **A LAN Admin assigns a device's call role.** Admin → Devices → row → set role (Both / Caller / Receiver) → save → server persists assignment in the device registry → all online sessions for that device receive a role-update event within 5s → caller-side UIs across the LAN re-render so the CALL button hides for any peer whose role is `receiver` (and likewise for `caller`-only peers on the receiver side). *Defaults:* every newly-joined device starts at `receiver` until an admin promotes it. *Enforcement:* defense-in-depth — UI hides forbidden CALL buttons AND the server rejects any `call.invite` whose target role forbids the action (returns `forbidden_by_role`). *Edge:* role change during an active call does not disrupt it; the new role takes effect after the call ends.
+4. **A LAN Admin assigns a device's call role.** Admin → Devices → row → set role (Both / Caller / Receiver) → save → server persists assignment in the device registry → role-update event published on the existing WebSocket signaling channel and fanned out across signaling instances via Valkey pub/sub → all online sessions for that device receive it within 5s → caller-side UIs across the LAN re-render so the CALL button hides for any peer whose role is `receiver` (and likewise for `caller`-only peers on the receiver side). *Defaults:* every newly-joined device starts at `receiver` until an admin promotes it. *Enforcement:* defense-in-depth — UI hides forbidden CALL buttons AND the server rejects any `call.invite` whose target role forbids the action (returns `forbidden_by_role`). *Edge:* role change during an active call does not disrupt it; the new role takes effect after the call ends. *Transport edge:* if Valkey is unavailable (LAN anonymous mode without account features), broadcast falls back to in-process WebSocket fan-out — acceptable because LAN anonymous deployments run a single signaling instance by design.
 
 5. **A Member toggles mute or camera mid-call.** Tap mute icon → audio track disabled → icon updates. Same for camera. *Edge:* peer sees a "muted" indicator on top overlay; cam-off shows placeholder avatar with peer's display name initial.
 
@@ -46,6 +46,10 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 
 14. **A Tenant Admin suspends or removes a member.** Admin → Members → row menu → Suspend or Remove → confirm → member's active sessions terminated within 30s. *Errors:* admin removes themselves → blocked with "Transfer admin role first"; member in active call → call ends + sessions kill; Remove triggers 7-day soft-delete grace period before hard delete.
 
+15. **A Tenant Admin exports tenant data (GDPR/DPA).** Admin → Settings → Export data → confirm → BullMQ job enqueued (`tenant.export`) → worker assembles JSON bundle (Users + Devices + AuditLog + CallSession scoped by tenantId) → uploads to S3/MinIO under `exports/<tenantId>/<jobId>.json` → emails the requesting admin a signed download URL valid 24h → AuditLog records `tenant.export.request` (actor + jobId) and `tenant.export.complete` (size + checksum). *Errors:* concurrent export already running → "An export is already in progress — check your email"; job fails → admin receives failure email + AuditLog `tenant.export.failed` with reason; download link expired → admin re-requests. *Rate limit:* 1 export per tenant per 24h. *LAN parity:* same flow in LAN account mode using MinIO + customer-configured SMTP; anonymous LAN mode hides the feature (no tenant boundary, no admin email).
+
+16. **An archived device reconnects.** Device offline ≥90 days → cron archives it (`device.archive` AuditLog) → device later opens app and connects → server detects `archivedAt IS NOT NULL` → auto-clears `archivedAt`, restores the prior admin-assigned `callRole`, AuditLog records `device.unarchive` → directory broadcasts the device as online to peers → admin's "Archived" view drops the row and "Online" view picks it up. *Edge:* if the device's owner User was hard-deleted during the archival window (Cloud), the device row is treated as orphaned and auto-unarchive is blocked pending admin reassignment.
+
 ## Modules + Features
 
 ### Calling (both editions)
@@ -62,6 +66,9 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 - Per-device call role: both / caller / receiver — admin-assigned, default `receiver` on first join
 - Call-role enforcement: UI hides CALL button against forbidden peers; server rejects `call.invite` with `forbidden_by_role` (defense in depth)
 - Device registry: server persistently stores every device that has ever joined + its assigned role; admin UI defaults to showing online + 24hr-recent, with a toggle to view the full history
+- Role-broadcast transport: admin role changes propagate via the existing WebSocket signaling channel; Valkey pub/sub fans events across signaling instances (Cloud + LAN account mode); LAN anonymous mode uses in-process fan-out only
+- Device auto-archive: BullMQ cron sweeps devices not seen in 90 days and sets `archivedAt`; runs daily 03:00 UTC, iterates tenants explicitly per V25 cron rule
+- Archived-device reconnect: an archived device that reconnects is auto-unarchived (prior `callRole` restored, AuditLog `device.unarchive` written); orphaned devices (owner User hard-deleted during archival window) are blocked pending admin reassignment
 
 ### Directory (both editions)
 - Live list of online peers scoped to the deployment (LAN: same signaling server; Cloud: same tenant)
@@ -110,6 +117,7 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 - Org settings: display name, slug (Cloud)
 - Seat count + plan badge (Cloud, display-only in MVP)
 - Powerbyte Super-Admin minimal console at `/_pwbt/` — separate tRPC router + dedicated Prisma client (V25 isolation): list tenants, view metadata (name, slug, member count, status, createdAt), toggle isSuspended
+- Tenant data export (GDPR/DPA): Tenant Admin requests JSON bundle of own tenant's Users + Devices + AuditLog + CallSession; BullMQ job assembles + uploads to S3/MinIO + emails signed 24h link; rate-limited 1/tenant/24h; AuditLog records request, complete, and failed events
 
 ## Roles + Permissions
 
@@ -128,11 +136,11 @@ Role scope: Device User per-device; Member and Tenant Admin tenant-scoped (JWT c
 
 **User**: id (uuid), tenantId (fk), email (unique within tenant), emailVerifiedAt (nullable), passwordHash (Argon2id via Auth.js v5), displayName (account-level; ≤24 chars), role (enum: admin | member), isSuspended (bool, default false), createdAt, updatedAt, lastLoginAt (nullable). Belongs to Tenant; has many Devices, Sessions, Invitations (as inviter).
 
-**Device**: id (uuid), tenantId (fk), userId (fk, nullable for LAN anonymous mode), displayName (≤24 chars; locked after first set when global rename-lock is ON), callRole (enum: both | caller | receiver — admin-assigned only; default `receiver` on first join), browserFingerprint (client-generated, persisted to localStorage), assignedRoleAt (nullable; timestamp of last admin role change), lastSeenAt, archivedAt (nullable; set when device is 90 days offline), createdAt. Belongs to Tenant; belongs to User (optional). Persistence: rows are retained after first join so admin can pre-assign roles before a device comes online. Lifecycle: devices not seen for 90 days are auto-archived (`archivedAt` set; hidden from default admin views; still queryable and restorable). Admin UI defaults to online + 24hr-recent; toggles available for "All active" and "Archived". Hard-delete only on explicit admin removal.
+**Device**: id (uuid), tenantId (fk), userId (fk, nullable for LAN anonymous mode), displayName (≤24 chars; locked after first set when global rename-lock is ON), callRole (enum: both | caller | receiver — admin-assigned only; default `receiver` on first join), browserFingerprint (client-generated, persisted to localStorage), assignedRoleAt (nullable; timestamp of last admin role change), lastSeenAt, archivedAt (nullable; set when device is 90 days offline), createdAt. Belongs to Tenant; belongs to User (optional). Persistence: rows are retained after first join so admin can pre-assign roles before a device comes online. Lifecycle: devices not seen for 90 days are auto-archived by the daily 03:00 UTC BullMQ cron (`archivedAt` set; hidden from default admin views; still queryable and restorable). Auto-unarchive on reconnect: an archived device that comes back online has `archivedAt` cleared and its prior `callRole` restored; `device.unarchive` is written to AuditLog. Orphaned auto-unarchive (owner User hard-deleted during archival window) is blocked pending admin reassignment. Admin UI defaults to online + 24hr-recent; toggles available for "All active" and "Archived". Hard-delete only on explicit admin removal.
 
 **Invitation**: id (uuid), tenantId (fk), invitedByUserId (fk), email (invitee), tokenHash (one-way hash; raw token only in the email), expiresAt (7 days from creation), acceptedAt (nullable), createdAt. Belongs to Tenant; belongs to inviting User.
 
-**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | tenant.brand.update | tenant.suspend | device.first_join | device.role.assign | device.archive | device.remove | auth.login.success | auth.login.fail | etc.), targetType (User | Tenant | Invitation | Device), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair), createdAt. Retention: 7 years. L5 always-active.
+**AuditLog**: id (uuid), tenantId (fk; null for super-admin actions), actorUserId (fk, nullable; null for system events like device.first_join), action (string enum: member.invite | member.suspend | member.remove | tenant.brand.update | tenant.suspend | tenant.export.request | tenant.export.complete | tenant.export.failed | device.first_join | device.role.assign | device.archive | device.unarchive | device.remove | auth.login.success | auth.login.fail | etc.), targetType (User | Tenant | Invitation | Device | ExportJob), targetId (uuid), payload (jsonb; minimal context, no sensitive data — e.g. device.role.assign carries `{from, to}` enum pair; tenant.export.complete carries `{bytes, sha256, expiresAt}`; device.unarchive carries `{restoredCallRole, archivedDurationDays}`), createdAt. Retention: 7 years. L5 always-active.
 
 **CallSession**: id (uuid), tenantId (fk), callerDeviceId (fk Device), calleeDeviceId (fk Device), callerRoleAtCall (enum: both | caller | receiver — snapshot of caller's callRole at invite time), calleeRoleAtCall (enum: both | caller | receiver — snapshot of callee's callRole at invite time), startedAt (when ringing began), connectedAt (nullable — null if never connected), endedAt, durationSec (computed; null until ended), endReason (enum: completed | declined | busy | no-answer | peer-disconnect | ice-failed | cancelled | forbidden-by-role). Belongs to Tenant; belongs to two Devices. Indexes: (tenantId, startedAt DESC). Retention: 1 year. Role snapshots make audit queries decidable without walking the AuditLog timeline (e.g. "show all calls placed by a `receiver`-only device" returns instantly even after the role was later changed).
 
@@ -144,7 +152,7 @@ Role scope: Device User per-device; Member and Tenant Admin tenant-scoped (JWT c
 
 - **Auth.js v5** — email/password + magic-link auth, sessions in PostgreSQL — OSS (MIT)
 - **PostgreSQL** — primary database — OSS
-- **Valkey + BullMQ** — async jobs (invitation/verify/reset emails, logo image processing, 7-day soft-delete cron) — OSS
+- **Valkey + BullMQ** — async jobs and crons: invitation/verify/reset emails, logo image processing, 7-day soft-delete cron, **device-archive cron** (daily 03:00 UTC, sweeps devices offline ≥90d, tenant-scoped per V25), **tenant-export job** (`tenant.export` — assembles JSON, uploads to S3/MinIO, emails signed 24h link, rate-limited 1/tenant/24h); Valkey also serves as the **pub/sub bus for cross-instance signaling events** (admin role-change broadcast, directory join/leave fan-out) — OSS
 - **MinIO (dev) / S3 (prod)** — logo + branding asset storage — OSS dev → AWS prod
 - **Google STUN** (`stun.l.google.com`) — NAT discovery — public/free
 - **coturn (self-hosted)** — TURN relay for users behind strict NAT (Cloud only) — OSS
@@ -289,7 +297,7 @@ Tenant guard:     V25 cross-check — `session.tenantId === URL.slug.tenantId` o
 Superadmin:       separate tRPC router + dedicated Prisma client for `/_pwbt/`; no shared middleware with tenant-scoped routers (V25)
 Bot protection:   Cloudflare Turnstile on signup, login, password-reset (Cloud only)
 File download:    server verifies tenantId matches storage path prefix before serving (V25 rule for branding logos)
-Cron jobs:        iterate over tenants explicitly when running soft-delete-hard cron (V25 rule — no unscoped queries)
+Cron jobs:        iterate over tenants explicitly when running soft-delete-hard cron AND the daily 03:00 UTC device-archive cron (V25 rule — no unscoped queries). Tenant-export jobs are inherently tenant-scoped (jobId carries tenantId; worker rejects mismatched payloads).
 
 ## App Footer (overrides framework default per user instruction)
 
