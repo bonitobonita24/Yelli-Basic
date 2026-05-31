@@ -19,6 +19,12 @@ logs/
 # ─── Build + TypeScript cache (Spec-Driven V32) ───
 *.tsbuildinfo
 
+# Phase 4 Part 1 — verified build output entries
+.next/
+.turbo/
+dist/
+build/
+
 # ─── Environment files — NEVER commit real credentials ───
 .env
 .env.*
