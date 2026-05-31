@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yelli.app/inputs.schema.json",
+  "title": "Yelli Spec — V31 inputs.yml validation schema",
+  "type": "object",
+  "required": [
+    "version", "app", "migration", "tenancy", "apps", "tech_stack", "entities",
+    "jobs", "storage", "security", "deploy", "docker", "domains", "ports",
+    "tenant_slugs", "operations", "git", "models"
+  ],
+  "properties": {
+    "version": { "type": "integer", "const": 3 },
+    "app": {
+      "type": "object",
+      "required": ["name", "slug", "edition_model"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "slug": { "type": "string", "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$" },
+        "tagline": { "type": "string" },
+        "owner": { "type": "string" },
+        "edition_model": { "enum": ["single", "dual"] }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "required": ["brownfield"],
+      "properties": {
+        "brownfield": { "type": "boolean" },
+        "current_stack": { "type": "object" },
+        "target_stack": { "type": "object" },
+        "rewrite_strategy": { "type": "string" },
+        "retained_assets": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "tenancy": {
+      "type": "object",
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["single", "multi"] },
+        "routing": { "enum": ["subdomain", "subdirectory"] },
+        "lan_mode": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "default_mode": { "enum": ["anonymous", "account"] },
+            "admin_auth": { "type": "string" }
+          }
+        }
+      }
+    },
+    "apps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "framework", "type"],
+        "properties": {
+          "name": { "type": "string" },
+          "framework": { "enum": ["nextjs", "expo", "react-native"] },
+          "type": { "enum": ["web", "mobile"] },
+          "port": { "type": ["integer", "null"] },
+          "pwa": { "type": "boolean" }
+        }
+      }
+    },
+    "tech_stack": {
+      "type": "object",
+      "required": ["frontend", "api", "orm", "auth", "database", "cache"],
+      "properties": {
+        "frontend": { "enum": ["nextjs", "vanilla"] },
+        "api": { "enum": ["trpc", "rest"] },
+        "orm": { "enum": ["prisma", "drizzle", "none"] },
+        "auth": { "enum": ["authjs", "keycloak", "none"] },
+        "database": { "enum": ["postgresql", "mysql", "sqlite", "none"] },
+        "cache": { "enum": ["valkey", "redis", "none"] },
+        "queue": { "enum": ["bullmq", "sidekiq", "none"] },
+        "storage_dev": { "enum": ["minio", "local", "none"] },
+        "storage_prod": { "enum": ["s3", "r2", "minio", "none"] },
+        "ui_library": { "enum": ["shadcn-ui", "react-native-reusables", "none"] },
+        "icon_library": { "type": "string" },
+        "webrtc": {
+          "type": "object",
+          "properties": {
+            "signaling": { "type": "string" },
+            "stun": { "type": "string" },
+            "turn": { "type": "string" }
+          }
+        },
+        "pwa": {
+          "type": "object",
+          "properties": {
+            "service_worker": { "type": "string" },
+            "push": { "type": "string" }
+          }
+        }
+      }
+    },
+    "entities": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "jobs": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "provider": { "enum": ["bullmq", "none"] },
+        "queues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "schedule": { "type": "string" },
+              "rate_limit_per_tenant_24h": { "type": "integer" },
+              "offline_threshold_days": { "type": "integer" },
+              "threshold_days": { "type": "integer" },
+              "target": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "provider": { "type": "string" },
+        "buckets": { "type": "object" }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": ["layers"],
+      "properties": {
+        "layers": {
+          "type": "object",
+          "required": [
+            "L1_trpc_tenant_scoping", "L2_postgres_rls", "L3_rbac_middleware",
+            "L4_pgbouncer_pool_limits", "L5_immutable_auditlog", "L6_prisma_guardrails"
+          ],
+          "additionalProperties": { "enum": ["active", "deferred"] }
+        },
+        "audit_retention_years": { "type": "integer", "minimum": 1 },
+        "call_session_retention_years": { "type": "integer", "minimum": 1 },
+        "session_kill_sla_seconds": { "type": "integer", "maximum": 30 },
+        "rate_limits": {
+          "type": "object",
+          "properties": {
+            "public": { "type": "integer", "minimum": 1 },
+            "auth": { "type": "integer", "minimum": 1 },
+            "api": { "type": "integer", "minimum": 1 },
+            "upload": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "turnstile": { "type": "object" },
+        "csrf": { "type": "object" },
+        "webhook_security": { "type": "string" }
+      }
+    },
+    "deploy": {
+      "type": "object",
+      "required": ["cloud", "lan"],
+      "properties": {
+        "cloud": {
+          "type": "object",
+          "properties": {
+            "manager": { "type": "string" },
+            "proxy": { "type": "string" },
+            "staging": { "type": "object" },
+            "prod": {
+              "type": "object",
+              "properties": {
+                "auto_update": { "type": "boolean" },
+                "tag_scheme": { "enum": ["semver", "latest-sha"] },
+                "tag_retention": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        },
+        "lan": {
+          "type": "object",
+          "properties": {
+            "distribution": { "type": "string" },
+            "license": { "type": "string" },
+            "auto_update": { "type": "boolean" },
+            "repo_visibility": { "enum": ["public", "private"] }
+          }
+        },
+        "k8s": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "required": ["publish"],
+      "properties": {
+        "publish": { "type": "boolean" },
+        "registry": { "type": "string" },
+        "hub_repo": { "type": "string" },
+        "image_name": { "type": "string" },
+        "platforms": { "type": "array", "items": { "type": "string" } },
+        "build_on_push_to": { "type": "string" },
+        "dev_build": { "type": "boolean" }
+      }
+    },
+    "domains": {
+      "type": "object",
+      "required": ["prod"],
+      "properties": {
+        "prod": { "type": "string" },
+        "prod_wildcard": { "type": "string" },
+        "staging": { "type": "string" },
+        "staging_wildcard": { "type": "string" },
+        "status": { "type": "string" },
+        "super_admin_path": { "type": "string" }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "properties": {
+        "dev": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["integer", "null"],
+            "minimum": 40000,
+            "maximum": 49999
+          }
+        }
+      }
+    },
+    "tenant_slugs": {
+      "type": "object",
+      "required": ["regex", "min_length", "max_length", "immutable", "reserved"],
+      "properties": {
+        "regex": { "type": "string" },
+        "min_length": { "type": "integer", "minimum": 1 },
+        "max_length": { "type": "integer", "maximum": 63 },
+        "immutable": { "const": true },
+        "reserved_path": { "type": "string" },
+        "reserved": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "properties": {
+        "status_page": { "type": "object" },
+        "observability": { "type": "object" },
+        "uptime": { "type": "object" },
+        "perf": { "type": "object" }
+      }
+    },
+    "git": {
+      "type": "object",
+      "required": ["default_branch", "commit_style", "squash_merge"],
+      "properties": {
+        "default_branch": { "type": "string" },
+        "branch_pattern": { "type": "string" },
+        "scaffold_branch_pattern": { "type": "string" },
+        "fix_branch_pattern": { "type": "string" },
+        "chore_branch_pattern": { "type": "string" },
+        "commit_style": { "enum": ["conventional", "free"] },
+        "squash_merge": { "type": "boolean" },
+        "use_worktrees": { "type": "boolean" }
+      }
+    },
+    "models": {
+      "type": "object",
+      "required": ["planning", "execution", "governance"],
+      "properties": {
+        "planning": { "type": "string" },
+        "execution": { "type": "string" },
+        "governance": { "type": "string" }
+      }
+    },
+    "context7": {
+      "type": "object",
+      "properties": { "enabled": { "type": "boolean" } }
+    },
+    "accessibility": {
+      "type": "object",
+      "properties": { "level": { "enum": ["none", "wcag_aa", "wcag_aaa"] } }
+    },
+    "vibe_test": {
+      "type": "object",
+      "properties": { "enabled": { "type": "boolean" } }
+    },
+    "design": {
+      "type": "object",
+      "properties": {
+        "style": { "type": "string" },
+        "mobile_first": { "type": "boolean" },
+        "baseline_breakpoint": { "type": "integer" },
+        "breakpoints": { "type": "object" },
+        "touch_target_min_px": { "type": "integer", "minimum": 44 }
+      }
+    }
+  }
+}
