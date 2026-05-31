@@ -6,8 +6,8 @@ services:
       # Host 6174 -> container 5173 (Vite). Uncommon port; unlikely to clash.
       - "6174:5173"
     volumes:
-      # Live-mount the canonical mockup file from repo root so edits hot-reload
-      - ../MOCKUP.jsx:/MOCKUP.jsx:ro
+      # Live-mount the canonical mockup file from docs/ so edits hot-reload
+      - ../docs/MOCKUP.jsx:/docs/MOCKUP.jsx:ro
       # Live-mount the source dir + configs so iterating on shell or styles also reloads
       - ./src:/app/src
       - ./vite.config.js:/app/vite.config.js:ro
