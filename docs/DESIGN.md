@@ -505,25 +505,56 @@ The system uses no heavy shadows. Depth comes from the saturated color contrast 
 
 ## Responsive Behavior
 
-### Breakpoints
+**Direction: mobile-first (locked PRODUCT.md Step 10).** The baseline is 375px portrait. Larger breakpoints PROGRESSIVELY ENHANCE — they never act as a recovery layer for a desktop-primary layout. If a component reads worse at 375px than at 1280px, the component is broken, not the viewport.
 
-| Name | Width | Key Changes |
+### Mobile-First Principles
+
+1. **375px is the baseline.** Build every component to look correct, readable, and usable at 375 × 667 (iPhone SE portrait). Apply `md:` (768px+) and `lg:` (1024px+) Tailwind prefixes ADDITIVELY to enhance — never to fix.
+2. **44 × 44px minimum touch targets** on every clickable element at `<md`. Includes nav pills, filter chips, table-row actions (when rendered as card lists), avatars used as buttons, and icon-only buttons. `h-11` (44px) is the rule for buttons + inputs; smaller chip-style hits inflate via `py-2 px-3` to clear 44px on tap.
+3. **Single-column defaults.** Forms, dashboards, side-rail+content layouts collapse to one column at base. Multi-column appears at `md:` and up.
+4. **Stacked, not scrollable.** Tables become card lists; side rails stack ABOVE main content (not below) at `<md` so the navigation context is encountered first.
+5. **Type scale starts small.** Display headlines that read 72px on desktop are 36–40px at base; bodies stay 14–16px regardless.
+6. **No hover-dependent interactions.** Treat hover as enhancement; every action must be reachable via tap.
+7. **Modal patterns adapt.** Centered modals on `≥md` become bottom-sheets at `<md` (rounded-top, slide-up from the bottom, easier thumb-dismiss).
+8. **Navigation pattern.** Marketing nav and tenant top bar collapse to a hamburger sheet at `<md`. The tenant app adds a bottom-nav at `<md` for the 3-4 most-used destinations (Directory · Members · Branding · You).
+
+### Breakpoints (mobile-first ladder)
+
+| Name | Min width | What enables at this breakpoint |
 |---|---|---|
-| Mobile | < 768px | Hamburger nav; hero h1 72→36px; hero-illustration-card stacks below; feature grids 1-up; pricing 1-up |
-| Tablet | 768–1024px | Top nav tightens; feature cards 2-up; pricing 2-up |
-| Desktop | 1024–1440px | Full top-nav; 3-up feature cards; 3-up pricing tiers |
-| Wide | > 1440px | Same as desktop with more breathing room; max content 1280px |
+| **Base** | **375px (mobile portrait)** | **Default state. Single column, hamburger nav, card lists, 36–40px display type, 44×44 touch targets. Build here first.** |
+| sm: | 640px (large phone, landscape phone) | Two-up feature cards in landscape phones; small horizontal type bumps |
+| md: | 768px (tablet portrait) | Top nav switches to horizontal links; tables replace card lists; side rail appears alongside content; modals switch from bottom-sheet to centered |
+| lg: | 1024px (laptop) | Two-column dashboard layouts (rail + main); branding screen splits into form + live-preview columns; feature cards 3-up |
+| xl: | 1280px (desktop) | Maximum content width 1280px enforced; display type reaches 56–72px; full marketing hero 7-5 grid |
 
 ### Touch Targets
-- `{component.button-primary}` at minimum 44 × 44px (matches WCAG AAA).
-- `{component.text-input}` height is 44px.
 
-### Collapsing Strategy
-- Top nav collapses to hamburger at < 768px.
-- Hero 7-5 grid → single-column on mobile.
-- Feature card grids reduce columns rather than scaling.
-- Saturated feature cards retain their colored fill at every breakpoint.
-- Pricing tier cards collapse 4 → 2 → 1.
+| Element | Mobile baseline | Why |
+|---|---|---|
+| `{component.button-primary}` | h-11 (44px) | WCAG AAA |
+| `{component.text-input}` | h-11 (44px) | WCAG AAA + finger-comfortable |
+| Filter / nav chip | min h-9 + py-2 px-3 (≥44px hit area via padding) | Compact visual, comfortable tap |
+| Icon-only button (e.g. mute, camera) | min 44×44 (`w-11 h-11`) | Thumb-reachable, no fat-finger errors |
+| List-row CTA (e.g. row "Call") | h-11 + full-row-width at `<md` | One-tap from anywhere on the row |
+| Avatar-as-button | min 36px visual but 44×44 hit (use surrounding padding) | Style-preserving |
+
+### Collapsing Strategy (base → enhanced)
+
+| Component | Base (`<md`) | `md:` enhancement | `lg:` enhancement |
+|---|---|---|---|
+| Marketing nav | Hamburger button → slide-down sheet menu | Horizontal links bar | — |
+| Tenant top bar | Compact: logo + branded name + avatar; hamburger reveals Directory/Members/Branding/Settings. Bottom-nav strip pinned for Directory · Members · Branding · You. | Horizontal nav links in top bar; bottom-nav hidden | — |
+| Marketing hero | h1 36px, stacked: copy then illustration card | h1 56–72px, optional 7-5 grid | Full 7-5 grid, max-w-1280 |
+| Feature card grid | 1-up vertical | 2-up | 3-up |
+| Pricing tier cards | 1-up vertical, featured first | 2-up | 3-up (or 4-up if 4 tiers) |
+| Idle/Directory + CALL | CALL hero stacks above directory list; left "You/Connection" rail moves ABOVE the directory | Two-column: left rail + right CALL+directory | — |
+| Active call view | Portrait composition; PiP bottom-right small; controls thumb-reachable bottom dock | Larger PiP, controls re-center | — |
+| Members | **Card list** — each member is a card with name, role pill, callRole pill, status, actions stacked vertically; filter chips wrap | `<table>` replaces card list; columns: Name · Email · Role · Call role · Status · Actions | — |
+| Branding | Single column: Display name → Logo → Accent → Save. Live preview stacks BELOW the form. | Same single column but wider | Two-column: form (col-7) + live preview (col-5) |
+| Personal settings | Single column sections | Same, wider | Same |
+| Modal/sheet | Bottom-sheet: full-width, rounded-top, slide-up from bottom | Centered modal, max-w-md | — |
+| Cream feature cards | Retain colored fill at every breakpoint | — | — |
 
 ## Iteration Guide
 

@@ -10,7 +10,7 @@
 - **Tenancy (Cloud):** subdomain routing `<slug>.yelli.app`; slug `^[a-z][a-z0-9-]*[a-z0-9]$`, immutable, 18 reserved names; tenant-scoped via `tenantId` on every entity; V25 cross-check `session.tenantId === resolved.slug.tenantId`
 - **Deployment:** Komodo + Docker Compose; semver `:vX.Y.Z` immutable + floating `:prod` pointer; rollback = re-tag, no rebuild; daily 02:00 UTC `pg_dump` → S3 30d / Glacier IR 7d
 - **Async infra:** WebSocket + Valkey pub/sub for role broadcast + session-kill (30s SLO); BullMQ for tenant export + device-archive cron (daily 03:00 UTC, 90-day offline threshold)
-- **Mobile:** PWA only (no native); install banner on 2nd visit, 30d snooze; Web Push tap-to-open; cached shell + UUIDv7 replay queue (24h Valkey dedup)
+- **Mobile:** PWA only (no native); install banner on 2nd visit, 30d snooze; Web Push tap-to-open; cached shell + UUIDv7 replay queue (24h Valkey dedup); **mobile-first global contract** — every page (including admin) designed from 375px baseline up, never desktop-down (locked Step 10)
 - **Design system:** Clay aesthetic; single `tokens.css` source for shadcn + Tailwind; Vitest token-parity test catches drift
 - **Security:** 5-step tRPC middleware chain (session → freshness → tenant-match → role → procedure guard); Super-Admin `/_pwbt/` runs isolated chain + dedicated Prisma client per V25
 - **Operations (Step 9):** GlitchTip + Docker JSON logs + Komodo log viewer; UptimeRobot 5-min probes → email + Telegram; static status page at `status.yelli.app`; k6 perf harness run on-demand pre-`:prod` (regression block at p95 signaling >150ms or p95 call-setup >3s)
@@ -248,39 +248,43 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 **Native mobile app:** None — web only, PWA-installable from browser ("Add to Home Screen").
 **Auth mode:** sessions live in cookies; persist across browser restarts; expire per Auth.js v5 default (30-day rolling).
 
-**Per-page mobile strategy (auto-classified in Step 8b, reviewed by user):**
+**Mobile-First is the global design contract (locked Step 10, 2026-05-31).** Every page — public marketing, end-user, and admin — designs from 375px portrait baseline first and progressively enhances upward. There is no "Mobile Ready" fallback class; admin tables/forms must work on a phone as their first state, not their fallback state. Rationale: Yelli's primary users (clinic reception, shop staff, ward nurses) live on phones and tablets; even admin tasks (member promotion, branding tweak) frequently happen on the same handheld device. A Mobile-Ready desktop-primary build pushes admin work onto a second device the user often doesn't have at hand.
 
-| # | Page                                | Strategy       | Notes                              |
-|---|-------------------------------------|----------------|------------------------------------|
-| 1 | Idle / Directory + CALL button      | Mobile First   | Primary intercom UX — users at posts on phones/tablets |
-| 2 | Fullscreen call view                | Mobile First   | Already mobile-first in code; touch-optimised controls |
-| 3 | Incoming call modal                 | Mobile First   | Notification / call surface |
-| 4 | Peer picker modal                   | Mobile First   | Inline from idle; mobile-primary |
-| 5 | First-time display-name prompt      | Mobile First   | First-launch happens on the device that'll be used |
-| 6 | LAN first-run setup wizard          | Mobile Ready   | Admin task during install; desktop typical |
-| 7 | Settings drawer (name + role)       | Mobile First   | Same device used to call |
-| 8 | Org signup (Cloud)                  | Mobile First   | Customer-facing public URL |
-| 9 | Log in                              | Mobile First   | Public URL; mobile-primary |
-| 10 | Forgot password                    | Mobile First   | Public URL |
-| 11 | Reset password landing             | Mobile First   | Email link clicked on phone typically |
-| 12 | Verify email landing               | Mobile First   | Email link clicked on phone typically |
-| 13 | Magic-link landing                 | Mobile First   | Email link clicked on phone typically |
-| 14 | Invitation accept                  | Mobile First   | Invitee opens email on phone |
-| 15 | Members list (admin)               | Mobile Ready   | Admin role + table view |
-| 16 | Invite member modal                | Mobile Ready   | Admin task; works on mobile, desktop primary |
-| 17 | Branding settings                  | Mobile Ready   | Settings panel + logo upload |
-| 18 | Org settings (Cloud)               | Mobile Ready   | Settings panel + admin role |
-| 19 | Tenant-suspended notice            | Mobile First   | User-facing notification, must work everywhere |
-| 20 | Super-Admin `/_pwbt/` tenant list  | Mobile Ready   | Powerbyte staff desk work |
-| 21 | Landing page (Cloud marketing)     | Mobile First   | Public URL |
-| 22 | Pricing page (Cloud)               | Mobile First   | Public URL |
-| 23 | Privacy / Terms / Legal pages      | Mobile First   | Public URL |
+**Per-page mobile strategy (every page = Mobile First):**
+
+| # | Page                                | Strategy       | Mobile-specific pattern                              |
+|---|-------------------------------------|----------------|-----------------------------------------------------|
+| 1 | Idle / Directory + CALL button      | Mobile First   | CALL hero stacks above directory; per-row Call button is full-width tap target |
+| 2 | Fullscreen call view                | Mobile First   | Portrait-optimised; PiP bottom-right; control dock thumb-reachable |
+| 3 | Incoming call modal                 | Mobile First   | Full-screen sheet on phone; centered modal on ≥md |
+| 4 | Peer picker modal                   | Mobile First   | Bottom-sheet on phone; centered modal on ≥md |
+| 5 | First-time display-name prompt      | Mobile First   | Single input + Save; keyboard-aware layout |
+| 6 | LAN first-run setup wizard          | Mobile First   | Step cards stack vertically; one section at a time |
+| 7 | Settings drawer (name + role)       | Mobile First   | Slide-up sheet on phone; right drawer on ≥md |
+| 8 | Org signup (Cloud)                  | Mobile First   | Single-column form; subdomain field full-width |
+| 9 | Log in                              | Mobile First   | Single-column form; Turnstile fits 375px |
+| 10 | Forgot password                    | Mobile First   | One field + CTA |
+| 11 | Reset password landing             | Mobile First   | Two fields stacked |
+| 12 | Verify email landing               | Mobile First   | Single message card |
+| 13 | Magic-link landing                 | Mobile First   | Single message card |
+| 14 | Invitation accept                  | Mobile First   | Org+role preview card → Set password & join |
+| 15 | Members list (admin)               | Mobile First   | Card list on <md (no horizontal scroll); table on ≥md |
+| 16 | Invite member modal                | Mobile First   | Bottom-sheet on phone; centered on ≥md |
+| 17 | Branding settings                  | Mobile First   | Form stacks above live-preview; preview becomes side column on ≥lg |
+| 18 | Org settings (Cloud)               | Mobile First   | Single-column form sections; section anchors via tabs on phone |
+| 19 | Tenant-suspended notice            | Mobile First   | Full-screen centered message |
+| 20 | Super-Admin `/_pwbt/` tenant list  | Mobile First   | Same card-list pattern as #15 (Powerbyte staff still respond on-phone for incidents) |
+| 21 | Landing page (Cloud marketing)     | Mobile First   | Hero stacks; feature cards 1-up on <md, 3-up on ≥md |
+| 22 | Pricing page (Cloud)               | Mobile First   | Tier cards 1-up on <md, 3-up on ≥md |
+| 23 | Privacy / Terms / Legal pages      | Mobile First   | Single-column body; max-width 720px on ≥md |
 
 **Phase 4 implementation guidance (for Claude Code):**
-- **Mobile First pages:** 375px baseline, progressively enhance for tablet (768px+) and desktop (1024px+). Touch targets ≥44×44px. Single-column forms when viewport <768px.
-- **Mobile Ready pages:** 1280px+ baseline, gracefully degrade to tablet (768px) and mobile (375px). shadcn/ui responsive patterns: horizontal scroll for wide tables, collapsible sidebars, drawer-based nav on narrow viewports. Full functionality accessible at all breakpoints.
-- **Both strategies use shadcn/ui** — difference is breakpoint priority, never the component library.
-- **Tailwind breakpoints:** `sm:` (640px), `md:` (768px), `lg:` (1024px), `xl:` (1280px). Mobile First = base + `md:` enhancements. Mobile Ready = base + `max-md:` fallbacks or conditional rendering.
+- **375px portrait is THE baseline.** Build every page mobile-first; `md:` (768px) and `lg:` (1024px) classes ADD desktop affordances. Never write a desktop layout and add `max-md:` fallbacks — that's an anti-pattern under this lock.
+- **Touch targets ≥44×44px.** Every clickable target (button, list-row Call, table-row action, filter pill) must satisfy this on `<md` viewports. Tap-target compliance is checked by the `a11y` skill pre-delivery.
+- **Single-column defaults.** Forms, tables (rendered as card lists at `<md`), and side panels collapse to one column at base; multi-column appears only at `md:` (768px+).
+- **No horizontal scroll for tables.** Members and Super-Admin tenant lists render as card lists at `<md`. Tables (`<table>`) only render at `md:` and up.
+- **Mobile navigation pattern.** Tenant top bar collapses to a hamburger + bottom-nav at `<md`. Marketing nav collapses to a hamburger sheet at `<md`. Hero illustrations stack BELOW the headline at `<md`, not beside it.
+- **Tailwind breakpoints:** `sm:` (640px — large phone), `md:` (768px — tablet portrait), `lg:` (1024px — laptop), `xl:` (1280px — desktop). All custom CSS still uses these as the canonical ladder.
 
 **Push notifications:** Web Push API + Service Worker (PWA) for incoming-call ringing when tab is backgrounded/closed. Subscriptions stored in `WebPushSubscription` table. Notification UX = tap-to-open with NO action buttons (see flow #20); iOS PWA action-button limitation drove the cross-platform choice.
 
@@ -600,6 +604,14 @@ The existing Yelli LAN MVP (now at the project root, promoted from `AlphaTest/` 
 - Replay queue dedup = server stores keys in Valkey `SET` keyed by `actorUserId`, 24h TTL; rejects duplicate `(actorUserId, idempotencyKey)` mutations
 - Design tokens = single `src/styles/tokens.css` source declares Clay tokens as CSS vars; `globals.css` maps shadcn `--primary`/etc. FROM the Clay tokens; `tailwind.config.ts` references the same vars; hand-maintained `tokens.ts` for non-CSS consumers; Vitest token-parity test catches drift; one edit to `tokens.css` propagates everywhere with no codegen
 - AuditLog enum extended with `pwa.install` (Cloud only; deduped per-device; platform field advisory only)
+
+**Step 10 lock (Mobile-First global contract — post-audit 2026-05-31):**
+- Every page in the per-page Mobile Strategy table is now `Mobile First` (the 6 prior `Mobile Ready` admin pages were flipped). Admin work (Members, Branding, Org settings, `/_pwbt/` tenant list) is designed from 375px portrait baseline FIRST and only enhances at `md:` / `lg:`.
+- Touch targets ≥44×44px enforced on every clickable target at `<md` viewports.
+- Tables render as card lists at `<md`; `<table>` only at `md:`+. No horizontal-scroll tables in the MVP.
+- Tenant top bar collapses to hamburger + bottom-nav at `<md`. Marketing nav collapses to hamburger sheet at `<md`. Hero illustrations stack BELOW the headline at `<md`.
+- DESIGN.md "Responsive Behavior" section was updated in lockstep (mobile-first direction; "Mobile-First Principles" subsection added).
+- MOCKUP.jsx was rewritten in lockstep so every Tier 1 screen renders correctly at 375px without horizontal scroll.
 
 **Step 9 lock (Operational quality attributes — final NFR closeout, 2026-05-31):**
 - Status page = static `status.yelli.app` (Cloudflare Pages, Markdown source in `status-page/` repo); manual updates by Powerbyte on-call; current state + last 3 incidents; hosted-statuspage migration deferred
