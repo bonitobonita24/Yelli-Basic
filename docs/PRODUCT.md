@@ -1,5 +1,23 @@
 # Yelli
 
+> **Spec status — V31 framework lock complete (2026-05-31).** All 9 planning steps closed. Phase 2 (architecture spec) may begin.
+
+## Key Decisions Summary (Step 9 closeout — read this first)
+
+- **Editions:** dual LAN (self-hosted, single implicit tenant) + Cloud (managed multi-tenant on `*.yelli.app`); one codebase; feature parity is non-negotiable (`@dual-mode-exception` required for any exception)
+- **Calling model:** 1-on-1 WebRTC peer-to-peer media; signaling-only server; default role = receiver; CALL action hidden + server-rejected for non-caller roles
+- **Roles:** anonymous device (LAN default) / member / admin; peer admin promote/demote; last-admin guard; LAN anonymous admin gated by Argon2id passphrase + `yelli_admin_session` HttpOnly cookie
+- **Tenancy (Cloud):** subdomain routing `<slug>.yelli.app`; slug `^[a-z][a-z0-9-]*[a-z0-9]$`, immutable, 18 reserved names; tenant-scoped via `tenantId` on every entity; V25 cross-check `session.tenantId === resolved.slug.tenantId`
+- **Deployment:** Komodo + Docker Compose; semver `:vX.Y.Z` immutable + floating `:prod` pointer; rollback = re-tag, no rebuild; daily 02:00 UTC `pg_dump` → S3 30d / Glacier IR 7d
+- **Async infra:** WebSocket + Valkey pub/sub for role broadcast + session-kill (30s SLO); BullMQ for tenant export + device-archive cron (daily 03:00 UTC, 90-day offline threshold)
+- **Mobile:** PWA only (no native); install banner on 2nd visit, 30d snooze; Web Push tap-to-open; cached shell + UUIDv7 replay queue (24h Valkey dedup)
+- **Design system:** Clay aesthetic; single `tokens.css` source for shadcn + Tailwind; Vitest token-parity test catches drift
+- **Security:** 5-step tRPC middleware chain (session → freshness → tenant-match → role → procedure guard); Super-Admin `/_pwbt/` runs isolated chain + dedicated Prisma client per V25
+- **Operations (Step 9):** GlitchTip + Docker JSON logs + Komodo log viewer; UptimeRobot 5-min probes → email + Telegram; static status page at `status.yelli.app`; k6 perf harness run on-demand pre-`:prod` (regression block at p95 signaling >150ms or p95 call-setup >3s)
+- **Out of scope for MVP:** group calls, recording, screen share, Xendit self-serve billing, multi-region failover, hosted statuspage, central log aggregator, APM
+
+For step-by-step lock decisions, see `DECISIONS_LOG guidance for Claude Code (Brownfield Adoption)` at the end of this document.
+
 ## App Identity
 Name:           Yelli
 Tagline:        Video calling for your network — your LAN or our cloud, your call.
@@ -276,7 +294,10 @@ Data retention: AuditLog 7 years (PH BIR / compliance norm). CallSession metadat
 Compliance:     PH DPA (RA 10173) primary. GDPR opt-in (export + delete on request) for any EU customer. No PCI-DSS scope in MVP. No HIPAA scope. SOC 2 / ISO 27001 deferred until enterprise customers ask.
 Accessibility:  WCAG 2.1 AA — framework V23 default; enforced by `a11y` skill pre-delivery checklist. Set `accessibility: wcag_aa` in inputs.yml.
 Encryption:     HTTPS in transit everywhere (Let's Encrypt via Cloudflare + Traefik in Cloud; self-signed cert for LAN). WebRTC media DTLS-SRTP end-to-end (peer-to-peer, never decryptable by signaling server). At-rest filesystem-level encryption on host (Komodo-managed) for Cloud.
-Observability:  GlitchTip self-hosted (Sentry-compatible SDK). Docker service alongside app in Cloud compose stack.
+Observability:  GlitchTip self-hosted (Sentry-compatible SDK) for errors + Docker JSON-file log driver for structured app logs, tailed via Komodo's per-container log viewer. No central log aggregator (Loki, ELK) and no APM (OpenTelemetry, Datadog) in MVP — added only when error volume or SLO breaches justify the infra cost. Every log line is structured JSON (`{ts, level, msg, tenantId?, userId?, requestId, ...}`) so future Loki/OTel adoption is a transport swap, not a rewrite.
+Uptime monitoring: UptimeRobot free tier polls `https://yelli.app/` and `https://yelli.app/_pwbt/health` every 5 minutes from multiple regions. Alerts route to `oncall@powerbyteitsolutions.com` + a dedicated Telegram channel. LAN deployments are NOT monitored (customer-owned infra). Health endpoint returns `{ok, db, valkey, signaling}` with 200/503 status — no auth required (no PII; rate-limited 60/min/IP).
+Status page:    Static page at `status.yelli.app` (separate Cloudflare Pages site, single Markdown source in `status-page/` repo). MVP shows current state (operational / degraded / outage) + last 3 incidents with timestamps. Manually updated by Powerbyte on-call during incidents — no auto-population from UptimeRobot in MVP. Hosted-statuspage migration (Atlassian Statuspage, Instatus) deferred until customer contract requires SLA reporting.
+Perf testing:   k6 scenario at `tests/perf/signaling.k6.js` simulates 200 concurrent WebSocket peers issuing `call.invite` + `signal.relay` at sustained 1 req/s/peer for 5 minutes. Run on-demand by the release engineer before every `:prod` tag promotion against the staging environment. Baseline numbers (p50/p95/p99 of signaling latency, call-setup wall-clock) are checked into `perf-baselines/<git-sha>.json`. No CI gate in MVP — release engineer reads the report and decides; regression threshold is documented as "p95 signaling > 150ms or p95 call-setup > 3s = block release". Automated weekly cron + Slack regression report is a documented Phase 5 enhancement.
 
 **Feature parity (architectural rule, NON-NEGOTIABLE):** every feature must work in both Yelli LAN and Yelli Cloud editions from the same codebase. Phase 2.7 spec stress-test checks every workflow against both modes before code generation. PRs that introduce Cloud-only or LAN-only features without explicit `@dual-mode-exception` annotation MUST be rejected during review.
 
@@ -579,3 +600,10 @@ The existing Yelli LAN MVP (now at the project root, promoted from `AlphaTest/` 
 - Replay queue dedup = server stores keys in Valkey `SET` keyed by `actorUserId`, 24h TTL; rejects duplicate `(actorUserId, idempotencyKey)` mutations
 - Design tokens = single `src/styles/tokens.css` source declares Clay tokens as CSS vars; `globals.css` maps shadcn `--primary`/etc. FROM the Clay tokens; `tailwind.config.ts` references the same vars; hand-maintained `tokens.ts` for non-CSS consumers; Vitest token-parity test catches drift; one edit to `tokens.css` propagates everywhere with no codegen
 - AuditLog enum extended with `pwa.install` (Cloud only; deduped per-device; platform field advisory only)
+
+**Step 9 lock (Operational quality attributes — final NFR closeout, 2026-05-31):**
+- Status page = static `status.yelli.app` (Cloudflare Pages, Markdown source in `status-page/` repo); manual updates by Powerbyte on-call; current state + last 3 incidents; hosted-statuspage migration deferred
+- Observability = GlitchTip (errors) + Docker JSON-file log driver + Komodo per-container log viewer; structured JSON log lines (`{ts, level, msg, tenantId?, userId?, requestId, ...}`) so future Loki/OTel adoption is a transport swap; no central aggregator or APM in MVP
+- Uptime monitoring = UptimeRobot free tier, 5-min interval, multi-region; probes `/` + `/_pwbt/health`; alerts to `oncall@powerbyteitsolutions.com` + Telegram channel; LAN deployments not monitored (customer infra); `/_pwbt/health` returns `{ok, db, valkey, signaling}` with 200/503, no auth, rate-limited 60/min/IP
+- Perf testing = `tests/perf/signaling.k6.js` (k6) simulates 200 concurrent WS peers at 1 req/s/peer for 5 minutes; release engineer runs against staging before every `:prod` promotion; baselines in `perf-baselines/<git-sha>.json`; regression block threshold `p95 signaling > 150ms` OR `p95 call-setup > 3s`; CI cron + Slack regression report deferred to Phase 5
+- PRODUCT.md V31 framework lock complete: all 9 steps closed, ready for `Phase 2` (architecture spec) → `Phase 3` (bootstrap) → `Phase 4` (implementation). No further user input required to begin Phase 2.
