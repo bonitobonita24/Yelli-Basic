@@ -11,6 +11,12 @@
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp@latest"],
       "env": {}
+    },
+    "shadcn": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "shadcn@latest", "mcp"],
+      "env": {}
     }
   }
 }
