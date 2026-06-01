@@ -78,3 +78,27 @@
 - Errors resolved:    Trade-off — engines.node set to >=22 (matches WSL2 dev v22.20) while .nvmrc=24 (target). CI will run on Node 24 per .nvmrc; dev allows 22 to avoid forcing immediate local upgrade.
 - Validation:         pnpm install OK (110 pkgs, lockfile generated); turbo lint/typecheck = 0 packages in scope (apps/* + packages/* empty until Parts 2-5) → expected PASS.
 - Brownfield note:    Vanilla edition deploy (yelli-maes.powerbyte.app) remains operational on prior commit a251049 until Phase 4 completes and manual Komodo redeploy is triggered. No auto-deploy.
+
+## 2026-06-01 — Phase 4 Part 3 — packages/db scaffolded
+
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)
+- Why:                 Generate Prisma schema + L2/L5/L6 multi-tenant security stack + first-admin seed for Yelli brownfield rewrite (Next.js/tRPC/Prisma target stack).
+- Files added:
+  - packages/db/package.json
+  - packages/db/tsconfig.json
+  - packages/db/src/index.ts (PrismaClient singleton + barrel re-exports)
+  - packages/db/src/audit.ts (L5 — always-active AuditLog write helper, tx-aware)
+  - packages/db/src/rls.ts (L2 — PostgreSQL withTenant + setTenantContext)
+  - packages/db/src/middleware/tenant-guard.ts (L6 — Prisma $allOperations extension)
+  - packages/db/prisma/schema.prisma (10 models, 4 enums, RLS-ready)
+  - packages/db/prisma/migrations/0001_init/migration.sql (prisma diff output + 6 RLS policies appended)
+  - packages/db/prisma/migrations/0001_init/down.sql (manual reverse)
+  - packages/db/prisma/migrations/migration_lock.toml (provider = postgresql)
+  - packages/db/prisma/seed.ts (env-driven webmaster, bcrypt 12 rounds, idempotent upsert)
+- Files modified:      package.json (root — pnpm.onlyBuiltDependencies allowlist for argon2/esbuild/@prisma/client/prisma); pnpm-lock.yaml (regenerated)
+- Files deleted:       none
+- Schema/migrations:   Tenant + User + Device + Invitation + AuditLog + CallSession + WebPushSubscription + Auth.js (Account, Session, VerificationToken). 6 L2 RLS policies on tenant-scoped tables via current_setting('app.current_tenant_id', true). AuditLog.targetId nullable (matches Part 2 TS source of truth). EndReason enum uses underscore Prisma values + @map to hyphen DB strings.
+- Errors encountered:  D2 scaffolded AuditLog.targetId as NOT NULL while Part 2 TS type was string | null. audit.ts initially had a `?? ""` workaround.
+- Errors resolved:     D2-fix dispatch realigned schema (added `?`), regenerated migration column nullability, removed workaround. D3 widened tsconfig rootDir from "./src" to "." so seed.ts under prisma/ compiles.
+- Dispatches:          6 — D0 Scout (context read-only) + D1 (schema + skeleton) + D2 (migrations + L2/L5/L6 helpers) + D2-fix (targetId nullability) + D3 (seed + commit) + D4 (this — governance + merge).
+- LOC delta:           ~660 lines created across 11 files in packages/db/.

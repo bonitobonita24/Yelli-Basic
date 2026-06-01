@@ -1,8 +1,8 @@
 # Implementation Map — Yelli
 
-Last updated: 2026-06-01 by CLAUDE_CODE (Prompt 1.5.4 brownfield adoption)
-Current phase: Phase 0 BROWNFIELD ADOPTION complete
-Branch: chore/adopt-spec-driven
+Last updated: 2026-06-01 by CLAUDE_CODE (Phase 4 Part 3 complete — packages/db)
+Current phase: Phase 4 Part 3 complete
+Branch: main (scaffold/part-3 squash-merged)
 
 ## Current State (May 2026 — pre-Spec-Driven, retained as Phase 4 reference)
 
@@ -58,12 +58,19 @@ Branch: chore/adopt-spec-driven
 - Add: packages/shared/src/schemas/ (Zod schemas)
 - Add: packages/api-client/
 
-### Phase 4 Part 3 — packages/db
-- Add: packages/db/prisma/schema.prisma (8 entities: Tenant, User, Device, Invitation, AuditLog, CallSession, WebPushSubscription + Auth.js Session/VerificationToken)
-- Add: Initial migration with RLS scaffolding
-- Add: Seed script (webmaster account + dev tenants)
-- Add: src/audit.ts (L5 AuditLog write helper, always-active)
-- Add: src/middleware/tenant-guard.ts (L6 Prisma `$allOperations` extension)
+### Phase 4 Part 3 — packages/db ✅ COMPLETE (2026-06-01)
+- ✅ packages/db/prisma/schema.prisma — 10 models (7 Yelli entities: Tenant, User, Device, Invitation, AuditLog, CallSession, WebPushSubscription + 3 Auth.js: Account, Session, VerificationToken) + 4 enums (Role, CallRole, AuditTargetType, EndReason) + @@unique/@@index per Part 2 TS source of truth
+- ✅ packages/db/prisma/migrations/0001_init/migration.sql — prisma migrate diff output + 6 L2 RLS policies appended (tenant_isolation USING current_setting('app.current_tenant_id', true) on User/Device/Invitation/CallSession; permissive on AuditLog + WebPushSubscription where tenantId is nullable)
+- ✅ packages/db/prisma/migrations/0001_init/down.sql — manual reverse migration
+- ✅ packages/db/prisma/migrations/migration_lock.toml — provider = postgresql
+- ✅ packages/db/prisma/seed.ts — env-driven webmaster (process.env.WEBMASTER_PASSWORD ≥12 chars + bcrypt 12 rounds), idempotent upsert of `_pwbt` reserved platform tenant + webmaster user (bonitobonita24@gmail.com, role: admin)
+- ✅ packages/db/src/audit.ts — L5 always-active writeAuditLog (tx-aware, idempotent payload handling)
+- ✅ packages/db/src/rls.ts — L2 withTenant + setTenantContext via PG SET LOCAL
+- ✅ packages/db/src/middleware/tenant-guard.ts — L6 Prisma.defineExtension + $allOperations (NOT method list — security.md mandate); 5 EXCLUDED_MODELS (Tenant/AuditLog/Account/Session/VerificationToken)
+- ✅ packages/db/src/index.ts — PrismaClient singleton + barrel re-exports
+- ✅ packages/db/package.json + tsconfig.json (rootDir widened to "." for seed.ts under prisma/)
+- NOTE: migration not yet applied to live DB — Phase 6 task (pnpm db:migrate after Docker services start)
+- NOTE: User.securityVersion deferred to Phase 5 (Auth.js wiring) — not in Part 2 TS types yet
 
 ### Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage
 - Add: packages/ui/ (shadcn/ui + Clay tokens + Tailwind config)
@@ -118,9 +125,11 @@ Branch: chore/adopt-spec-driven
 
 ## Phase Status
 - ✅ Phase 0 Bootstrap (Brownfield Adoption-mode via Prompt 1.5.4): complete 2026-06-01
-- ⏳ Phase 2: operational interview pending (Docker Hub creds, dev ports, CORS, model routing finalization)
-- ⏳ Phase 3: generate full spec files (currently inputs.yml is brownfield scaffold; Phase 3 will refine)
-- ⏳ Phase 4 Part 1: pending
-- ❌ Phases 4 Parts 2–8: pending
+- ✅ Phase 2 Operational Interview: complete 2026-06-01 (inputs.yml filled, CREDENTIALS.md written, .env.{dev,staging,prod} generated)
+- ✅ Phase 4 Part 1 — Root config: complete 2026-06-01 (pnpm-workspace, turbo, tsconfig.base, eslintrc, prettierrc, editorconfig, nvmrc)
+- ✅ Phase 4 Part 2 — packages/shared + packages/api-client: complete 2026-06-01 (7 entity types + Zod schemas + reserved-slugs + phantom-ui pinned 0.10.1 EXACT + tRPC client factory)
+- ✅ Phase 4 Part 3 — packages/db: complete 2026-06-01 (Prisma schema + L2/L5/L6 security stack + webmaster seed; workspace typecheck 0 errors)
+- ⏳ Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage: pending
+- ❌ Phase 4 Parts 5–8: pending
 - ❌ Phase 5: validation pending
 - ❌ Phase 6: Docker + Visual QA pending

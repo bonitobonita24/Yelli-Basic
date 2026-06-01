@@ -57,3 +57,35 @@
 - Files:     docs/DECISIONS_LOG.md (L97-98), .claude/rules/ui-rules.md (Rule 11)
 - Concepts:  loading-state, skeleton, phantom-ui, shadcn, ui-rules.Rule-11, dual-path
 - Narrative: V31.3 locks loading states to dual-path. PATH A — shadcn `<Skeleton>` for shadcn-composed UI (Card, Table, Form, Dialog, Tabs, Sheet, Avatar). PATH B — `@aejkatappaja/phantom-ui` (MIT Lit Web Component, ~8KB gzip) for bespoke/custom UI. NEVER hand-roll a `*Skeleton.tsx` twin file — if tempted, use phantom-ui per PATH B. Phase 4 Part 2 installs both libraries and picks correct path per component using Phase 2.8 mockup classification tags. Initial install accepts ^0.10.1; pin to exact resolved version in package.json after install. phantom-ui requires "use client" boundary (browser DOM measurement). JSX intrinsic element declaration mandatory: src/types/phantom-ui.d.ts.
+
+## 2026-06-01 — 🟤 decision Platform tenant slug = `_pwbt`
+
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 3
+- Files:     packages/db/prisma/seed.ts, packages/shared/src/config/reserved-slugs.ts
+- Concepts:  super-admin, platform-tenant, webmaster, reserved-slugs, multi-tenant
+- Narrative: Webmaster needs a tenant home (User.tenantId is NOT NULL). Chose `_pwbt` from the 18 reserved slugs — clearly Powerbyte-internal, underscore-prefixed system tenant, can never be claimed by signup. Phase 5 tRPC super-admin middleware identifies platform admin via `tenant.slug === "_pwbt"`. No `User.isPlatformAdmin` boolean was added — kept Part 2 TS types untouched as locked source of truth.
+
+## 2026-06-01 — 🔴 gotcha Prisma schema must match Part 2 TS types — caught AuditLog.targetId nullability mismatch
+
+- Type:      🔴 gotcha
+- Phase:     Phase 4 Part 3 (D2-fix dispatch)
+- Files:     packages/db/prisma/schema.prisma, packages/db/src/audit.ts, packages/db/prisma/migrations/0001_init/migration.sql
+- Concepts:  source-of-truth, schema-types-sync, audit-log, nullability, hidden-data-bug
+- Narrative: D2 initially scaffolded `AuditLog.targetId` as NOT NULL String in Prisma; Part 2 TS type had `targetId: string | null`. Without fix, audit.ts silently converted null → empty string via `?? ""` — a quiet data integrity bug that would corrupt rows for actions with no specific target (auth.login.success, pwa.install). D2-fix realigned the schema (added `?`), regenerated the migration column, removed the workaround. RULE established: Part 2 TS types are the locked source of truth for Prisma schema field shapes. Any Part 3+ mismatch found mid-execution: fix the schema, not the TS type.
+
+## 2026-06-01 — 🟢 change `User.securityVersion` deferred to Phase 5
+
+- Type:      🟢 change
+- Phase:     Phase 4 Part 3 (deferred to Phase 5)
+- Files:     packages/db/prisma/schema.prisma, packages/shared/src/types/user.ts (both to be updated in Phase 5)
+- Concepts:  auth-session-invalidation, security-version, deferred-scope, source-of-truth
+- Narrative: security.md "Auth Defaults item 6" mandates a `securityVersion: Int @default(0)` field on User for force-invalidating sessions on role/tenant/status change. Part 2 TS types don't have it; adding it in Part 3 would either violate locked source-of-truth chain or require a synchronized Part 2 retrofit mid-Part-3. Deferred to Phase 5 (Auth.js wiring) where the field will be added with full Feature Update governance: shared TS type update → Prisma schema update → new migration → Auth.js session callback wiring. Documented here so Phase 5 reviewer catches the gap.
+
+## 2026-06-01 — ⚖️ trade-off tsconfig `rootDir` widened to `"."` for seed.ts compilation
+
+- Type:      ⚖️ trade-off
+- Phase:     Phase 4 Part 3 (D3 dispatch)
+- Files:     packages/db/tsconfig.json
+- Concepts:  tsconfig, rootDir, monorepo, seed-script, framework-convention
+- Narrative: `prisma/seed.ts` lives outside src/. Default `rootDir="./src"` rejected it with TS6059 (file not under rootDir). Widened rootDir to `"."` so seed.ts compiles. outDir is ./dist so compiled output goes to dist/src/* + dist/prisma/* — acceptable since no app depends on @yelli/db's compiled output (workspace consumers use the .ts source directly via `workspace:*` exports `main: ./src/index.ts`). Alternative was moving seed.ts into src/, but framework convention places seed alongside schema.prisma in prisma/. Chose convention over rootDir purity.

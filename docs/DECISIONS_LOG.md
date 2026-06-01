@@ -114,3 +114,32 @@ Active: socraticode (Qdrant + Ollama codebase search) + context7 (live library d
 
 ## LOCKED: CORS origin source
 [Phase 2 Op 2026-06-01] CORS origins derived strictly from PRODUCT.md Step 7 domain locks. Prod: yelli.app + *.yelli.app. Staging: yelli-staging.app + *.yelli-staging.app. Dev: localhost:46848 + localhost:3000 + 127.0.0.1:46848. Excludes legacy yelli-maes.powerbyte.app (migration cutover domain — not part of permanent CORS).
+
+## LOCKED: Platform tenant slug — `_pwbt`
+
+Decision: The Yelli super-admin (webmaster) lives in a tenant whose slug is `_pwbt`.
+Rationale: `_pwbt` is in RESERVED_SLUGS (packages/shared/src/config/reserved-slugs.ts) — cannot be claimed by any signup. Underscore prefix marks it as a system tenant in URL routing. No User.isPlatformAdmin boolean was added (kept Part 2 TS types untouched as locked source of truth).
+Phase 5 implication: the tRPC super-admin middleware identifies platform admin by checking `ctx.session.user.tenant.slug === "_pwbt"` and switches to the dedicated unguarded PrismaClient (separate from the L6-extended tenant-scoped client).
+Locked at: Phase 4 Part 3 (2026-06-01)
+
+## LOCKED: Webmaster password hash algorithm
+
+Decision: User.passwordHash uses bcryptjs at 12 rounds.
+Rationale: Reconfirms the prior "LOCKED: Webmaster admin email" decision. Argon2id remains reserved for Tenant.adminPassphraseHash (LAN Anonymous Admin) per the "LOCKED: LAN Anonymous Admin" decision — the two algorithms coexist for different fields.
+Implementation: prisma/seed.ts reads process.env.WEBMASTER_PASSWORD at runtime, validates length ≥ 12, then bcrypt.hash(plaintext, 12) before upsert. Plaintext never lives in seed.ts. Plaintext value lives only in CREDENTIALS.md (gitignored, NEVER read into agent context).
+Locked at: Phase 4 Part 3 (2026-06-01)
+
+## LOCKED: AuditLog.targetId nullability
+
+Decision: AuditLog.targetId is nullable (`String?` in Prisma; `string | null` in TS) in both the schema and Part 2 TS interface.
+Rationale: Many of the 25 audit actions have no specific target (auth.login.success, pwa.install, lan.admin.passphrase.reset). The locked source of truth is packages/shared/src/types/audit-log.ts (Part 2 LOCKED). When D2 inadvertently scaffolded the column as NOT NULL with a `?? ""` workaround in audit.ts, D2-fix realigned the schema + regenerated the migration column + removed the workaround.
+Rule established: Part 2 TS types are the locked source of truth for Prisma schema field shapes. Any Part 3+ mismatch found mid-execution: fix the schema, not the TS type. Cross-Part TS type changes require a Feature Update with synchronized governance.
+Locked at: Phase 4 Part 3 (2026-06-01)
+
+## LOCKED: L6 tenant-guard via Prisma `$allOperations`
+
+Decision: packages/db/src/middleware/tenant-guard.ts uses `Prisma.defineExtension` with `query.$allModels.$allOperations`, NOT a list of individual methods (findMany, findFirst, create, etc.).
+Rationale: security.md L6 mandate — any unlisted method becomes an unguarded tenant bypass. `$allOperations` future-proofs against new Prisma methods.
+Excluded models (caller passes tenantId explicitly): Tenant (it IS the tenant), AuditLog (tenantId nullable for platform-level superadmin actions), Account/Session/VerificationToken (Auth.js — scoped via User relation).
+Super-Admin: uses a SEPARATE PrismaClient without this extension (per the prior "LOCKED: tRPC Middleware Chain" decision — never inline if/else inside resolvers).
+Locked at: Phase 4 Part 3 (2026-06-01)
