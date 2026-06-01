@@ -1,5 +1,37 @@
 # CHANGELOG_AI
 
+## 2026-06-01 — Phase 4 Part 2 — packages/shared + packages/api-client
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)
+- Why:                 Generate shared TypeScript types, Zod schemas, reserved-slugs config, and typed tRPC client factory for the Next.js/tRPC/Prisma rewrite. Single source of validation truth across web app + future workers.
+- Files added:
+  - packages/shared/package.json, tsconfig.json
+  - packages/shared/src/index.ts (barrel)
+  - packages/shared/src/types/enums.ts (Role, CallRole, EndReason, AuditTargetType, AuditAction × 25, JsonValue)
+  - packages/shared/src/types/{tenant,user,device,invitation,audit-log,call-session,web-push-subscription}.ts
+  - packages/shared/src/types/index.ts (barrel)
+  - packages/shared/src/types/phantom-ui.d.ts (JSX intrinsic — ui-rules.md Rule 11 PATH B)
+  - packages/shared/src/config/reserved-slugs.ts (18 reserved slugs, single source of truth)
+  - packages/shared/src/config/index.ts (barrel)
+  - packages/shared/src/schemas/enums.ts (Zod enum mirrors + JsonValueSchema via z.lazy)
+  - packages/shared/src/schemas/tenant-slug.ts (regex + min/max + reserved refine)
+  - packages/shared/src/schemas/{tenant,user,device,invitation,audit-log,call-session,web-push-subscription}.ts (EntitySchemas)
+  - packages/shared/src/schemas/index.ts (barrel)
+  - packages/api-client/package.json, tsconfig.json
+  - packages/api-client/src/index.ts (createYelliTrpcClient generic factory + re-export @yelli/shared)
+- Files modified:
+  - packages/shared/package.json (added zod ^3.23.0 + @aejkatappaja/phantom-ui pinned exact 0.10.1)
+  - pnpm-lock.yaml (regenerated)
+- Schema/migrations:   none (Prisma comes in Part 3)
+- Dependencies added:  zod ^3.23.0 (packages/shared), @aejkatappaja/phantom-ui 0.10.1 EXACT (packages/shared, V31.3 Loading Library Lock — Bootstrap Step 19), @trpc/client ^11.0.0 + @trpc/server ^11.0.0 (packages/api-client), @yelli/shared workspace:* (packages/api-client)
+- Errors encountered:  tRPC v11 generic transformer constraint — httpBatchLink<TRouter> requires TransformerOptions<TRouter["_def"]["_config"]["$types"]> which is unsatisfiable when TRouter is constrained as AnyRouter (only resolves at concrete AppRouter consumption in Part 5).
+- Errors resolved:     Single `@ts-expect-error` on the httpBatchLink line with documented rationale. NOT `as any` — `@ts-expect-error` is a typed escape hatch that self-removes when the underlying constraint is satisfied (i.e. when apps/yelli passes concrete AppRouter). Rule 12 (no `any`) and Rule 25 Stage 2 (no `any` types introduced) both satisfied.
+- Dispatches (V32 R1):
+  - D1 (Sonnet, 19 tool uses, 281s, 181K tokens): branch + packages/shared scaffolding + 13 type files (commit 15e3f76)
+  - D2 (Sonnet, 21 tool uses, 615s, 175K tokens): Zod schemas + reserved-slugs config + 13 files (commit fc7b3ff)
+  - D3 (Sonnet, 43 tool uses, 989s, 184K tokens): packages/api-client + installs + typecheck
+  - D3-fix (Sonnet, 9 tool uses, 304s, 171K tokens): replace as any with @ts-expect-error
+  - D4 (Sonnet — this dispatch): governance + squash-merge + push
+
 ## 2026-05-31 — PRODUCT.md Reverse-Extraction (SITUATION D)
 - Agent:              HUMAN (via Planning Assistant on Claude.ai)
 - Why:                Existing Yelli LAN MVP (vanilla Node + ws + WebRTC) needed Spec-Driven V31 framework adoption without rebuilding code. SITUATION D recipe (Prompt 4.14) used to reverse-extract PRODUCT.md from existing app + new requirements.

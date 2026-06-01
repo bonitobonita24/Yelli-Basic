@@ -1,5 +1,11 @@
 # Decisions Log
 
+## LOCKED: @yelli/api-client factory pattern — generic + @ts-expect-error (Part 2)
+Decision: packages/api-client exports `createYelliTrpcClient<TRouter extends AnyRouter>` rather than a concrete typed client. The tRPC v11 link transformer constraint requires `@ts-expect-error` on the httpBatchLink line — documented rationale, Rule 12 compliant (not `as any`).
+Rationale: api-client must not depend on apps/yelli (circular). Generic factory defers concrete typing to consumption site. Bootstrap Step 19 phantom-ui pin (^0.10.1 → 0.10.1 exact) also locked here.
+Pin policy: @aejkatappaja/phantom-ui must remain at exact 0.10.1 in packages/shared/package.json until a Feature Update + DECISIONS_LOG entry approves a version bump.
+Locked at Phase 4 Part 2 D3-fix. No re-asking.
+
 ## Brownfield Adoption — 2026-06-01
 BROWNFIELD ADOPTION: project existed before Spec-Driven Platform V31. Existing stack retained as REFERENCE only; PRODUCT.md target stack supersedes per Rule 28 (Global Priority Order — PRODUCT.md priority 4 outranks memory/user-context priority 8). Confirmed via AskUserQuestion 2026-06-01.
 

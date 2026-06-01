@@ -1,6 +1,7 @@
 # Yelli Agent Log
 # Format: TIMESTAMP | AGENT | PHASE | one-line summary
 # Append-only. Newest at bottom.
+2026-06-01 | CLAUDE_CODE | Phase 4 Part 2 (D1+D2+D3+D3-fix+D4) | packages/shared + packages/api-client scaffolded; @ts-expect-error on tRPC v11 link generic documented; squash-merge to main.
 
 2026-05-30 22:30 | HUMAN | PROMOTE | AlphaTest/ → project root (4781 lines / 25 files)
 2026-05-31 09:13 | HUMAN | FRAMEWORK_LOCK | PRODUCT.md V31 framework lock complete (Steps 1-9 + Step 10)

@@ -4,6 +4,27 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-01 — ⚖️ trade-off tRPC v11 generic transformer constraint vs concrete router type
+- Type:      ⚖️ trade-off
+- Phase:     Phase 4 Part 2 D3-fix
+- Files:     packages/api-client/src/index.ts
+- Concepts:  trpc-v11, generic-constraints, TransformerOptions, AnyRouter, @ts-expect-error
+- Narrative: tRPC v11's httpBatchLink<TRouter> requires TransformerOptions resolved from
+  TRouter["_def"]["_config"]["$types"]. Under an unbound generic (TRouter extends AnyRouter),
+  TypeScript cannot resolve this — typecheck errors. Three attempts considered:
+  A) Explicit TRouter generic to httpBatchLink — still errors.
+  B) Conditional spread of optional headers — still errors.
+  C) Single @ts-expect-error with rationale — chosen.
+  Why @ts-expect-error and NOT `as any`: @ts-expect-error errors out the moment the
+  underlying issue is resolved (i.e. when a concrete AppRouter is passed in Part 5).
+  `as any` silently hides the issue forever. Rule 12 (no any) + Rule 25 Stage 2 satisfied.
+  Cost: one suppressed line in api-client factory. Benefit: clean generic surface for
+  consumers; concrete typing automatic at apps/yelli call site.
+  Revisit: Part 5 should add a typed `createTrpcClient(): CreateTRPCClient<AppRouter>`
+  wrapper in apps/yelli that calls createYelliTrpcClient<AppRouter>(...) — at that point
+  verify the @ts-expect-error is still triggering. If concrete usage type-checks cleanly,
+  the suppression is doing its job.
+
 ## 2026-06-01 — 🟤 Yelli brownfield: PRODUCT.md target stack wins over Path A memory
 - Type:      🟤 decision
 - Phase:     Prompt 1.5.4 brownfield Adoption-mode Bootstrap
