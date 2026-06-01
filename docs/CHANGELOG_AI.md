@@ -1,5 +1,35 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Phase 4 Part 7 — Governance tools + Compose stacks + SocratiCode artifacts
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor — V32 R1; 7 Sonnet dispatches: D1 tools/, D2 dev compose, D3 stage compose, D4 prod compose + cloudflared, D5 scripts + COMMANDS + SocratiCode, D6a/b/c fixes, D7 governance)
+- Why:                 Part 7 of Phase 4 — generate governance tools (validate-inputs/check-env/check-product-sync/hydration-lint), Docker Compose stacks for dev/stage/prod with Rule 5 split-by-service-group pattern, image promotion pipeline, command reference, and SocratiCode context artifacts. Aligns with V27 Traefik labels (staging/prod), Komodo auto_update staging, cloudflared sidecar migration asset for current live deploy.
+- Files added:
+    tools/{validate-inputs.mjs, check-env.mjs, check-product-sync.mjs, hydration-lint.mjs}
+    deploy/compose/dev/{docker-compose.db.yml, docker-compose.cache.yml, docker-compose.storage.yml, docker-compose.infra.yml, docker-compose.pgadmin.yml, docker-compose.app.yml, pgadmin-servers.json}
+    deploy/compose/stage/{docker-compose.db.yml, docker-compose.cache.yml, docker-compose.storage.yml, docker-compose.pgadmin.yml, docker-compose.app.yml, pgadmin-servers.json}
+    deploy/compose/prod/{docker-compose.db.yml, docker-compose.cache.yml, docker-compose.storage.yml, docker-compose.pgadmin.yml, docker-compose.app.yml, docker-compose.cloudflared.yml, pgadmin-servers.json}
+    deploy/compose/start.sh (multi-`-f` single-project pattern)
+    deploy/compose/push.sh (dev→stage→prod image promotion)
+    COMMANDS.md (master command reference, 13 sections)
+    .socraticodecontextartifacts.json (4 artifacts: database-schema, implementation-map, decisions-log, product-definition)
+- Files modified:
+    package.json (+4 tools:* scripts)
+    .env.dev (+STORAGE_PORT, SMTP_UI_PORT, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD, APP_DOMAIN)
+    .env.staging (+structural vars + ⏳ secret placeholders)
+    .env.prod (+structural vars + ⏳ secret placeholders + CF_TUNNEL_TOKEN ⏳)
+- Files deleted:       none
+- Schema/migrations:   none (Part 7 is infrastructure scaffold only)
+- Errors encountered:
+    1. compose env_file path was `../../.env.${ENV}` resolving to `deploy/.env.dev` (missing) — compose files live 3 levels deep, not 2. Fixed across all 18 compose files: `../../../.env.${ENV}`.
+    2. start.sh originally ran each compose file as separate `docker compose -f X` invocation — cross-file `depends_on: postgres` failed because pgadmin and app live in different files. Fixed by refactoring start.sh to canonical multi-`-f` single-project pattern: `docker compose -p yelli_$ENV -f db.yml -f cache.yml -f storage.yml -f pgadmin.yml [-f infra.yml] -f app.yml [-f cloudflared.yml] $CMD`.
+    3. .env.dev missing STORAGE_PORT, SMTP_UI_PORT, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD — env file written by Bootstrap Step 18 used STORAGE_ENDPOINT (URL form) rather than discrete port var. Added missing vars.
+- Verification:
+    bash deploy/compose/start.sh dev up -d → exit 0; postgres/valkey/minio/pgadmin/mailhog healthy; app starting; clean teardown via `down`.
+    pnpm tools:validate-inputs → exit 0
+    pnpm tools:check-product-sync → exit 0 (no private tag leaks)
+    pnpm tools:hydration-lint → exit 0 (12 files scanned, 0 issues)
+    pnpm tools:check-env (APP_ENV=dev) → exit 0
+
 ## 2026-06-02 — Phase 4 Part 5: apps/yelli Next.js Scaffold
 
 - **Agent:**              CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)

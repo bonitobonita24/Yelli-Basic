@@ -181,3 +181,17 @@
 - Files:     apps/yelli/src/proxy.ts
 - Concepts:  nextjs-16, middleware, proxy.ts, v25-anti-tenant-switching
 - Narrative: Next.js 16 renamed the `middleware.ts` convention to `proxy.ts` (proxy() + proxyConfig exports). Same matcher syntax. V25 logic — extract subdomain from Host, decode JWT via getToken (Edge-safe, no DB), compare against jwt.tenantSlug, redirect mismatched-tenant browsers — lives in apps/yelli/src/proxy.ts. RUNTIME VERIFICATION REQUIRED at Phase 6: confirm Komodo + Cloudflare Tunnel deployment actually triggers proxy.ts on incoming requests. If Next.js 16 deploys treat proxy.ts differently from middleware.ts the V25 enforcement becomes dead code.
+
+## 2026-06-02 — 🔴 gotcha Compose `env_file` resolves relative to compose-file directory, not project root
+- Type:      🔴 gotcha
+- Phase:     Phase 4 Part 7
+- Files:     deploy/compose/{dev,stage,prod}/docker-compose.*.yml
+- Concepts:  docker-compose, env_file, path-resolution, multi-stage-deploy
+- Narrative: V31 templates use `env_file: ../../.env.${ENV}` assuming compose files at `deploy/{env}/`. Our framework lays them out at `deploy/compose/{env}/` (one level deeper). The relative path `../../.env.dev` from `deploy/compose/dev/` resolves to `deploy/.env.dev` — which does not exist; project root is THREE levels up. Fix: always `../../../.env.${ENV}` for this layout. Verify with `docker compose --env-file <abs path> -f <file> config --quiet` — silence = success. This is the env_file DIRECTIVE inside each service (loads vars INTO the container) — separately, the CLI `--env-file` flag at `docker compose` time controls YAML-substitution and is passed via start.sh as `$(pwd)/.env.$ENV` (absolute).
+
+## 2026-06-02 — 🟤 decision Compose start.sh uses multi-`-f` single-project pattern, not sequential per-file invocations
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 7
+- Files:     deploy/compose/start.sh
+- Concepts:  docker-compose, depends_on, project-name, network-sharing, V31-template-divergence
+- Narrative: V31 framework template shows start.sh looping over each compose file with separate `docker compose -f X up -d` invocations. Problem: each invocation creates its own COMPOSE project (separate from-network perspective even when network is declared external) and `depends_on: postgres` in pgadmin/app fails because postgres is defined in a different invocation/project. Fixed by collapsing to canonical pattern: `docker compose -p yelli_$ENV --env-file .env.$ENV -f db.yml -f cache.yml -f storage.yml -f pgadmin.yml [-f infra.yml] -f app.yml [-f cloudflared.yml] $CMD`. Single project, single network, depends_on resolves across files, --build cleanly applies to app service only on dev up. Documented in DECISIONS_LOG as a divergence from the V31 template — locked for Yelli.

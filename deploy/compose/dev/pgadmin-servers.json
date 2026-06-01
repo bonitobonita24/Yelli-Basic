@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Yelli Dev",
+      "Group": "Yelli",
+      "Host": "yelli_dev_postgres",
+      "Port": 5432,
+      "MaintenanceDB": "yelli_dev",
+      "Username": "yelli_dev",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpassfile"
+    }
+  }
+}

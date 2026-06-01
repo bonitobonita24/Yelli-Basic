@@ -1,8 +1,8 @@
 # Implementation Map — Yelli
 
-Last updated: 2026-06-02 by CLAUDE_CODE (Phase 4 Part 5 complete — apps/yelli Next.js scaffold)
-Current phase: Phase 4 Part 5 complete
-Branch: main (scaffold/part-5 squash-merged)
+Last updated: 2026-06-02 by CLAUDE_CODE (Phase 4 Part 7 complete — governance tools + compose stacks)
+Current phase: Phase 4 Part 7 complete
+Branch: main (scaffold/part-7 squash-merged)
 
 ## Current State (May 2026 — pre-Spec-Driven, retained as Phase 4 reference)
 
@@ -131,7 +131,14 @@ Branch: main (scaffold/part-5 squash-merged)
 ### Phase 4 Part 6 — apps/mobile (SKIPPED)
 - Per PRODUCT.md: PWA web only, no native mobile app.
 
-### Phase 4 Part 7 — tools/ + deploy/compose/ + scripts/
+### Phase 4 Part 7 — tools/ + deploy/compose/ + scripts/ ✅ COMPLETE (2026-06-02)
+✅ Phase 4 Part 7 — Governance tools + Compose stacks (done 2026-06-02)
+   - tools/ (4 .mjs governance tools, wired to pnpm scripts)
+   - deploy/compose/{dev,stage,prod}/ (20 compose files + 3 pgadmin-servers.json + start.sh + push.sh)
+   - COMMANDS.md (master reference)
+   - .socraticodecontextartifacts.json (4 artifacts indexed)
+   - Verified: dev stack up→healthy→down cleanly
+
 - Add: tools/validate-inputs.mjs, check-env.mjs, check-product-sync.mjs, hydration-lint.mjs
 - Add: deploy/compose/dev|stage|prod/ split compose files (db, cache, storage, infra, app, pgadmin)
 - Update: existing compose.yaml → migrate to deploy/compose/prod/ pattern with cloudflared retained
@@ -166,7 +173,9 @@ Branch: main (scaffold/part-5 squash-merged)
 - ✅ Phase 4 Part 2 — packages/shared + packages/api-client: complete 2026-06-01 (7 entity types + Zod schemas + reserved-slugs + phantom-ui pinned 0.10.1 EXACT + tRPC client factory)
 - ✅ Phase 4 Part 3 — packages/db: complete 2026-06-01 (Prisma schema + L2/L5/L6 security stack + webmaster seed; workspace typecheck 0 errors)
 - ✅ Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage: complete 2026-06-01 (Tailwind preset + 6 BullMQ queues with worker stubs + S3/MinIO wrapper; workspace typecheck 0 errors)
-- ⏳ Phase 4 Part 5 — apps/yelli (Next.js scaffold): pending
-- ❌ Phase 4 Parts 6–8: pending
+- ✅ Phase 4 Part 5 — apps/yelli (Next.js scaffold): complete 2026-06-02
+- ❌ Phase 4 Part 6 — SKIPPED (PWA-only, no native mobile)
+- ✅ Phase 4 Part 7 — tools/ + deploy/compose/ + SocratiCode artifacts: complete 2026-06-02 (7/8)
+- ❌ Phase 4 Part 8: pending
 - ❌ Phase 5: validation pending
 - ❌ Phase 6: Docker + Visual QA pending

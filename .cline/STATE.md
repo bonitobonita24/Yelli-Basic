@@ -1,63 +1,90 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
-# Updated: 2026-06-01 by CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)
+# Updated: 2026-06-02 by CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)
 
-PHASE:        Phase 4 Part 4 complete (packages/ui Tailwind preset + packages/jobs BullMQ queues + packages/storage S3/MinIO wrapper; live deploy unchanged)
-LAST_DONE:    Wrote 23 files across packages/ui + packages/jobs + packages/storage on scaffold/part-4, squash-merged to main as cc03433 and pushed to origin. packages/ui ships a shareable Tailwind 3.4 preset (Clay token color bridge via `hsl(var(--clay-*))` + radii from --radius-button/card + cn() helper using clsx + tailwind-merge) — no shadcn primitives yet (Part 5 runs `npx shadcn add` against this package). packages/jobs ships 6 typed BullMQ queues matching inputs.yml + DECISIONS_LOG "LOCKED: Jobs + Queues" / "LOCKED: Database Backup" (tenant-export, device-archive-cron, soft-delete-hard-delete-cron, backup-cron, email, logo-image-processing) with shared ioredis connection (5.10.1 exact pin + pnpm.overrides dedupe vs bullmq's bundled version), `assertTenantUser` payload guard enforcing security.md Queue Safety rules 1+2, 6 worker stubs that validate payload + log structured JSON + return placeholder (TODO Phase 5 markers throughout), and `startAllWorkers()` runtime with SIGTERM/SIGINT graceful shutdown for `node dist/workers/index.js` deploy. packages/storage ships an S3Client factory that flips between MinIO (dev, forcePathStyle) and AWS S3 (prod), typed BUCKETS registry, MIME whitelist PNG+JPEG only with magic-byte verification + 2 MiB limit (SVG intentionally excluded per security.md rule 6 — re-enable requires DOMPurify wiring in Phase 5/7), tenant-scoped upload path `${tenantId}/${entityType}/${randomFilename}.${ext}`, and signed-URL download that asserts `sessionTenantId` matches the storage key prefix per security.md File Upload Safety rule 8 (StorageAccessError returns generic "Not found" to prevent existence leak). pnpm -r typecheck = 0 errors workspace-wide both pre- and post-merge.
-NEXT:         Phase 4 Part 5 — apps/yelli (Next.js 16 App Router scaffold + tRPC 5-step middleware chain + Auth.js v5 + V25 anti-tenant-switching middleware + shadcn primitives installed targeting packages/ui + Clay tokens.css single source + PWA Workbox + Web Push + rate limiter tiers + HTTP security headers + DOMPurify sanitize + signaling rewrite from vanilla server.js → tRPC WebSocket subscription). Open .cline/tasks/phase4-part5.md in a NEW Claude Code session per Rule 24. Trigger: "Start Part 5". Branch: scaffold/part-5. Largest Part yet — Opus will sub-divide per V32 R2/§1 Tiered Decomposition (likely 6–8 Sonnet dispatches: shadcn init + tokens.css + auth scaffold + tRPC routers + signaling subscription + UI pages + PWA + verify/merge).
-BLOCKERS:     none for Part 5. Pre-existing lint script failure (`pnpm -r lint --if-present` returns non-zero due to ESLint v9 flat-config root config absence — noted Part 2 session memory) is NOT a Part 4 regression; typecheck is the authoritative gate. Phase 5 staging will block on unfilled CREDENTIALS.md ⏳ fields (GitHub PAT, Docker Hub token, SMTP, prod Turnstile keys, third-party APIs).
-GIT_BRANCH:   main (scaffold/part-4 squash-merged as cc03433 and deleted)
-GIT_TAG:      pre-spec-driven-adoption-20260531 (on main pre-rewrite)
-PORTS:        ASSIGNED — base=46838, db=46838, pgbouncer=46839, redis=46840, minio=46841, minio_console=46842, mailhog=46843, mailhog_ui=46844, pgadmin=46845, app=46848, worker=46849, prisma_studio=46858.
-MIGRATION:    brownfield=true. Parts 1+2+3+4 done. Live deploy at yelli-maes.powerbyte.app stays on prior commit a251049 until rewrite finishes + manual Komodo redeploy.
+PHASE:        Phase 4 Part 5 complete (apps/yelli Next.js 16 + Auth.js v5 + tRPC v11 + shadcn/ui + Clay tokens + PWA scaffold)
+LAST_DONE:    Wrote 103 files on scaffold/part-5 squash-merged to main as 895c9bb (a8f3627..895c9bb) and pushed to origin. apps/yelli ships a full Next.js 16 application shell: package.json + tsconfig.json + next.config.ts (7 HTTP security headers + CSP allowing challenges.cloudflare.com + wss: for signaling) + tailwind.config.ts (extends @yelli/ui preset) + postcss.config.js + components.json + .env.example + 3-stage Dockerfile + .dockerignore. shadcn/ui initialized non-interactively with 17 components installed (avatar, badge, button, card, dialog, dropdown-menu, form, input, label, scroll-area, select, separator, sheet, skeleton, sonner, tabs, textarea) wired to @yelli/ui's cn helper. Clay design tokens locked as single source: src/styles/tokens.css extracted verbatim from the brownfield public/index.html (canvas #fffaf0, navy #0a0a0a, 6-color palette pink/teal/lavender/peach/ochre/mint + 3 surface variants + Inter 500 negative letter-spacing + 12px button / 24px card radii); src/styles/globals.css maps shadcn semantic vars FROM Clay (no dark mode per design lock). src/env.ts uses @t3-oss/env-nextjs with Zod schemas covering 21 server + 3 client (NEXT_PUBLIC_) env vars. public/manifest.json declares PWA shell with Clay theme color. Auth.js v5 (next-auth 5.0.0-beta.22) configured at src/server/auth/{config.ts, session.ts} as Credentials provider + JWT strategy (PrismaAdapter dropped due to @auth/core dual-version peer conflict with @auth/prisma-adapter — re-add in Phase 7 for magic-link); authorize() does Turnstile siteverify before bcrypt compare (LAN_MODE_ENABLED bypasses Turnstile); session() callback re-reads User.securityVersion + isSuspended + tenant.isSuspended from DB on every lookup and blanks session.user on mismatch (V28 / security.md Auth Defaults #6). Server lib helpers: src/server/lib/{rate-limit.ts (LRU tiered limiters auth=10/min, api=120/min, public=30/min, upload=20/min per inputs.yml security.rate_limits), sanitize.ts (DOMPurify sanitize + sanitizePlainText), platform-prisma.ts (isolated PrismaClient WITHOUT tenant-guard extension, used ONLY by routers/platform.ts per LOCKED Super-Admin isolation)}. tRPC v11 core at src/server/trpc/trpc.ts (initTRPC.context<TRPCContext>().create({ transformer: superjson }), publicProcedure + protectedProcedure with session guard, ctx carries session + headers + extracted IP). 5-step middleware chain at src/server/trpc/middleware/{rate-limit-mw.ts (tier applier — user-keyed for api+upload, IP-keyed for auth+public), rbac.ts (requireRole + requireSuperAdmin guards), tenant.ts (L1 tenantId guard surfaces tenantId/tenantSlug on ctx), session-version.ts (V28 freshness check — Phase 7 TODO: 30s Valkey cache), audit-log.ts (L5 mutation logger via writeAuditLog from @yelli/db)}. 7 routers at src/server/trpc/routers/: tenant.ts (me, update — admin), user.ts (me, update, list, roleSet w/ last-admin guard + securityVersion increment, suspend, unsuspend), device.ts (register, list, archive, unarchive, setCallRole — schema field names: userId, browserFingerprint, callRole, archivedAt, assignedRoleAt), call.ts (invite/accept/reject/end/history — CallSession uses callerDeviceId+calleeDeviceId, captures callerRoleAtCall+calleeRoleAtCall snapshots; EndReason enum: completed/declined/busy/no_answer/peer_disconnect/ice_failed/cancelled/forbidden_by_role), branding.ts (me, uploadLogo via @yelli/storage uploadBrandingImage — PNG+JPEG only per LOCKED), audit.ts (paginated list, admin only, supports actionPrefix filter for PLATFORM: rows), platform.ts (super-admin: listTenants, getTenant, suspendTenant, unsuspendTenant, importTenant=NOT_IMPLEMENTED Phase 7 stub — all use platformPrisma + PLATFORM: audit prefix). root.ts merges all 7 (with `call` renamed to `calls` per tRPC v11 reserved-word collision — runtime throw on `router({call:...})`). src/lib/trpc-client.ts exports `trpc = createTRPCReact<AppRouter>()` for React hooks + `makeTrpcClient<AppRouter>()` wrapper of @yelli/api-client createYelliTrpcClient + `trpcLinks(url)` helper. Next.js 16 middleware lives at src/proxy.ts (NEW V31 — Next.js 16 renamed middleware.ts → proxy.ts, exports `proxy` + `proxyConfig`): V25 anti-tenant-switching — extracts subdomain from Host header, decodes JWT via getToken({req, secret}) (Edge-safe, no DB), redirects browsers to their own session.tenantSlug.yelli.app when URL subdomain mismatches; LAN mode short-circuits; 18 reserved subdomains bypass (www, api, app, _pwbt, etc.). 5 API routes: src/app/api/trpc/[trpc]/route.ts (fetchRequestHandler), api/auth/[...nextauth]/route.ts (re-exports Auth.js handlers), api/health/route.ts (basic 200), api/push/subscribe/route.ts (Web Push subscription stored to WebPushSubscription — schema fields: p256dh, auth, deviceId, userId, tenantId; userAgent dropped from spec since schema doesn't have it), _pwbt/health/route.ts (Cloud uptime probe per LOCKED Operations.uptime.probes — returns {ok, db, valkey:"unchecked", signaling:"unchecked"}; 200/503; Phase 7 wires Valkey + signaling pings). Pages: src/app/layout.tsx (Inter font via next/font/google + tokens.css + globals.css + phantom-ui side-effect import + TRPCProvider + Sonner Toaster top-center per LOCKED Web Push UX); (auth)/login/page.tsx + (auth)/register/page.tsx (register is Phase 7 placeholder); (app)/page.tsx (directory idle shell), (app)/settings/page.tsx, (app)/audit/page.tsx (admin-gated); _pwbt/page.tsx (super-admin gated — slug==="_pwbt" && role==="admin", notFound() otherwise to avoid existence leak). 4 client components: src/components/providers/TRPCProvider.tsx (QueryClient + tRPC link from makeTrpcLinks), src/components/auth/{LoginForm.tsx (react-hook-form + Zod + signIn from next-auth/react + generic anti-enumeration error messages + mobile-first h-11 touch targets), TurnstileWidget.tsx (Cloudflare Turnstile via @marsidev/react-turnstile)}. PWA: public/sw.js (raw JS — Workbox 7.3.0 via CDN: NetworkFirst for navigation cached as "yelli-shell", StaleWhileRevalidate for assets, NetworkOnly for /api/*; push handler shows notification with tap-to-open per LOCKED Web Push UX) + src/lib/register-sw.ts (client-side navigator.serviceWorker.register helper — skips in dev unless NEXT_PUBLIC_FORCE_SW). src/types/phantom-ui.d.ts (V31.3 JSX intrinsic for <phantom-ui> Web Component — both react/jsx-runtime + react/jsx-dev-runtime + global JSX augmentations). Modified: packages/shared/src/types/user.ts (+securityVersion: number — closes Part 3 deferral); packages/db/prisma/schema.prisma (+securityVersion Int @default(0) @map("security_version")); packages/db/prisma/migrations/0002_user_security_version/migration.sql (hand-written: ALTER TABLE "users" ADD COLUMN "security_version" INTEGER NOT NULL DEFAULT 0); packages/shared/src/{index, schemas/*, config/index} + packages/storage/src/{index, upload, download} + packages/jobs/src/{index, queues, workers/*} dropped `.js` extension from barrel imports (Next.js webpack rejected — TypeScript bundler accepted both; universal compatibility is no-extension); packages/ui/package.json (+"./tailwind.config": "./tailwind.config.ts" exports subpath); apps/yelli/src/styles/globals.css (moved @import "./tokens.css" to first line per PostCSS @import order); apps/yelli/src/server/trpc/root.ts (renamed merged key call→calls). root package.json added @prisma/client direct dep + superjson dep + class-variance-authority + tailwindcss-animate to apps/yelli. apps/yelli/tsconfig.json overrides exactOptionalPropertyTypes:false (Radix UI v1 compat — packages/ stay strict). Verification: pnpm install --frozen-lockfile ✓; pnpm -r typecheck = 0 errors across 8 packages ✓; pnpm --filter @yelli/yelli build with SKIP_ENV_VALIDATION=true succeeds and emits .next/standalone ✓.
+NEXT:         Phase 4 Part 6 — open `.cline/tasks/phase4-part6.md` in a NEW Claude Code session per Rule 24. Trigger: "Start Part 6". Per task scaffolding convention this is either apps/mobile (Expo + WatermelonDB + push notifications + 1 Mobile First module from PRODUCT.md) OR an apps/yelli expansion pass if no mobile is declared. inputs.yml currently lists only the `yelli` web app — no mobile declared — so Part 6 likely shifts to deploy/compose + tools/ scaffolding (typical Part 7 territory in standard framework numbering). Confirm the actual scope by reading the Part 6 task file at session start.
+BLOCKERS:     none for Part 6. Phase 5 staging validation will still block on unfilled CREDENTIALS.md ⏳ fields (GitHub PAT, Docker Hub token, SMTP, prod Turnstile keys, third-party API keys). Phase 6 must runtime-verify Next.js 16 proxy.ts behaves as middleware.ts did (the V25 anti-tenant-switching depends on proxy.ts intercepting every non-static request on Komodo + Cloudflare Tunnel — if convention rename changes runtime semantics, V25 enforcement becomes dead code).
+GIT_BRANCH:   main (scaffold/part-5 squash-merged as 895c9bb, pushed origin/main a8f3627..895c9bb, branch deleted)
+GIT_TAG:      pre-spec-driven-adoption-20260531 (on main pre-rewrite — untouched)
+PORTS:        UNCHANGED — base=46838, db=46838, pgbouncer=46839, redis=46840, minio=46841, minio_console=46842, mailhog=46843, mailhog_ui=46844, pgadmin=46845, app=46848, worker=46849, prisma_studio=46858.
+MIGRATION:    brownfield=true. Parts 1+2+3+4+5 done. Live deploy at yelli-maes.powerbyte.app stays on prior commit a251049 (vanilla edition) until rewrite finishes + manual Komodo redeploy after Phase 6 staging validation.
 LIVE_DEPLOY:  yelli-maes.powerbyte.app (vanilla edition operational; not auto-redeploying during Phase 4)
 MODELS:
   planning:   claude-code (Opus 4.7 — Architect ONLY per V32 R1)
-  execution:  claude-sonnet-4-6 (via Claude Code — all file writes)
+  execution:  claude-sonnet-4-6 (via Claude Code — all file writes; D14 fix dispatches handled blockers without Opus executor escalation)
   governance: gemini-2.5-flash-lite
-LINES_TOUCHED: ~1410 this Part (5 packages/ui + 14 packages/jobs + 8 packages/storage files + root package.json pnpm.overrides + pnpm-lock regen + 5 governance docs)
+LINES_TOUCHED: ~3500 this Part (largest Part of Phase 4 — apps/yelli ~70 files + 17 shadcn components + Clay tokens + 7 routers + 5 middleware + auth + lib + pages + components + API routes + proxy + PWA + Dockerfile + workspace barrel `.js`-extension fixes across 3 packages + securityVersion migration + 5 governance doc appends)
 CHECKPOINT_TYPE: full
 FILES_TOUCHED:
-  - packages/ui/package.json (created)
-  - packages/ui/tsconfig.json (created)
-  - packages/ui/tailwind.config.ts (created — shareable preset)
-  - packages/ui/src/index.ts (created — barrel)
-  - packages/ui/src/lib/utils.ts (created — cn helper)
-  - packages/jobs/package.json (created)
-  - packages/jobs/tsconfig.json (created)
-  - packages/jobs/src/index.ts (created — barrel + startAllWorkers re-export)
-  - packages/jobs/src/connection.ts (created — getConnection singleton + createWorkerConnection + closeAllConnections)
-  - packages/jobs/src/types.ts (created — 6 typed payloads + QUEUE_NAMES const)
-  - packages/jobs/src/queues.ts (created — Queue<T> registry + DEFAULT_JOB_OPTS + closeAllQueues)
-  - packages/jobs/src/workers/_validate.ts (created — assertTenantUser + log helper)
-  - packages/jobs/src/workers/tenant-export.worker.ts (created — stub)
-  - packages/jobs/src/workers/device-archive.worker.ts (created — stub)
-  - packages/jobs/src/workers/soft-delete-cron.worker.ts (created — stub)
-  - packages/jobs/src/workers/backup-cron.worker.ts (created — stub with _pwbt+system local guard)
-  - packages/jobs/src/workers/email.worker.ts (created — stub with idempotencyKey guard)
-  - packages/jobs/src/workers/logo-image-processing.worker.ts (created — stub)
-  - packages/jobs/src/workers/index.ts (created — startAllWorkers + main entrypoint + SIGTERM/SIGINT)
-  - packages/storage/package.json (created)
-  - packages/storage/tsconfig.json (created)
-  - packages/storage/src/index.ts (created — barrel)
-  - packages/storage/src/client.ts (created — S3Client factory MinIO/S3)
-  - packages/storage/src/buckets.ts (created — typed BUCKETS registry)
-  - packages/storage/src/validate.ts (created — MIME whitelist PNG+JPEG + magic bytes + 2 MiB cap)
-  - packages/storage/src/upload.ts (created — tenant-scoped path + tenantId/entityType guards + CacheControl no-store)
-  - packages/storage/src/download.ts (created — signed URL with sessionTenantId key-prefix match + 24h export variant)
-  - package.json (root — added pnpm.overrides.ioredis = "5.10.1")
-  - pnpm-lock.yaml (regenerated)
-  - docs/CHANGELOG_AI.md (Part 4 entry appended)
-  - docs/IMPLEMENTATION_MAP.md (Phase 4 Part 4 section expanded + Phase Status updated)
-  - docs/DECISIONS_LOG.md (3 LOCKED entries appended — ioredis pin, branding MIME whitelist, worker payload guard convention)
-  - .cline/memory/lessons.md (4 typed entries appended — 🟤 ioredis dedupe, 🟤 SVG deferred, ⚖️ Tailwind 3.4, 🟢 worker boot pattern)
-  - .cline/memory/agent-log.md (1 line appended)
-  - .cline/STATE.md (this checkpoint — Opus exception per V32 R1)
-TIER_CLASSIFICATION: 2 — moderate (5 Sonnet dispatches under V32 R1: D1 ui scaffold / D2 jobs core / D3 jobs workers / D4 storage / D5 governance+verify+squash-merge; ~1410L total; each ≤500L per V32 R2)
-DISPATCH_LEDGER (Phase 4 Part 4):
-  D1: scaffold/part-4 branch off main + packages/ui (package.json + tsconfig + tailwind preset + cn util + barrel); typecheck 0; commit cc7aa31
-  D2: packages/jobs core (package.json + tsconfig + connection + 6 typed payloads + Queue<T> registry + barrel); typecheck 0; commit 5706930; DEVIATION: ioredis pinned 5.10.1 exact + root pnpm.overrides added to dedupe bullmq's bundled version (resolved exactOptionalPropertyTypes mismatch between two ioredis instances)
-  D3: packages/jobs/src/workers/ (6 worker stubs + _validate shared guard + index boot with graceful shutdown); typecheck 0; commit 0377f24
-  D4: packages/storage (S3Client factory + typed BUCKETS + MIME whitelist with magic-byte check + tenant-scoped upload + signed-URL download with sessionTenantId prefix match); typecheck 0; commit a16391f; DEVIATION: SVG intentionally excluded from branding whitelist per security.md rule 6 (re-enable in Phase 5/7 with DOMPurify)
-  D5: pnpm -r typecheck verified 0 across 6 packages → governance docs (CHANGELOG_AI + IMPLEMENTATION_MAP + DECISIONS_LOG + 4 lessons entries + agent-log) committed 8786198 on branch → squash-merge scaffold/part-4 → main as cc03433 → push origin/main (3165aae..cc03433) → branch deleted → final post-merge pnpm -r typecheck 0 errors
-NEXT_DISPATCH: Human opens fresh Claude Code session → "Start Part 5" from .cline/tasks/phase4-part5.md (largest Part — sub-divide per V32 R2/§1 into shadcn init, tokens.css single source, Auth.js v5 scaffold, tRPC 5-step middleware + Super-Admin isolated router, Next.js middleware.ts V25 anti-tenant-switching, signaling WebSocket subscription rewrite, PWA Workbox + Web Push, security headers + rate limiter tiers + DOMPurify sanitize, UI pages composing shadcn primitives, two-stage code review per Rule 25, squash-merge)
+  apps/yelli:
+    - package.json, tsconfig.json, next.config.ts, tailwind.config.ts, postcss.config.js, components.json, .env.example, Dockerfile, .dockerignore
+    - src/env.ts, src/lib/{utils.ts, trpc-client.ts, register-sw.ts}
+    - src/styles/{tokens.css, globals.css}
+    - public/manifest.json, public/sw.js
+    - src/types/phantom-ui.d.ts
+    - src/server/auth/{config.ts, session.ts}
+    - src/server/lib/{rate-limit.ts, sanitize.ts, platform-prisma.ts}
+    - src/server/trpc/trpc.ts
+    - src/server/trpc/middleware/{rate-limit-mw.ts, rbac.ts, tenant.ts, session-version.ts, audit-log.ts}
+    - src/server/trpc/routers/{tenant.ts, user.ts, device.ts, call.ts, branding.ts, audit.ts, platform.ts}
+    - src/server/trpc/root.ts
+    - src/components/ui/* (17 shadcn components)
+    - src/components/providers/TRPCProvider.tsx
+    - src/components/auth/{TurnstileWidget.tsx, LoginForm.tsx}
+    - src/proxy.ts (Next.js 16 convention — V25 anti-tenant-switching)
+    - src/app/layout.tsx
+    - src/app/(auth)/{login, register}/page.tsx
+    - src/app/(app)/{page, settings/page, audit/page}.tsx
+    - src/app/_pwbt/page.tsx
+    - src/app/api/{trpc/[trpc], auth/[...nextauth], health, push/subscribe}/route.ts
+    - src/app/_pwbt/health/route.ts
+  packages (modified):
+    - packages/shared/src/types/user.ts (+securityVersion)
+    - packages/shared/src/{index, schemas/*, config/index} (dropped .js extensions)
+    - packages/storage/src/{index, upload, download} (dropped .js extensions)
+    - packages/jobs/src/{index, queues, workers/*} (dropped .js extensions)
+    - packages/db/prisma/schema.prisma (+securityVersion column)
+    - packages/db/prisma/migrations/0002_user_security_version/migration.sql (NEW)
+    - packages/ui/package.json (+./tailwind.config exports subpath)
+  root:
+    - package.json (no overrides change; pnpm-lock.yaml regenerated)
+  governance:
+    - docs/CHANGELOG_AI.md (Part 5 entry prepended)
+    - docs/IMPLEMENTATION_MAP.md (Phase 4 5/8 marker + Part 5 ✅ block)
+    - docs/DECISIONS_LOG.md (6 LOCKED entries appended: securityVersion, Auth.js w/o adapter, tsconfig override, proxy.ts convention, calls router-key rename, no-`.js`-extension workspace barrels)
+    - .cline/memory/lessons.md (7 typed entries: 2× 🔴 gotcha, 3× 🟤 decision, 1× ⚖️ trade-off, 1× 🟢 change)
+    - .cline/memory/agent-log.md (1 line)
+    - .cline/STATE.md (this checkpoint — Opus exception per V32 R1)
+TIER_CLASSIFICATION: 3 — heavy (Part 5 is the largest Part of Phase 4; decomposed under V32 R2 into 14 implementation dispatches + 4 fix dispatches: D0 Scout / D1a workspace / D1b styling-config / D2 shadcn-init / D3 Clay-tokens / D4 securityVersion / D4-fix shadcn-deps / D5a Auth.js / D5a-fix / D5b lib-helpers / D5b-fix / D6a trpc-core / D6b middleware-chain / D7 routers-A / D8 routers-B / D9 platform+root+client / D10 proxy+API-routes / D11a layout+provider+phantom / D11b auth-pages / D12 app-pages / D13 PWA+Dockerfile / D14-verify / D14-fix .js-extensions / D14-fix2 ui-exports / D14-fix3 CSS-import-order / D14-fix4 calls-rename / D14-govern / D14-merge — average dispatch ≤500L per V32 R2)
+DISPATCH_LEDGER (Phase 4 Part 5):
+  D0:    scaffold/part-5 branch + Sonnet Scout (PRODUCT.md Pages/Roles/Realtime + packages/shared User type + packages/db schema User/Tenant + @yelli/api-client signature)
+  D1a:   apps/yelli/{package.json (Next.js 16, Auth.js v5 beta.22, tRPC 11.0.0-rc.660, 17 shadcn peer deps planned), tsconfig.json} + pnpm install
+  D1b:   next.config.ts (7 sec headers + CSP) + tailwind.config.ts + postcss.config.js + .env.example
+  D2:    Pre-write components.json + utils + minimal globals.css → npx shadcn@latest add (17 components, --yes --overwrite)
+  D3:    src/styles/tokens.css (Clay tokens extracted verbatim from brownfield public/index.html) + globals.css overwrite + env.ts + manifest.json
+  D4:    packages/shared/src/types/user.ts +securityVersion → packages/db/prisma/schema.prisma +securityVersion → migration 0002_user_security_version
+  D4-fix: apps/yelli/package.json +class-variance-authority + tailwindcss-animate; tsconfig.json +exactOptionalPropertyTypes:false; tailwind.config.ts +animate plugin
+  D5a:   auth/config.ts attempt 1 (7 typecheck errors — Role enum mismatch, next-auth/jwt path, prisma include typing)
+  D5a-fix: auth/config.ts attempt 2 (PrismaAdapter dropped due to @auth/core peer conflict; Role enum corrected to admin|member only; explicit `import type { JWT } from "next-auth/jwt"` to enable module augmentation) → 0 errors
+  D5b:   lib/rate-limit.ts + sanitize.ts + platform-prisma.ts (TS1362 PrismaClient type-only export issue)
+  D5b-fix: platform-prisma.ts imports PrismaClient from @prisma/client directly + @prisma/client added as direct dep
+  D6a:   trpc.ts (initTRPC v11 + superjson + createTRPCContext + base procedures) + middleware/rate-limit-mw.ts + middleware/rbac.ts (requireRole + requireSuperAdmin)
+  D6b:   middleware/tenant.ts + session-version.ts + audit-log.ts (matched writeAuditLog signature: tx + AuditEntry { tenantId, actorUserId, action, targetType, targetId, payload? })
+  D7:    routers/tenant.ts (75L, 2 procs) + user.ts (232L, 6 procs incl last-admin guard + securityVersion increment) + device.ts (200L, 5 procs; actual schema fields userId/browserFingerprint/callRole/archivedAt)
+  D8:    routers/call.ts (247L, 5 procs — CallSession uses callerDeviceId/calleeDeviceId per schema) + branding.ts (106L, 2 procs — uploadLogo direct via @yelli/storage uploadBrandingImage; no presigned URL) + audit.ts (55L, 1 proc list)
+  D9:    routers/platform.ts (140L, 5 procs incl importTenant stub) + root.ts (merges 7; key `call` later renamed) + lib/trpc-client.ts (createTRPCReact + makeTrpcClient + trpcLinks)
+  D10:   src/proxy.ts (Next.js 16 convention — V25 + RESERVED_SUBDOMAINS) + 5 API routes (trpc, auth, health, push/subscribe, _pwbt/health); WebPushSubscription schema fields: p256dh/auth/deviceId/userId/tenantId
+  D11a:  src/types/phantom-ui.d.ts (PhantomUiAttributes export confirmed) + components/providers/TRPCProvider.tsx (uses makeTrpcLinks) + app/layout.tsx (Inter + tokens + Toaster top-center)
+  D11b:  components/auth/{TurnstileWidget, LoginForm} + (auth)/{login, register}/page.tsx (Vercel plugin recommended Clerk/Descope migration — correctly rejected per H1 priority order against Rule 14 OSS-first + locked Auth.js v5)
+  D12:   (app)/page.tsx + settings/page.tsx + audit/page.tsx + _pwbt/page.tsx (server components w/ inline auth gates — no route-group layouts; admin gates redirect, _pwbt notFound() to avoid existence leak)
+  D13:   public/sw.js (Workbox CDN + tap-to-open Web Push) + src/lib/register-sw.ts + Dockerfile (3-stage node:24-alpine, non-root, tini) + .dockerignore
+  D14-verify: pnpm install ✓; typecheck 0 ✓; next lint --max-warnings flag invalid (script syntax fix deferred); build FAIL on packages/storage/src/index.ts ./validate.js resolution
+  D14-fix:  Dropped .js extensions across packages/{shared (10 files), storage (3 files), jobs (9 files)} barrel imports — TypeScript-fine, Next.js bundler-fine; new blocker @yelli/ui ./tailwind.config exports subpath missing
+  D14-fix2: packages/ui/package.json +"./tailwind.config" exports subpath; new blocker CSS @import "./tokens.css" placed after @tailwind directives
+  D14-fix3: apps/yelli/src/styles/globals.css moved @import "./tokens.css" to first line; new blocker tRPC v11 reserved word `call`
+  D14-fix4: apps/yelli/src/server/trpc/root.ts renamed merged key call→calls; BUILD SUCCESS, .next/standalone created
+  D14-govern: CHANGELOG_AI.md prepend + IMPLEMENTATION_MAP.md update + DECISIONS_LOG.md +6 LOCKED entries + lessons.md +7 typed entries + agent-log.md +1 line
+  D14-merge: 103 files staged → branch commit f46138a → checkout main → squash-merge → main commit 895c9bb → push origin/main (a8f3627..895c9bb) → branch delete confirmed
+NEXT_DISPATCH: Human opens fresh Claude Code session → "Start Part 6" from .cline/tasks/phase4-part6.md (per Rule 24 fresh-context discipline). Read the Part 6 task file first to confirm scope — inputs.yml declares no mobile app, so Part 6 may be deploy/compose/{dev,stage,prod}/ + tools/{check-product-sync.mjs, validate-inputs.mjs, check-env.mjs} + SocratiCode artifacts depending on the actual task file content. Pre-flight: STATE.md (this file) + inputs.yml + relevant PRODUCT.md sections + lessons.md (the new 🔴 .js-extension + 🔴 tRPC-reserved-call gotchas are critical reads for any future workspace work).
