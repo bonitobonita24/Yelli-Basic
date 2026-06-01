@@ -1,13 +1,13 @@
 import type { Worker } from "bullmq";
-import { closeAllConnections } from "../connection.js";
-import { closeAllQueues } from "../queues.js";
-import { createTenantExportWorker } from "./tenant-export.worker.js";
-import { createDeviceArchiveWorker } from "./device-archive.worker.js";
-import { createSoftDeleteCronWorker } from "./soft-delete-cron.worker.js";
-import { createBackupCronWorker } from "./backup-cron.worker.js";
-import { createEmailWorker } from "./email.worker.js";
-import { createLogoImageProcessingWorker } from "./logo-image-processing.worker.js";
-import { log } from "./_validate.js";
+import { closeAllConnections } from "../connection";
+import { closeAllQueues } from "../queues";
+import { createTenantExportWorker } from "./tenant-export.worker";
+import { createDeviceArchiveWorker } from "./device-archive.worker";
+import { createSoftDeleteCronWorker } from "./soft-delete-cron.worker";
+import { createBackupCronWorker } from "./backup-cron.worker";
+import { createEmailWorker } from "./email.worker";
+import { createLogoImageProcessingWorker } from "./logo-image-processing.worker";
+import { log } from "./_validate";
 
 /**
  * Boot every worker and wire graceful shutdown.

@@ -125,3 +125,59 @@
 - Files:     packages/jobs/src/workers/*.worker.ts, packages/jobs/src/workers/index.ts
 - Concepts:  bullmq-worker, graceful-shutdown, sigterm, factory-pattern, deploy
 - Narrative: Every worker file exports a `create{Name}Worker()` factory that returns the Worker instance. `startAllWorkers()` invokes every factory, attaches `failed`/`completed` listeners (structured JSON log), and returns `{ workers, shutdown }`. `main()` wires SIGTERM + SIGINT to call `shutdown()` then `process.exit(0)`. Entry point auto-detect via `import.meta.url`. Deploy: Phase 4 Part 7 compose runs `node dist/workers/index.js`. Why factory+runtime rather than top-level side-effects: avoids workers starting at import time (would break test harness in Phase 5 + complicates partial worker startup if a future deploy splits queues across multiple containers).
+
+## 2026-06-02 — 🔴 gotcha Workspace-package `.js` extension imports break Next.js bundler
+
+- Type:      🔴 gotcha
+- Phase:     Phase 4 Part 5 D14
+- Files:     packages/shared/src/index.ts + sub-barrels, packages/storage/src/index.ts, packages/jobs/src/index.ts + workers
+- Concepts:  workspace-package, .js-extension, moduleResolution-bundler, Next.js-webpack, Turbopack, transpilePackages
+- Narrative: Parts 2/3/4 used `from "./xyz.js"` extension-style imports in workspace barrels — TypeScript accepts them with moduleResolution=bundler (rewrites .js→.ts at compile time). Next.js 16 webpack/Turbopack does NOT accept the same form even with `transpilePackages` configured — build fails with "Module not found: Can't resolve './xyz.js'" on every workspace import. RULE: in pnpm workspace packages with `main: ./src/index.ts` (consumed as source), use extension-less imports `from "./xyz"`. Universal across TypeScript bundler resolution, webpack, Turbopack, esbuild, and Vite. The locked decision in DECISIONS_LOG ("Workspace barrel imports — no .js extension") formalizes this.
+
+## 2026-06-02 — 🔴 gotcha tRPC v11 reserves `call` as a router key
+
+- Type:      🔴 gotcha
+- Phase:     Phase 4 Part 5 D14
+- Files:     apps/yelli/src/server/trpc/root.ts
+- Concepts:  trpc-v11, router-keys, reserved-words, runtime-error
+- Narrative: `router({ call: callRouter, ... })` throws at app load with "Reserved words used in `router({})` call: call" — tRPC v11 reserves several keys that collide with its internal Router method names (call, query, mutation, subscription, createCaller, ...). Typecheck doesn't catch it (it's a runtime throw in the router() factory). RULE: prefer plural / qualified router keys (`calls`, `callSessions`) when the singular form might collide. Other singular keys (tenant/user/device/branding/audit/platform) pass.
+
+## 2026-06-02 — 🟤 decision Auth.js v5 without PrismaAdapter (Credentials + JWT only)
+
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 5 D5a
+- Files:     apps/yelli/src/server/auth/config.ts
+- Concepts:  authjs-v5, prisma-adapter, jwt-strategy, peer-dependency-conflict
+- Narrative: @auth/prisma-adapter ^2.7.0 + next-auth 5.0.0-beta.22 each pull a different @auth/core range → two copies in node_modules → type errors at the PrismaAdapter() call site. Dropped the adapter; JWT-only Credentials provider works without it. The session() callback already DB-validates User.securityVersion + isSuspended on every lookup → V28 session-invalidation guarantee preserved. Re-add the adapter in Phase 7 when adding magic-link / email-link providers (they need DB-backed verification tokens).
+
+## 2026-06-02 — 🟤 decision exactOptionalPropertyTypes localized override for apps/yelli
+
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 5 D4-fix
+- Files:     apps/yelli/tsconfig.json
+- Concepts:  typescript-strict, exact-optional-property-types, radix-ui, shadcn
+- Narrative: Radix UI v1 component types fail under the root `exactOptionalPropertyTypes: true` (component props with optional fields use `undefined` rather than omission). Localized override in apps/yelli/tsconfig.json — packages/* keep the strict setting. Trade-off: app code loses one strict guarantee (optional props accept undefined); shared types layer keeps it. Revisit when Radix UI ships a strict-compatible release.
+
+## 2026-06-02 — ⚖️ trade-off tRPC v11 RC @ts-expect-error still active even with concrete AppRouter
+
+- Type:      ⚖️ trade-off
+- Phase:     Phase 4 Part 5 D9
+- Files:     packages/api-client/src/index.ts, apps/yelli/src/lib/trpc-client.ts
+- Concepts:  trpc-v11-rc, ts-expect-error, transformer-options, deferred-cleanup
+- Narrative: The "tRPC v11 generic transformer constraint" trade-off entry (2026-06-01) predicted the @ts-expect-error in @yelli/api-client would self-report as no-longer-needed (TS6133 "unused expect-error") when consumed with concrete AppRouter. Reality: tRPC v11 0.0.0-rc.660 has a related constraint at the makeTrpcClient call site that still requires a similar suppression. The original @ts-expect-error stays active AND apps/yelli also carries one. Both come out when tRPC v11 ships stable. Tracking: re-check on every tRPC bump.
+
+## 2026-06-02 — 🟢 change User.securityVersion landed (Phase 4 Part 5)
+
+- Type:      🟢 change
+- Phase:     Phase 4 Part 5 D4
+- Files:     packages/shared/src/types/user.ts, packages/db/prisma/schema.prisma, packages/db/prisma/migrations/0002_user_security_version/migration.sql
+- Concepts:  security-version, session-invalidation, prisma-migration, deferred-from-part-3
+- Narrative: The 🟢 deferral from Part 3 ("User.securityVersion deferred to Phase 5") is now closed. Field added to packages/shared (TS source-of-truth first), then mirrored in Prisma schema, then a SQL migration (0002_user_security_version) was hand-written because no live DB was running during scaffold (`prisma migrate dev` would attempt to apply). `prisma generate` confirmed clean. Auth.js session() callback reads it and blanks session.user on mismatch. Phase 7 adds the 30s Valkey cache to avoid the DB hit on every request.
+
+## 2026-06-02 — 🟤 decision Next.js 16 proxy.ts convention (V25 anti-tenant-switching)
+
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 5 D10
+- Files:     apps/yelli/src/proxy.ts
+- Concepts:  nextjs-16, middleware, proxy.ts, v25-anti-tenant-switching
+- Narrative: Next.js 16 renamed the `middleware.ts` convention to `proxy.ts` (proxy() + proxyConfig exports). Same matcher syntax. V25 logic — extract subdomain from Host, decode JWT via getToken (Edge-safe, no DB), compare against jwt.tenantSlug, redirect mismatched-tenant browsers — lives in apps/yelli/src/proxy.ts. RUNTIME VERIFICATION REQUIRED at Phase 6: confirm Komodo + Cloudflare Tunnel deployment actually triggers proxy.ts on incoming requests. If Next.js 16 deploys treat proxy.ts differently from middleware.ts the V25 enforcement becomes dead code.

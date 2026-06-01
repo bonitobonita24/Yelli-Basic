@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CallRoleSchema, EndReasonSchema } from "./enums.js";
+import { CallRoleSchema, EndReasonSchema } from "./enums";
 
 export const CallSessionEntitySchema = z.object({
   id: z.string().uuid(),

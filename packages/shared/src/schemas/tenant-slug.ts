@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RESERVED_SLUGS } from "../config/reserved-slugs.js";
+import { RESERVED_SLUGS } from "../config/reserved-slugs";
 
 export const TENANT_SLUG_REGEX = /^[a-z][a-z0-9-]*[a-z0-9]$/;
 

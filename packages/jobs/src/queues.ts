@@ -1,5 +1,5 @@
 import { Queue, type JobsOptions } from "bullmq";
-import { getConnection } from "./connection.js";
+import { getConnection } from "./connection";
 import {
   QUEUE_NAMES,
   type TenantExportPayload,
@@ -8,7 +8,7 @@ import {
   type BackupCronPayload,
   type EmailPayload,
   type LogoImageProcessingPayload,
-} from "./types.js";
+} from "./types";
 
 /**
  * Default job options applied to every queue.

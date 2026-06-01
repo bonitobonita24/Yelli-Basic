@@ -1,7 +1,7 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { getStorageClient } from "./client.js";
-import { bucketFor, type BucketKey } from "./buckets.js";
+import { getStorageClient } from "./client";
+import { bucketFor, type BucketKey } from "./buckets";
 
 /**
  * Signed-URL download with tenant verification.

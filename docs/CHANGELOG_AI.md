@@ -1,5 +1,47 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Phase 4 Part 5: apps/yelli Next.js Scaffold
+
+- **Agent:**              CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)
+- **Why:**                Phase 4 Part 5 of 8 — scaffold apps/yelli with Next.js 16 + Auth.js v5 + tRPC v11 + shadcn/ui + Clay tokens + PWA. Adds User.securityVersion deferred from Part 3. `pnpm --filter @yelli/yelli build` produces clean standalone output.
+- **Files added (apps/yelli):**
+  - Build/config: package.json, tsconfig.json, next.config.ts, tailwind.config.ts, postcss.config.js, components.json, .env.example, Dockerfile, .dockerignore
+  - Styling: src/styles/tokens.css (Clay single source — extracted verbatim from brownfield public/index.html), src/styles/globals.css (shadcn vars mapped from Clay tokens)
+  - Env + manifest: src/env.ts (t3-env Zod, 21 server + 3 client vars), public/manifest.json
+  - shadcn/ui: src/lib/utils.ts + 17 components in src/components/ui/ (avatar, badge, button, card, dialog, dropdown-menu, form, input, label, scroll-area, select, separator, sheet, skeleton, sonner, tabs, textarea)
+  - Server (Auth + tRPC): src/server/auth/{config,session}.ts; src/server/lib/{rate-limit,sanitize,platform-prisma}.ts; src/server/trpc/trpc.ts + 5 middleware (rate-limit-mw, rbac, tenant, session-version, audit-log); 7 routers (tenant, user, device, call, branding, audit, platform) + root.ts
+  - Client: src/lib/trpc-client.ts (concrete-typed AppRouter consumer + makeTrpcLinks helper)
+  - Pages: src/app/layout.tsx; (auth)/login + (auth)/register; (app)/page + (app)/settings + (app)/audit; _pwbt/page
+  - Components: src/components/providers/TRPCProvider.tsx; src/components/auth/{TurnstileWidget,LoginForm}.tsx
+  - API routes: src/app/api/{trpc/[trpc],auth/[...nextauth],health,push/subscribe}/route.ts + src/app/_pwbt/health/route.ts
+  - V25 middleware: src/proxy.ts (Next.js 16 convention — subdomain↔JWT.tenantSlug cross-check via getToken from next-auth/jwt; Edge-safe, no DB)
+  - PWA: public/sw.js (Workbox CDN + Web Push handler + tap-to-open) + src/lib/register-sw.ts
+  - Types: src/types/phantom-ui.d.ts (V31.3 dual-path JSX intrinsic)
+- **Files modified:**
+  - packages/shared/src/types/user.ts — added `securityVersion: number` (deferred from Part 3, lessons "User.securityVersion deferred to Phase 5")
+  - packages/db/prisma/schema.prisma — added `securityVersion Int @default(0) @map("security_version")` to User model
+  - packages/shared/src/{index, schemas/*, config/index}.ts — dropped `.js` extensions from barrel imports for Next.js bundler compatibility
+  - packages/storage/src/{index, upload, download}.ts — same .js-extension fix
+  - packages/jobs/src/{index, queues, workers/* (×7)}.ts — same .js-extension fix
+  - packages/ui/package.json — added `"./tailwind.config": "./tailwind.config.ts"` exports subpath
+  - apps/yelli/src/styles/globals.css — moved `@import "./tokens.css"` to top (CSS @import order requirement)
+  - apps/yelli/src/server/trpc/root.ts — renamed merged key `call:` → `calls:` (tRPC v11 reserves `call`)
+- **Files deleted:**     none
+- **Schema/migrations:** packages/db/prisma/migrations/0002_user_security_version/migration.sql — `ALTER TABLE "users" ADD COLUMN "security_version" INTEGER NOT NULL DEFAULT 0;`
+- **Errors encountered & resolved:**
+  - D5a: @auth/prisma-adapter ↔ next-auth 5.0.0-beta.22 dual @auth/core version conflict → dropped PrismaAdapter, kept Credentials + JWT-only. Phase 7 re-adds for magic-link.
+  - D4 surfaced: apps/yelli missing class-variance-authority + tailwindcss-animate (shadcn peer deps not auto-pulled) → added (D4-fix).
+  - D4 surfaced: Radix UI types fail exactOptionalPropertyTypes → localized override in apps/yelli/tsconfig.json only (packages/ stay strict).
+  - D5b: PrismaClient value-vs-type export conflict via @yelli/db barrel → imported directly from @prisma/client + added @prisma/client as direct dep.
+  - D14: Next.js bundler can't resolve `from "./xxx.js"` imports in workspace packages → dropped .js extensions across packages/shared/storage/jobs barrels.
+  - D14: @yelli/ui missing `./tailwind.config` exports subpath for apps/yelli/tailwind.config.ts consumption → added.
+  - D14: CSS `@import "./tokens.css"` placed after `@tailwind` directives violated PostCSS import-order rule → moved to first line.
+  - D14: tRPC v11 reserves `call` as a router key → renamed merged AppRouter key from `call` → `calls`.
+- **Verification:**
+  - `pnpm install --frozen-lockfile` — success
+  - `pnpm -r typecheck` — 0 errors across 8 packages
+  - `SKIP_ENV_VALIDATION=true pnpm --filter @yelli/yelli build` — success, .next/standalone created
+
 ## 2026-06-01 — Phase 4 Part 2 — packages/shared + packages/api-client
 - Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)
 - Why:                 Generate shared TypeScript types, Zod schemas, reserved-slugs config, and typed tRPC client factory for the Next.js/tRPC/Prisma rewrite. Single source of validation truth across web app + future workers.

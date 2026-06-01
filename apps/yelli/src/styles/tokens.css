@@ -1,0 +1,52 @@
+/* ─────────────────────────────────────────────────────────────
+   Clay Design Tokens — SINGLE SOURCE OF TRUTH
+   LOCKED: docs/DECISIONS_LOG.md "LOCKED: Design Tokens"
+   Consumed by: globals.css (shadcn var mapping) + @yelli/ui Tailwind preset.
+   Edit here → everything else updates. No codegen.
+
+   Source: public/index.html brownfield extraction (2026-06-02)
+   Hex values extracted verbatim; HSL computed for shadcn compatibility.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Base palette (HSL components — H S% L%, no commas, no hsl() wrapper) ── */
+  --clay-canvas:  40 100% 97%;    /* #fffaf0 — primary canvas */
+  --clay-navy:     0   0%  4%;    /* #0a0a0a — navy primary text / ink */
+
+  /* ── Surface variants (warm parchment scale) ── */
+  --clay-surface:       42 60% 95%;   /* #faf5e8 — surface-soft */
+  --clay-surface-card:  40 42% 91%;   /* #f5f0e0 — surface-card */
+  --clay-surface-strong: 38 28% 87%;  /* #ebe6d6 — surface-strong */
+
+  /* ── Text scale ── */
+  --clay-body:        0 0% 23%;    /* #3a3a3a — body text */
+  --clay-muted-fg:    0 0% 42%;    /* #6a6a6a — muted text */
+  --clay-muted-soft:  0 0% 60%;    /* #9a9a9a — muted-soft */
+
+  /* ── 6-color accent palette (extracted from brownfield public/index.html) ── */
+  --clay-pink:     337 100% 65%;   /* #ff4d8b */
+  --clay-teal:     180  40% 16%;   /* #1a3a3a */
+  --clay-lavender: 256  68% 79%;   /* #b8a4ed */
+  --clay-peach:     22 100% 76%;   /* #ffb084 */
+  --clay-ochre:     43  78% 60%;   /* #e8b94a */
+  --clay-mint:     163  41% 73%;   /* #a4d4c5 */
+
+  /* ── Semantic state ── */
+  --clay-success:  142  76% 46%;   /* #22c55e */
+  --clay-warning:   37  91% 55%;   /* #f59e0b */
+  --clay-error:      0  86% 60%;   /* #ef4444 */
+
+  /* ── Radii ── */
+  --radius-button: 12px;
+  --radius-card:   24px;
+  --radius:        var(--radius-button);  /* shadcn legacy default */
+
+  /* ── Typography ── */
+  --font-sans:    "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  --font-weight-base:   500;
+  --letter-spacing-tight: -0.015em;
+  --letter-spacing-wide:   0.08em;
+}

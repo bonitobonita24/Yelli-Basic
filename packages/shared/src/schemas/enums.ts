@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { JsonValue } from "../types/enums.js";
+import type { JsonValue } from "../types/enums";
 
 export const RoleSchema = z.enum(["admin", "member"]);
 

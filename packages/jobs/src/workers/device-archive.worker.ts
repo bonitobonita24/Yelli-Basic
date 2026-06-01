@@ -1,7 +1,7 @@
 import { Worker, type Job } from "bullmq";
-import { createWorkerConnection } from "../connection.js";
-import { QUEUE_NAMES, type DeviceArchiveCronPayload } from "../types.js";
-import { assertTenantUser, log } from "./_validate.js";
+import { createWorkerConnection } from "../connection";
+import { QUEUE_NAMES, type DeviceArchiveCronPayload } from "../types";
+import { assertTenantUser, log } from "./_validate";
 
 /**
  * device-archive-cron — daily 03:00 UTC, 90-day offline threshold.

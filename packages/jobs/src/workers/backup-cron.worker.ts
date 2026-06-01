@@ -1,7 +1,7 @@
 import { Worker, type Job } from "bullmq";
-import { createWorkerConnection } from "../connection.js";
-import { QUEUE_NAMES, type BackupCronPayload } from "../types.js";
-import { log } from "./_validate.js";
+import { createWorkerConnection } from "../connection";
+import { QUEUE_NAMES, type BackupCronPayload } from "../types";
+import { log } from "./_validate";
 
 /**
  * backup-cron — daily 02:00 UTC, pg_dump → s3://yelli-backups-prod/postgres/.

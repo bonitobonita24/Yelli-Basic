@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CallRoleSchema } from "./enums.js";
+import { CallRoleSchema } from "./enums";
 
 export const DeviceEntitySchema = z.object({
   id: z.string().uuid(),

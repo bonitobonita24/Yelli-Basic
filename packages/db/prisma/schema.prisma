@@ -84,6 +84,7 @@ model User {
   displayName     String    @map("display_name")
   role            Role      @default(member)
   isSuspended     Boolean   @default(false) @map("is_suspended")
+  securityVersion Int       @default(0) @map("security_version")
   lastLoginAt     DateTime? @map("last_login_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")

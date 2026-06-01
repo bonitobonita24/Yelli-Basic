@@ -1,8 +1,8 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomBytes } from "node:crypto";
-import { getStorageClient } from "./client.js";
-import { bucketFor, type BucketKey } from "./buckets.js";
-import { validateBrandingUpload, type ValidatedFile } from "./validate.js";
+import { getStorageClient } from "./client";
+import { bucketFor, type BucketKey } from "./buckets";
+import { validateBrandingUpload, type ValidatedFile } from "./validate";
 
 /**
  * Tenant-scoped upload.

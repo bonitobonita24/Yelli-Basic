@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TenantSlugSchema } from "./tenant-slug.js";
+import { TenantSlugSchema } from "./tenant-slug";
 
 export const TenantEntitySchema = z.object({
   id: z.string().uuid(),

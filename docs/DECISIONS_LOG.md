@@ -163,3 +163,27 @@ Rationale: security.md Queue Safety rule 1+2 mandates tenantId + userId on every
 Exception: backup-cron worker uses a stricter local guard (must be tenantId === "_pwbt" + userId === "system") because it operates on the whole DB rather than scoped to one tenant.
 Logging: all workers emit structured JSON via `log("info"|"warn"|"error", msg, { ... })` from the same shared helper — matches operations.observability.format = structured-json locked decision.
 Locked at: Phase 4 Part 4 D3 (2026-06-01)
+
+## LOCKED: User.securityVersion field (Phase 4 Part 5)
+User.securityVersion: Int @default(0) added per security.md Auth Defaults #6. Auth.js v5 session() callback re-reads this on every session lookup and blanks out session.user if the stored version differs from the JWT-embedded version. Increment on role change, tenant change, account suspension, password change. Phase 7 TODO: 30s Valkey cache (locked tRPC Middleware Chain step 2 "requireFreshAccount via 30s Valkey cache") to avoid the DB hit on every request.
+Locked at: Phase 4 Part 5 (2026-06-02)
+
+## LOCKED: Auth.js v5 without PrismaAdapter — Credentials + JWT only
+next-auth 5.0.0-beta.22 + @auth/prisma-adapter ^2.7.0 trigger a dual @auth/core version resolution at install time → TypeScript errors at the PrismaAdapter() call site. For the scaffold we ship Credentials provider + `session: { strategy: "jwt" }` (no DB-backed sessions). Account/Session/VerificationToken tables remain in the Prisma schema but stay empty until Phase 7 adds magic-link / email-link providers (which need the adapter back). The Auth.js v5 session() callback already DB-validates User.securityVersion + isSuspended on every call, so JWT strategy preserves the V28 session-invalidation guarantee.
+Locked at: Phase 4 Part 5 (2026-06-02)
+
+## LOCKED: apps/yelli tsconfig exactOptionalPropertyTypes override
+apps/yelli/tsconfig.json sets `"exactOptionalPropertyTypes": false` to accommodate Radix UI v1 component types (shadcn primitives). The strict setting remains active in tsconfig.base.json — packages/* stay at exactOptionalPropertyTypes:true. The override is localized to the consumer app. Re-evaluate when Radix UI ships a strict-compatible release.
+Locked at: Phase 4 Part 5 (2026-06-02)
+
+## LOCKED: Next.js 16 proxy.ts convention (V25 anti-tenant-switching)
+V25 middleware lives at `apps/yelli/src/proxy.ts` using Next.js 16's `proxy()` + `proxyConfig` export convention (previously `middleware.ts` + `middleware()` in Next.js 13–15). Same matcher semantics. Edge-safe via `getToken({ req, secret })` from next-auth/jwt — no DB hit at the proxy layer. Phase 6 must verify runtime behavior on Komodo + Cloudflare Tunnel deployment matches expectations (intercepts every non-static request; redirects on subdomain↔JWT.tenantSlug mismatch).
+Locked at: Phase 4 Part 5 (2026-06-02)
+
+## LOCKED: tRPC AppRouter key for call procedures = `calls` (not `call`)
+tRPC v11 reserves `call` as a router-builder key (collides with internal `Router.call`). The merged AppRouter exposes the call procedures under `appRouter.calls` (plural). Client-side: `trpc.calls.invite.useMutation()`. The source file remains `apps/yelli/src/server/trpc/routers/call.ts` and the export remains `callRouter` — only the merge key in root.ts changed.
+Locked at: Phase 4 Part 5 (2026-06-02)
+
+## LOCKED: Workspace barrel imports — no `.js` extension
+Workspace packages with `main: ./src/index.ts` (consumed as source via `workspace:*` exports) MUST use extension-less imports (`from "./xyz"`) in their barrel and sub-barrel files. TypeScript with moduleResolution=bundler accepts both forms, but Next.js webpack/Turbopack rejects literal `.js` extensions on .ts source. Universal compatibility (TypeScript bundler, webpack, Turbopack, esbuild, Vite) is the no-extension form.
+Locked at: Phase 4 Part 5 (2026-06-02)

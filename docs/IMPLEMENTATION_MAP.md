@@ -1,8 +1,8 @@
 # Implementation Map — Yelli
 
-Last updated: 2026-06-01 by CLAUDE_CODE (Phase 4 Part 4 complete — packages/ui + packages/jobs + packages/storage)
-Current phase: Phase 4 Part 4 complete
-Branch: main (scaffold/part-4 squash-merged)
+Last updated: 2026-06-02 by CLAUDE_CODE (Phase 4 Part 5 complete — apps/yelli Next.js scaffold)
+Current phase: Phase 4 Part 5 complete
+Branch: main (scaffold/part-5 squash-merged)
 
 ## Current State (May 2026 — pre-Spec-Driven, retained as Phase 4 reference)
 
@@ -106,7 +106,14 @@ Branch: main (scaffold/part-4 squash-merged)
 - ✅ src/index.ts (barrel)
 - NOTE: SVG branding upload deferred to Phase 5/7 — needs DOMPurify wiring (security.md rule 6 default).
 
-### Phase 4 Part 5 — apps/yelli (Next.js)
+### Phase 4 Part 5 — apps/yelli Next.js Scaffold (2026-06-02) ✅ COMPLETE
+- Branch: scaffold/part-5 (squash-merged → main)
+- Full Next.js 16 + Auth.js v5 + tRPC v11 + shadcn/ui scaffold; 17 shadcn primitives; Clay tokens single source (tokens.css extracted from brownfield public/index.html); V25 anti-tenant-switching middleware (src/proxy.ts, Next.js 16 convention); 7 tRPC routers + 5 middleware (rate-limit, rbac, tenant, session-version, audit-log); Auth.js JWT Credentials (no PrismaAdapter — dual @auth/core conflict); platform/_pwbt isolated client (platform-prisma.ts, no L6 guard); PWA Workbox CDN + Web Push stub; Dockerfile 3-stage standalone; User.securityVersion from Part 3 deferral landed (packages/shared + schema.prisma + migration 0002)
+- Verification: `pnpm -r typecheck` 0 errors across 8 packages; `SKIP_ENV_VALIDATION=true pnpm --filter @yelli/yelli build` success (.next/standalone created)
+- Key decisions locked: Auth.js without PrismaAdapter; apps/yelli exactOptionalPropertyTypes:false (Radix UI); Next.js 16 proxy.ts convention; tRPC AppRouter key `calls` (not `call`); workspace barrels no .js extensions
+- Phase 4 progress: 5/8 complete (Parts 1–5 done; Part 6 SKIPPED PWA-only; Part 7 tools+deploy; Part 8 CI+governance)
+
+### Phase 4 Part 5 — apps/yelli (Next.js) [PLANNED — superseded by ✅ above]
 - Add: Next.js 16 App Router scaffold
 - Add: src/server/trpc/ (5-step middleware chain + tenant-scoped routers + Super-Admin isolated router)
 - Add: src/server/auth/ (Auth.js v5 config)

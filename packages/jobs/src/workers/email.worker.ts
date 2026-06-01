@@ -1,7 +1,7 @@
 import { Worker, type Job } from "bullmq";
-import { createWorkerConnection } from "../connection.js";
-import { QUEUE_NAMES, type EmailPayload } from "../types.js";
-import { assertTenantUser, log } from "./_validate.js";
+import { createWorkerConnection } from "../connection";
+import { QUEUE_NAMES, type EmailPayload } from "../types";
+import { assertTenantUser, log } from "./_validate";
 
 /**
  * email — invitation, verify, reset, tenant-export-ready.

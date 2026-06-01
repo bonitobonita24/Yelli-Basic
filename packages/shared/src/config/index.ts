@@ -1,1 +1,1 @@
-export * from "./reserved-slugs.js";
+export * from "./reserved-slugs";

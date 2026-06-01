@@ -9,6 +9,7 @@ export interface User {
   displayName: string;
   role: Role;
   isSuspended: boolean;
+  securityVersion: number;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
