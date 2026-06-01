@@ -7,6 +7,18 @@ import { Prisma } from "@prisma/client";
  * automatically. DO NOT replace $allOperations with a list of individual methods —
  * any unlisted method becomes an unguarded tenant bypass (security.md L6 mandate).
  *
+ * SPREAD ORDER INVARIANT:
+ *   tenantId is injected LAST on both `where` and `data` to guarantee the bound
+ *   value wins over any caller-supplied value.
+ *   e.g.  a.where = { ...a.where, tenantId }  ← injected last → injection wins
+ *         a.data  = { ...row,     tenantId }  ← injected last → injection wins
+ *
+ * MISMATCH DEFENSE-IN-DEPTH:
+ *   Any caller-supplied tenantId that mismatches the bound tenantId triggers a
+ *   throw — silent override would mask L6 violation attempts and hide caller bugs.
+ *   "undefined" is treated as "not specified" on the where branch (allowed; the
+ *   injection will fill it in). Explicit wrong values always throw.
+ *
  * Excluded models (not tenant-scoped — caller passes tenantId explicitly or uses
  * a dedicated unguarded Prisma client):
  *   - Tenant            (it IS the tenant)
@@ -40,25 +52,49 @@ export function tenantGuardExtension(tenantId: string) {
             return query(args);
           }
 
-          // Inject tenantId on the where clause for reads + targeted writes
+          // Inject tenantId on the where clause for reads + targeted writes.
+          // tenantId comes LAST so the bound value always wins over any caller value.
+          // Defense-in-depth: caller explicitly supplying a DIFFERENT tenantId throws
+          // rather than being silently overridden — surfaces L6 violation attempts.
           if (args !== null && typeof args === "object" && "where" in args) {
             const a = args as { where?: Record<string, unknown> };
+            if (
+              a.where !== undefined &&
+              a.where !== null &&
+              typeof a.where === "object" &&
+              "tenantId" in a.where &&
+              a.where.tenantId !== undefined &&
+              a.where.tenantId !== tenantId
+            ) {
+              throw new Error(
+                `tenant-guard: refused query — caller where.tenantId="${String(a.where.tenantId)}" mismatches bound tenantId="${tenantId}" (L6 violation attempt)`
+              );
+            }
             a.where = { ...a.where, tenantId };
           }
 
-          // Inject tenantId into create/createMany data payload
+          // Inject tenantId into create/createMany data payload.
+          // tenantId comes LAST so the bound value always wins over any caller value.
+          // Throws on any row that explicitly carries a mismatched tenantId.
           if (operation === "create" || operation === "createMany") {
             const a = args as { data?: unknown };
             if (Array.isArray(a.data)) {
-              a.data = (a.data as Record<string, unknown>[]).map((row) => ({
-                tenantId,
-                ...row,
-              }));
+              a.data = (a.data as Record<string, unknown>[]).map((row) => {
+                if ("tenantId" in row && row.tenantId !== tenantId) {
+                  throw new Error(
+                    `tenant-guard: refused create — caller data.tenantId="${String(row.tenantId)}" mismatches bound tenantId="${tenantId}" (L6 violation attempt)`
+                  );
+                }
+                return { ...row, tenantId };
+              });
             } else if (a.data !== null && typeof a.data === "object") {
-              a.data = {
-                tenantId,
-                ...(a.data as Record<string, unknown>),
-              };
+              const row = a.data as Record<string, unknown>;
+              if ("tenantId" in row && row.tenantId !== tenantId) {
+                throw new Error(
+                  `tenant-guard: refused create — caller data.tenantId="${String(row.tenantId)}" mismatches bound tenantId="${tenantId}" (L6 violation attempt)`
+                );
+              }
+              a.data = { ...row, tenantId };
             }
           }
 

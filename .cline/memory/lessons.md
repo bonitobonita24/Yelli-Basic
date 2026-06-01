@@ -89,3 +89,11 @@
 - Files:     packages/db/tsconfig.json
 - Concepts:  tsconfig, rootDir, monorepo, seed-script, framework-convention
 - Narrative: `prisma/seed.ts` lives outside src/. Default `rootDir="./src"` rejected it with TS6059 (file not under rootDir). Widened rootDir to `"."` so seed.ts compiles. outDir is ./dist so compiled output goes to dist/src/* + dist/prisma/* — acceptable since no app depends on @yelli/db's compiled output (workspace consumers use the .ts source directly via `workspace:*` exports `main: ./src/index.ts`). Alternative was moving seed.ts into src/, but framework convention places seed alongside schema.prisma in prisma/. Chose convention over rootDir purity.
+
+## 2026-06-01 — 🔴 gotcha L6 tenant-guard data-branch spread order silently bypassed isolation
+
+- Type:      🔴 gotcha
+- Phase:     Phase 4 Part 3 (security fix on commit 96920d0)
+- Files:     packages/db/src/middleware/tenant-guard.ts
+- Concepts:  L6, tenant-isolation, spread-order, multi-tenant-bypass, security-review
+- Narrative: Initial L6 tenant-guard had `a.data = { tenantId, ...a.data }` in the create/createMany branch — injected tenantId came FIRST, then caller's spread OVERRODE it. A caller passing `data: { tenantId: "victim", ... }` would silently write into the wrong tenant, defeating L6's entire purpose. The where-clause branch was already correct (`{ ...a.where, tenantId }` — injected last wins). Caught by automated security review on the squash-merge commit. Fix: reverse spread order on both data branches (object + array of rows) so `tenantId` always comes LAST, AND throw on any caller-supplied tenantId mismatch (both data and where) — silent override would mask attempted L6 violations and hide caller bugs. RULE: when injecting an authoritative value via object spread, the authoritative value MUST come last. Mismatches should throw, not silently override.
