@@ -97,3 +97,31 @@
 - Files:     packages/db/src/middleware/tenant-guard.ts
 - Concepts:  L6, tenant-isolation, spread-order, multi-tenant-bypass, security-review
 - Narrative: Initial L6 tenant-guard had `a.data = { tenantId, ...a.data }` in the create/createMany branch — injected tenantId came FIRST, then caller's spread OVERRODE it. A caller passing `data: { tenantId: "victim", ... }` would silently write into the wrong tenant, defeating L6's entire purpose. The where-clause branch was already correct (`{ ...a.where, tenantId }` — injected last wins). Caught by automated security review on the squash-merge commit. Fix: reverse spread order on both data branches (object + array of rows) so `tenantId` always comes LAST, AND throw on any caller-supplied tenantId mismatch (both data and where) — silent override would mask attempted L6 violations and hide caller bugs. RULE: when injecting an authoritative value via object spread, the authoritative value MUST come last. Mismatches should throw, not silently override.
+
+## 2026-06-01 — 🟤 decision ioredis 5.10.1 exact pin via pnpm.overrides
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 4 D2
+- Files:     package.json (root), packages/jobs/package.json
+- Concepts:  pnpm-overrides, dedupe, bullmq, ioredis, exactOptionalPropertyTypes, monorepo
+- Narrative: bullmq@5.77.7 bundles ioredis@5.10.1 as a hard dep. Declaring "ioredis: ^5.4.2" in @yelli/jobs pulled a parallel ioredis instance, and TS strict + exactOptionalPropertyTypes caught that the two ioredis instances exported structurally-different Redis types — typecheck failed. Fix: pin @yelli/jobs ioredis dep to exact "5.10.1" AND add pnpm.overrides.ioredis = "5.10.1" at root so every transitive consumer resolves to the same instance. RULE: when a primary dep bundles a sub-dep with a hard version, mirror that exact version in any sibling that also imports the sub-dep, and pin via pnpm.overrides to force monorepo-wide singleton resolution.
+
+## 2026-06-01 — 🟤 decision SVG branding upload deferred to Phase 5/7
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 4 D4
+- Files:     packages/storage/src/validate.ts, docs/DECISIONS_LOG.md
+- Concepts:  file-upload, mime-whitelist, svg, xss, security.md-rule-6, dompurify
+- Narrative: PRODUCT.md / task file mentioned PNG/JPG/SVG for branding uploads. security.md File Upload Safety rule 6 says "SVG and HTML uploads are BLOCKED by default — they can contain embedded JavaScript (XSS vector)." Per H1 priority order, .claude/rules/ (P3) outranks PRODUCT.md (P4) on safety. Chose to ship PNG/JPG only in the scaffold and explicitly defer SVG to Phase 5/7 with DOMPurify wiring. Magic-byte check on every upload regardless of declared MIME. Re-enable path documented in DECISIONS_LOG so a Phase 7 Feature Update can pick it up without re-deriving the threat model.
+
+## 2026-06-01 — ⚖️ trade-off Tailwind 3.4 in packages/ui (Tailwind 4 deferred)
+- Type:      ⚖️ trade-off
+- Phase:     Phase 4 Part 4 D1
+- Files:     packages/ui/package.json, packages/ui/tailwind.config.ts
+- Concepts:  tailwind, tailwind-3-vs-4, css-first, shadcn-compatibility, monorepo-preset
+- Narrative: packages/ui ships a shareable Tailwind preset (config.ts export). Tailwind 4 (CSS-first via @theme directive) and Tailwind 3 (JS preset) coexist in shadcn docs but the JS preset path is more stable for monorepo consumption across apps that haven't migrated yet. Chose Tailwind 3.4.17 for Part 4. Cost: future migration to Tailwind 4 will require swapping the preset pattern. Benefit: zero risk on first scaffold; Phase 7 Feature Update can bump cleanly when shadcn + downstream apps are all 4-ready.
+
+## 2026-06-01 — 🟢 change packages/jobs worker boot pattern (factory + runtime)
+- Type:      🟢 change
+- Phase:     Phase 4 Part 4 D3
+- Files:     packages/jobs/src/workers/*.worker.ts, packages/jobs/src/workers/index.ts
+- Concepts:  bullmq-worker, graceful-shutdown, sigterm, factory-pattern, deploy
+- Narrative: Every worker file exports a `create{Name}Worker()` factory that returns the Worker instance. `startAllWorkers()` invokes every factory, attaches `failed`/`completed` listeners (structured JSON log), and returns `{ workers, shutdown }`. `main()` wires SIGTERM + SIGINT to call `shutdown()` then `process.exit(0)`. Entry point auto-detect via `import.meta.url`. Deploy: Phase 4 Part 7 compose runs `node dist/workers/index.js`. Why factory+runtime rather than top-level side-effects: avoids workers starting at import time (would break test harness in Phase 5 + complicates partial worker startup if a future deploy splits queues across multiple containers).

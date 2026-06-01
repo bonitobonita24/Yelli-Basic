@@ -101,4 +101,43 @@
 - Errors encountered:  D2 scaffolded AuditLog.targetId as NOT NULL while Part 2 TS type was string | null. audit.ts initially had a `?? ""` workaround.
 - Errors resolved:     D2-fix dispatch realigned schema (added `?`), regenerated migration column nullability, removed workaround. D3 widened tsconfig rootDir from "./src" to "." so seed.ts under prisma/ compiles.
 - Dispatches:          6 — D0 Scout (context read-only) + D1 (schema + skeleton) + D2 (migrations + L2/L5/L6 helpers) + D2-fix (targetId nullability) + D3 (seed + commit) + D4 (this — governance + merge).
+
+## 2026-06-01 — Phase 4 Part 4: packages/ui + packages/jobs + packages/storage
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1)
+- Why:                 Scaffold shared UI primitives package + BullMQ queue infrastructure + S3/MinIO storage wrapper per Phase 4 Part 4 task scope. Rule 24 fresh-context per Part.
+- Files added:
+    packages/ui/package.json
+    packages/ui/tsconfig.json
+    packages/ui/tailwind.config.ts
+    packages/ui/src/index.ts
+    packages/ui/src/lib/utils.ts
+    packages/jobs/package.json
+    packages/jobs/tsconfig.json
+    packages/jobs/src/index.ts
+    packages/jobs/src/connection.ts
+    packages/jobs/src/types.ts
+    packages/jobs/src/queues.ts
+    packages/jobs/src/workers/_validate.ts
+    packages/jobs/src/workers/tenant-export.worker.ts
+    packages/jobs/src/workers/device-archive.worker.ts
+    packages/jobs/src/workers/soft-delete-cron.worker.ts
+    packages/jobs/src/workers/backup-cron.worker.ts
+    packages/jobs/src/workers/email.worker.ts
+    packages/jobs/src/workers/logo-image-processing.worker.ts
+    packages/jobs/src/workers/index.ts
+    packages/storage/package.json
+    packages/storage/tsconfig.json
+    packages/storage/src/index.ts
+    packages/storage/src/client.ts
+    packages/storage/src/buckets.ts
+    packages/storage/src/validate.ts
+    packages/storage/src/upload.ts
+    packages/storage/src/download.ts
+- Files modified:      package.json (pnpm.overrides.ioredis = "5.10.1"), pnpm-lock.yaml (regen)
+- Files deleted:       none
+- Schema/migrations:   none (Part 3 owns schema)
+- Errors encountered:  bullmq@5.77.7 ships ioredis@5.10.1 as a hard dep; declaring @yelli/jobs dep "ioredis: ^5.4.2" pulled a parallel ioredis instance into the tree, triggering exactOptionalPropertyTypes type-incompat between the two instances. Resolved D2.
+- Errors resolved:     Added pnpm.overrides.ioredis = "5.10.1" in root package.json to dedupe; pinned @yelli/jobs ioredis dep to exact "5.10.1".
+- Dispatch ledger:     5 Sonnet dispatches under V32 R1 (D1 ui scaffold, D2 jobs core, D3 jobs workers, D4 storage, D5 governance+verify+merge). Each ≤500L per V32 R2.
+- Notes:               Workers are STUBS — payload validation + structured JSON logging only; real logic deferred to Phase 5 Feature Updates (TODO comments mark each handler). packages/ui ships minimal preset only — no shadcn primitives yet (Phase 4 Part 5 will run `npx shadcn add` inside packages/ui). Branding upload MIME whitelist = PNG/JPG only — SVG deferred per security.md rule 6 default; re-enable requires DOMPurify wiring in Phase 5/7.
 - LOC delta:           ~660 lines created across 11 files in packages/db/.

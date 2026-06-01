@@ -1,8 +1,8 @@
 # Implementation Map — Yelli
 
-Last updated: 2026-06-01 by CLAUDE_CODE (Phase 4 Part 3 complete — packages/db)
-Current phase: Phase 4 Part 3 complete
-Branch: main (scaffold/part-3 squash-merged)
+Last updated: 2026-06-01 by CLAUDE_CODE (Phase 4 Part 4 complete — packages/ui + packages/jobs + packages/storage)
+Current phase: Phase 4 Part 4 complete
+Branch: main (scaffold/part-4 squash-merged)
 
 ## Current State (May 2026 — pre-Spec-Driven, retained as Phase 4 reference)
 
@@ -72,10 +72,39 @@ Branch: main (scaffold/part-3 squash-merged)
 - NOTE: migration not yet applied to live DB — Phase 6 task (pnpm db:migrate after Docker services start)
 - NOTE: User.securityVersion deferred to Phase 5 (Auth.js wiring) — not in Part 2 TS types yet
 
-### Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage
-- Add: packages/ui/ (shadcn/ui + Clay tokens + Tailwind config)
-- Add: packages/jobs/ (BullMQ workers: tenant.export, device-archive cron, soft-delete cron, backup cron)
-- Add: packages/storage/ (MinIO/S3 typed wrapper)
+### Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage ✅ COMPLETE (2026-06-01)
+
+**packages/ui — shareable Tailwind preset + Clay token bridge + cn() helper**
+- ✅ package.json (class-variance-authority, clsx, lucide-react, tailwind-merge deps; react/react-dom peerDeps; tailwindcss devDep)
+- ✅ tsconfig.json (extends base, JSX react-jsx)
+- ✅ tailwind.config.ts (shareable preset — Clay token color bridge via `hsl(var(--clay-*))`, radii from --radius-button/--radius-card, font-sans from --font-sans). Apps consume via `presets: [require("@yelli/ui/tailwind-preset")]`
+- ✅ src/lib/utils.ts (standard shadcn `cn()` helper using clsx + tailwind-merge)
+- ✅ src/index.ts (barrel)
+- NOTE: NO shadcn primitives in this package yet — Phase 4 Part 5 will run `npx shadcn@latest init` + add base components (button, card, dialog, input, label, select, textarea, toast, sonner, skeleton, form, sidebar, sheet) targeting packages/ui per shadcn monorepo pattern. tokens.css single source lives in apps/yelli/src/styles/tokens.css per DECISIONS_LOG "LOCKED: Design Tokens".
+
+**packages/jobs — BullMQ queue infrastructure (workers are STUBS)**
+- ✅ package.json (bullmq ^5.34, ioredis 5.10.1 exact pin to match bullmq's bundled version)
+- ✅ tsconfig.json
+- ✅ src/connection.ts (getConnection singleton + createWorkerConnection per-worker + closeAllConnections graceful shutdown; maxRetriesPerRequest: null for blocking commands)
+- ✅ src/types.ts (typed payloads for all 6 queues — TenantExport, DeviceArchiveCron, SoftDeleteHardDeleteCron, BackupCron, Email, LogoImageProcessing; every payload includes tenantId + userId per security.md Queue Safety rule 1)
+- ✅ src/queues.ts (Queue<T> registry with shared defaultJobOptions: 5 attempts + exponential backoff 5s + removeOnFail: false for DLQ inspection; closeAllQueues helper)
+- ✅ src/workers/_validate.ts (assertTenantUser shared guard + structured JSON log helper)
+- ✅ src/workers/{tenant-export, device-archive, soft-delete-cron, backup-cron, email, logo-image-processing}.worker.ts (6 worker stubs — payload validation + log + TODO Phase 5 marker)
+- ✅ src/workers/index.ts (startAllWorkers + main entrypoint with SIGTERM/SIGINT graceful shutdown for `node dist/workers/index.js` deploy)
+- ✅ src/index.ts (barrel — re-exports connection, queues, types, startAllWorkers)
+- 6 queues match inputs.yml + DECISIONS_LOG "LOCKED: Jobs + Queues" + "LOCKED: Database Backup": tenant-export, device-archive-cron, soft-delete-hard-delete-cron, backup-cron, email, logo-image-processing
+- NOTE: Real worker logic deferred to Phase 5+ Feature Updates (e.g. pg_dump+S3 upload, sharp image resize). Backup-cron pinned to `_pwbt` tenant + `system` user per V25 cron rule (whole-DB backup, not per-tenant iteration).
+
+**packages/storage — S3/MinIO wrapper with tenant scoping**
+- ✅ package.json (@aws-sdk/client-s3 ^3.717, @aws-sdk/s3-request-presigner)
+- ✅ tsconfig.json
+- ✅ src/client.ts (S3Client factory — MinIO endpoint + forcePathStyle for dev, native S3 for prod; reads STORAGE_ENDPOINT/REGION/ACCESS_KEY/SECRET_KEY env)
+- ✅ src/buckets.ts (typed BUCKETS registry: uploads/backups/exports per inputs.yml `storage.buckets`)
+- ✅ src/validate.ts (MIME whitelist PNG+JPEG only + magic byte verification + 2 MiB size limit + FileValidationError class; SVG INTENTIONALLY EXCLUDED per security.md rule 6)
+- ✅ src/upload.ts (uploadBrandingImage with tenant-scoped path `${tenantId}/${entityType}/${randomFilename}.${ext}` per security.md File Upload Safety rule 4+5; tenantId regex guard + entityType kebab-case guard; CacheControl no-store defense-in-depth)
+- ✅ src/download.ts (getBrandingSignedUrl with session tenantId match against storage key prefix per security.md rule 8; default 15-min expiry; getExportSignedUrl 24h variant for tenant-export queue per DECISIONS_LOG; StorageAccessError → generic "Not found" to prevent existence leak)
+- ✅ src/index.ts (barrel)
+- NOTE: SVG branding upload deferred to Phase 5/7 — needs DOMPurify wiring (security.md rule 6 default).
 
 ### Phase 4 Part 5 — apps/yelli (Next.js)
 - Add: Next.js 16 App Router scaffold
@@ -129,7 +158,8 @@ Branch: main (scaffold/part-3 squash-merged)
 - ✅ Phase 4 Part 1 — Root config: complete 2026-06-01 (pnpm-workspace, turbo, tsconfig.base, eslintrc, prettierrc, editorconfig, nvmrc)
 - ✅ Phase 4 Part 2 — packages/shared + packages/api-client: complete 2026-06-01 (7 entity types + Zod schemas + reserved-slugs + phantom-ui pinned 0.10.1 EXACT + tRPC client factory)
 - ✅ Phase 4 Part 3 — packages/db: complete 2026-06-01 (Prisma schema + L2/L5/L6 security stack + webmaster seed; workspace typecheck 0 errors)
-- ⏳ Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage: pending
-- ❌ Phase 4 Parts 5–8: pending
+- ✅ Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage: complete 2026-06-01 (Tailwind preset + 6 BullMQ queues with worker stubs + S3/MinIO wrapper; workspace typecheck 0 errors)
+- ⏳ Phase 4 Part 5 — apps/yelli (Next.js scaffold): pending
+- ❌ Phase 4 Parts 6–8: pending
 - ❌ Phase 5: validation pending
 - ❌ Phase 6: Docker + Visual QA pending

@@ -143,3 +143,23 @@ Rationale: security.md L6 mandate — any unlisted method becomes an unguarded t
 Excluded models (caller passes tenantId explicitly): Tenant (it IS the tenant), AuditLog (tenantId nullable for platform-level superadmin actions), Account/Session/VerificationToken (Auth.js — scoped via User relation).
 Super-Admin: uses a SEPARATE PrismaClient without this extension (per the prior "LOCKED: tRPC Middleware Chain" decision — never inline if/else inside resolvers).
 Locked at: Phase 4 Part 3 (2026-06-01)
+
+## LOCKED: ioredis version pin (5.10.1 exact, deduped via pnpm.overrides)
+Decision: @yelli/jobs declares `"ioredis": "5.10.1"` (exact, no caret); root package.json declares `pnpm.overrides.ioredis = "5.10.1"`.
+Rationale: bullmq@5.77.7 ships ioredis@5.10.1 as a hard dependency. Without the override, pnpm hoists two ioredis instances (one for bullmq, one for @yelli/jobs) — under TypeScript strict + `exactOptionalPropertyTypes`, the Redis types from the two instances are not structurally identical, breaking typecheck. The override forces every workspace package + every transitive dep to use the same ioredis 5.10.1 instance.
+Bump policy: bump only via Feature Update that simultaneously bumps bullmq + ioredis + verifies typecheck passes across all packages.
+Locked at: Phase 4 Part 4 D2 (2026-06-01)
+
+## LOCKED: Branding upload MIME whitelist — PNG + JPEG only
+Decision: packages/storage/src/validate.ts allows ONLY `image/png` and `image/jpeg` for branding uploads. SVG, GIF, WEBP, HEIC, HTML are rejected.
+Rationale: security.md File Upload Safety rule 6 — "SVG and HTML uploads are BLOCKED by default — they can contain embedded JavaScript (XSS vector)." SVG support requires DOMPurify server-side sanitization wiring + serving with strict CSP. That wiring is a Phase 5/7 task, not a Phase 4 scaffold concern.
+Re-enable path: Phase 5 or later Feature Update adds DOMPurify-based SVG sanitizer + extends ALLOWED_MIMES + adds DOMPurify dep to packages/storage + new test coverage proving script-strip works. New DECISIONS_LOG entry required at that time.
+Size limit: 2 MiB (MAX_BRANDING_BYTES). Magic-byte verification mandatory regardless of declared MIME.
+Locked at: Phase 4 Part 4 D4 (2026-06-01)
+
+## LOCKED: Worker payload guard convention
+Decision: Every @yelli/jobs worker imports `assertTenantUser` from `packages/jobs/src/workers/_validate.ts` and calls it at the top of the BullMQ processor function — BEFORE any other logic.
+Rationale: security.md Queue Safety rule 1+2 mandates tenantId + userId on every job payload, validated server-side, rejected if missing. Centralizing the guard prevents drift; future workers can't accidentally skip the check.
+Exception: backup-cron worker uses a stricter local guard (must be tenantId === "_pwbt" + userId === "system") because it operates on the whole DB rather than scoped to one tenant.
+Logging: all workers emit structured JSON via `log("info"|"warn"|"error", msg, { ... })` from the same shared helper — matches operations.observability.format = structured-json locked decision.
+Locked at: Phase 4 Part 4 D3 (2026-06-01)
