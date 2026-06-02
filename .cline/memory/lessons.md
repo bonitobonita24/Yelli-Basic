@@ -238,3 +238,31 @@
 - Files:     deploy/compose/dev/docker-compose.db.yml (pgbouncer service)
 - Concepts:  pgbouncer, edoburu/pgbouncer, AUTH_SECRET, .ini parser, restart loop
 - Narrative: yelli_dev_pgbouncer crash-loops with `ERROR syntax error in configuration (/etc/pgbouncer/pgbouncer.ini:3)`. Root cause: edoburu image generates pgbouncer.ini from env vars; AUTH_SECRET (48-char base64 with `+/` chars) breaks .ini line parsing on line 3. Decision: DEFER to Phase 7. App uses DATABASE_URL direct to yelli_dev_postgres:5432 (bypasses pgbouncer), so non-blocking for Phase 6 dev verification. Phase 7 fix options: (a) switch to bitnami/pgbouncer image, (b) write pgbouncer.ini via a configmap-style volume mount, (c) use auth_query + auth_file pattern instead of env-vars. Multi-tenant load eventually requires pgbouncer — must resolve before staging deploy.
+
+## 2026-06-02 — 🔴 Auth.js v5 requires AUTH_TRUST_HOST=true for non-Vercel hosts (every /api/auth/* throws 500 without it)
+- Type:      🔴 gotcha
+- Phase:     Phase 6 login-flow verification (Rule 16)
+- Files:     .env.dev, apps/yelli/src/server/auth/config.ts (config already reads env.AUTH_TRUST_HOST — env var was just missing)
+- Concepts:  next-auth v5, Auth.js, AUTH_TRUST_HOST, UntrustedHost, trustHost, sign-in 500
+- Narrative: Auth.js v5 defaults to refusing any host that isn't a Vercel-detected URL. Symptom: `[auth][error] UntrustedHost: Host must be trusted. URL was: http://localhost:46848/api/auth/session` and every /api/auth/* endpoint returns HTTP 500 `{message:"There was a problem with the server configuration."}` — including the CSRF endpoint, which means client-side signIn() can't even start. Fix: set AUTH_TRUST_HOST=true in every .env file (dev/staging/prod) — config.ts already had `trustHost: env.AUTH_TRUST_HOST` but the env var was missing from Phase 3 .env scaffolding. Phase 4 Part 5 scaffold gap. Replicate to .env.staging + .env.prod proactively.
+
+## 2026-06-02 — 🔴 (app) route group serves "/", not "/app" — never redirect to "/app"
+- Type:      🔴 gotcha
+- Phase:     Phase 6 login-flow verification
+- Files:     apps/yelli/src/app/(auth)/login/page.tsx, apps/yelli/src/components/auth/LoginForm.tsx
+- Concepts:  Next.js App Router, route groups, parentheses-folder, redirect after sign-in
+- Narrative: Folders wrapped in parentheses like (app)/ are Next.js App Router route groups — they organize files without affecting URL paths. `apps/yelli/src/app/(app)/page.tsx` serves `/`, NOT `/app`. The login flow had `redirect("/app")` (server-side in login/page.tsx for already-signed-in detection) and `router.push("/app")` (client-side in LoginForm.tsx after credentials success), both of which 404'd. Fix: target `/` everywhere. Phase 4 Part 5 scaffold bug — author conflated the route-group name with the URL.
+
+## 2026-06-02 — 🔴 Container can't reach DB via .env.dev DATABASE_URL=localhost:46838 — use compose `environment:` override with internal hostname
+- Type:      🔴 gotcha
+- Phase:     Phase 6.5 triage DB_CONNECTION_REFUSED
+- Files:     .env.dev, deploy/compose/dev/docker-compose.app.yml (apply same pattern to stage/prod)
+- Concepts:  Docker networking, env_file vs environment, container hostname, PrismaClientInitializationError
+- Narrative: .env.dev DATABASE_URL=postgresql://...@localhost:46838/... works for host-side Prisma CLI (migrate, seed) because docker compose binds 46838 → yelli_dev_postgres:5432 on the host. But inside the app container, `localhost` means the container itself — no postgres there. Symptom: PrismaClientInitializationError "Can't reach database server at localhost:46838" on every Credentials authorize() call. Pattern: keep DATABASE_URL=localhost-mapped (for host CLI), add DATABASE_URL_INTERNAL=yelli_dev_postgres:5432 (container path), then in docker-compose.app.yml add `environment:` block AFTER `env_file:` overriding DATABASE_URL with ${DATABASE_URL_INTERNAL}. Same for REDIS_URL. compose `environment:` wins over `env_file:`. URL-encoded `%2F` in password persists in both. Apply identically to staging+prod compose files (currently still pointing at localhost via env_file alone — would 500 in staging on first hit).
+
+## 2026-06-02 — 🟤 Staging + prod compose need same DATABASE_URL_INTERNAL pattern before deploy
+- Type:      🟤 decision
+- Phase:     Phase 6 → Phase 7 backlog
+- Files:     deploy/compose/stage/docker-compose.app.yml, deploy/compose/prod/docker-compose.app.yml, .env.staging, .env.prod
+- Concepts:  staging deploy prerequisite, container DB hostname, multi-env scaffold parity
+- Narrative: Phase 6.5 fixed dev compose for container-side DB hostnames via DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL + compose environment: override. The same pattern is REQUIRED in staging + prod compose files before Komodo redeploy at yelli-maes.powerbyte.app — otherwise the staging app container would hit the same PrismaClientInitializationError on first /api/auth/callback/credentials. Action: add 3 lines (environment: block + 2 var overrides) to deploy/compose/stage/docker-compose.app.yml and deploy/compose/prod/docker-compose.app.yml; add DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL to .env.staging and .env.prod (with the staging/prod container hostnames yelli_staging_postgres / yelli_prod_postgres respectively). Group with the staging-validation Phase 7 task.

@@ -1,5 +1,16 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Phase 6.5 login-flow triage
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 D4+D5)
+- Why:                 Post-seed Rule 16 login flow uncovered 3 scaffold gaps blocking end-to-end auth
+- Files added:         (none)
+- Files modified:      apps/yelli/src/app/(auth)/login/page.tsx (redirect("/app") → redirect("/")), apps/yelli/src/components/auth/LoginForm.tsx (router.push("/app") → router.push("/")), deploy/compose/dev/docker-compose.app.yml (environment: override for DATABASE_URL+REDIS_URL using INTERNAL vars), .env.dev (gitignored — added AUTH_TRUST_HOST=true + DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL)
+- Files deleted:       (none)
+- Schema/migrations:   (none) — seed inserted 1 tenant (_pwbt) + 1 user (webmaster bonitobonita24@gmail.com role=admin)
+- Errors encountered:  (1) Auth.js v5 UntrustedHost on every /api/auth/* request. (2) Sign-in redirected to non-existent /app (404 — (app) route group serves `/`). (3) PrismaClientInitializationError: Can't reach database server at localhost:46838 from inside container (host port mapping doesn't apply intra-container).
+- Errors resolved:     (1) Added AUTH_TRUST_HOST=true to .env.dev. (2) Changed redirect/push targets from /app to /. (3) Added DATABASE_URL_INTERNAL/REDIS_URL_INTERNAL env vars + compose environment: override pointing app at yelli_dev_postgres:5432 / yelli_dev_valkey:6379. App container now reaches DB via Docker internal network; host CLI (Prisma migrate/seed) still uses localhost-mapped ports.
+- Verification:        Playwright: form fill bonitobonita24@gmail.com + password → POST /api/auth/callback/credentials 200 → redirect to / → Directory page with "Signed in as bonitobonita24@gmail.com" + "admin" badge. Console: only /icons/icon-192.png 404 (cosmetic).
+
 ## 2026-06-02 — Phase 6 dev verification
 - Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor)
 - Why:                 Phase 6 first-run startup, migration, health check, Visual QA per Rule 16
