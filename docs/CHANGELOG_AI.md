@@ -9,6 +9,19 @@
 - Schema/migrations:   (none) — seed inserted 1 tenant (_pwbt) + 1 user (webmaster bonitobonita24@gmail.com role=admin)
 - Errors encountered:  (1) Auth.js v5 UntrustedHost on every /api/auth/* request. (2) Sign-in redirected to non-existent /app (404 — (app) route group serves `/`). (3) PrismaClientInitializationError: Can't reach database server at localhost:46838 from inside container (host port mapping doesn't apply intra-container).
 
+## 2026-06-02 — Phase 7 Feature 2: Render device list on Directory page
+- Agent:              CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor — V32 R1)
+- Why:                Close the read-after-write loop opened by Feature 1. The "Register this device" button invalidates `trpc.device.list` on success — but the page had no live list to invalidate. Replaced the static "No devices yet" placeholder Card with a live `<DeviceList />` client component that queries `trpc.device.list` and renders 4 states (loading/empty/error/success).
+- Files added:        apps/yelli/src/components/devices/DeviceList.tsx
+- Files modified:     apps/yelli/src/app/(app)/page.tsx
+- Files deleted:      none
+- Schema/migrations:  none — `device.list` procedure already scaffolded in Phase 4 Part 5
+- Errors encountered: none — Sonnet scout confirmed `data?.items` return shape + `lastSeenAt` in select + shadcn Skeleton/Badge primitives already installed
+- Errors resolved:    n/a
+- Verification:       Stage 1 spec compliance PASS (renders displayName + callRole badge + relative-time lastSeenAt for active tenant, scoped via tenant-guard middleware). Stage 2 quality PASS (no `any`, single-purpose component, pure formatRelative helper, shadcn Skeleton loading per ui-rules.md Rule 11 PATH A). `cd apps/yelli && pnpm typecheck` → 0 errors.
+- Visual QA:          DEFERRED — same reason as Feature 1: running container is pre-Phase-7 build. Both features will land on next stack rebuild.
+- Dispatches:         2 Sonnet dispatches (scout+implement combined, then governance+commit). Tighter scope than Feature 1's D3 per the tactical lesson logged in prior STATE.md.
+
 ## 2026-06-02 — Phase 7 Feature 1: Wire `trpc.device.register` button
 - Agent:              CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor — V32 R1 Zero Opus Execution)
 - Why:                First Phase 7 Feature Update after Phase 6 PASS. Directory page (/) had an inert "Register this device" button with a TODO marker. Wired it to the existing `trpc.device.register` mutation so authenticated users can register their browser as a device under the active tenant.

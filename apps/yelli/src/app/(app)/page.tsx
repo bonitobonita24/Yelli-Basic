@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getServerSession } from "@/server/auth/session";
 import { RegisterDeviceButton } from "@/components/devices/RegisterDeviceButton";
+import { DeviceList } from "@/components/devices/DeviceList";
 
 export const metadata: Metadata = {
   title: "Directory",
@@ -26,17 +26,9 @@ export default async function AppHomePage() {
         </p>
       </header>
 
-      <Card className="border-border/40 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg">No devices yet</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Register your device to receive calls.
-          </p>
-          <RegisterDeviceButton />
-        </CardContent>
-      </Card>
+      <DeviceList />
+
+      <RegisterDeviceButton />
     </main>
   );
 }
