@@ -4,6 +4,14 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-02 — 🔴 Docker healthcheck localhost→::1 in alpine breaks IPv4-only Next.js listener
+- Type:      🔴 gotcha
+- Phase:     Phase 7 Feature 3c (also affects all framework templates in CLAUDE.md / phases.md)
+- Files:     deploy/compose/{dev,stage,prod}/docker-compose.app.yml
+- Concepts:  docker, healthcheck, alpine, localhost, ipv6, next-standalone, wget, framework-template-bug
+- Narrative: Alpine BusyBox `wget http://localhost:3000/...` resolves `localhost` to `::1` (IPv6 loopback) per /etc/hosts. Next.js standalone (output: 'standalone' with HOSTNAME="0.0.0.0") binds IPv4 only — IPv6 connection is REFUSED. Healthcheck shows "unhealthy" forever despite endpoint returning 200 from outside. Fix: use `127.0.0.1` instead of `localhost` in the healthcheck wget URL. This is a FRAMEWORK TEMPLATE BUG — the same `wget http://localhost:3000/api/health` pattern appears in the Spec-Driven CLAUDE.md template for every project. Worth upstreaming. Diagnostic: `docker exec <c> getent hosts localhost` returns `::1 localhost localhost` (no IPv4 entry).
+# ---
+
 ## 2026-06-02 — 🔴 tRPC server/client transformer mismatch silent until first client tRPC call
 - Type:      🔴 gotcha
 - Phase:     Phase 7 Feature 3b verification (latent from Phase 4 Part 5)

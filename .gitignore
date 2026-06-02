@@ -28,6 +28,9 @@ build/
 # Playwright MCP session artifacts (console + page snapshots)
 .playwright-mcp/
 
+# Playwright/test artifacts saved at repo root (e.g. yelli-3b-*.png)
+/yelli-*.png
+
 # ─── Environment files — NEVER commit real credentials ───
 .env
 .env.*

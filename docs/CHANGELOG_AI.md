@@ -1,5 +1,22 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Phase 7 Feature 3c: cleanup batch (icon-192 stub + healthcheck IPv4 fix + stray PNG cleanup)
+- Agent: CLAUDE_CODE
+- Why: Kill console noise + fix Docker container health status. (a) apps/yelli/public/icons/ did not exist, causing 2× 404 in console on every page load — added 192×192 brand-navy stub PNG to satisfy PWA manifest. (b) Docker healthcheck reported "unhealthy" despite GET /api/health returning 200 — root cause: alpine container's `localhost` resolves to ::1 (IPv6) but Next.js standalone listens only on 0.0.0.0:3000 (IPv4). Fixed by switching wget URL to 127.0.0.1 in all 3 env compose files. (c) Removed 2 stray screenshot PNGs (yelli-3b-directory-{pre,post}.png) that accidentally landed in repo root during Phase 7 Feature 3b first smoke + added /yelli-*.png pattern to .gitignore to prevent recurrence.
+- Files added:
+  - apps/yelli/public/icons/icon-192.png (192×192 brand-navy stub)
+- Files modified:
+  - deploy/compose/dev/docker-compose.app.yml (healthcheck URL localhost → 127.0.0.1)
+  - deploy/compose/stage/docker-compose.app.yml (same)
+  - deploy/compose/prod/docker-compose.app.yml (same)
+  - .gitignore (added /yelli-*.png pattern)
+- Files deleted:
+  - yelli-3b-directory-pre.png (stray, repo root)
+  - yelli-3b-directory-post.png (stray, repo root)
+- Schema/migrations: none
+- Errors encountered: Docker healthcheck FailingStreak=7 throughout Phase 6 + 7 dev runs, masking real-vs-cosmetic container health
+- Errors resolved: localhost → 127.0.0.1 in healthcheck URL fixes IPv6/IPv4 resolution mismatch in alpine
+
 ## 2026-06-02 — Bug fix: tRPC client missing superjson transformer (latent Phase 4 bug)
 - Agent: CLAUDE_CODE
 - Why: Server tRPC config has `transformer: superjson` (apps/yelli/src/server/trpc/trpc.ts:52) but both client-side httpBatchLink calls omitted it. Caused all client-side tRPC calls to fail with HTTP 400 "Unable to transform response from server". Latent since Phase 4 Part 5 — only surfaced by Phase 7 Feature 3b Playwright smoke because login uses next-auth (not tRPC) and Feature 2's `trpc.device.list.useQuery` is the first client-side tRPC call ever exercised. Features 1+2 code itself is correct; this is purely a Phase 4 wiring oversight.
