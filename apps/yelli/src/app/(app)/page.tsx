@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getServerSession } from "@/server/auth/session";
+import { RegisterDeviceButton } from "@/components/devices/RegisterDeviceButton";
 
 export const metadata: Metadata = {
   title: "Directory",
@@ -32,10 +32,9 @@ export default async function AppHomePage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Register your device to receive calls. TODO Phase 7: wire to
-            <code className="mx-1 text-foreground">trpc.device.register</code>.
+            Register your device to receive calls.
           </p>
-          <Button className="h-11">Register this device</Button>
+          <RegisterDeviceButton />
         </CardContent>
       </Card>
     </main>

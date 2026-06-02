@@ -8,6 +8,19 @@
 - Files deleted:       (none)
 - Schema/migrations:   (none) — seed inserted 1 tenant (_pwbt) + 1 user (webmaster bonitobonita24@gmail.com role=admin)
 - Errors encountered:  (1) Auth.js v5 UntrustedHost on every /api/auth/* request. (2) Sign-in redirected to non-existent /app (404 — (app) route group serves `/`). (3) PrismaClientInitializationError: Can't reach database server at localhost:46838 from inside container (host port mapping doesn't apply intra-container).
+
+## 2026-06-02 — Phase 7 Feature 1: Wire `trpc.device.register` button
+- Agent:              CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor — V32 R1 Zero Opus Execution)
+- Why:                First Phase 7 Feature Update after Phase 6 PASS. Directory page (/) had an inert "Register this device" button with a TODO marker. Wired it to the existing `trpc.device.register` mutation so authenticated users can register their browser as a device under the active tenant.
+- Files added:        apps/yelli/src/components/devices/RegisterDeviceButton.tsx
+- Files modified:     apps/yelli/src/app/(app)/page.tsx
+- Files deleted:      none
+- Schema/migrations:  none — `Device` model and `device.register` procedure already scaffolded in Phase 4 Part 3 + Part 5
+- Errors encountered: none — typecheck 0 errors on first build
+- Errors resolved:    n/a
+- Verification:       Stage 1 spec compliance PASS (Zod inputs satisfied: displayName ≤40 chars via slice(), fingerprint = crypto.randomUUID() = 36 chars within 16-128 range). Stage 2 quality PASS (no `any`, typed Navigator intersection for userAgentData feature detection, single-responsibility component, defensive SSR guards). `pnpm --filter @yelli/web typecheck` → 0 errors.
+- Visual QA:          DEFERRED — running container is the pre-Phase-7 build (eb5a442/290d452). Live smoke test will land on next `bash deploy/compose/start.sh dev up --build -d` cycle. Risk low: typecheck clean + no new deps + established trpc.useMutation pattern.
+- Dispatches:         3 Sonnet dispatches per V32 R1 (scout + implement + governance/commit). Each ≤5 tool uses per V32.1 operational note.
 - Errors resolved:     (1) Added AUTH_TRUST_HOST=true to .env.dev. (2) Changed redirect/push targets from /app to /. (3) Added DATABASE_URL_INTERNAL/REDIS_URL_INTERNAL env vars + compose environment: override pointing app at yelli_dev_postgres:5432 / yelli_dev_valkey:6379. App container now reaches DB via Docker internal network; host CLI (Prisma migrate/seed) still uses localhost-mapped ports.
 - Verification:        Playwright: form fill bonitobonita24@gmail.com + password → POST /api/auth/callback/credentials 200 → redirect to / → Directory page with "Signed in as bonitobonita24@gmail.com" + "admin" badge. Console: only /icons/icon-192.png 404 (cosmetic).
 

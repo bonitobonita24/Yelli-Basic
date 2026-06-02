@@ -266,3 +266,10 @@
 - Files:     deploy/compose/stage/docker-compose.app.yml, deploy/compose/prod/docker-compose.app.yml, .env.staging, .env.prod
 - Concepts:  staging deploy prerequisite, container DB hostname, multi-env scaffold parity
 - Narrative: Phase 6.5 fixed dev compose for container-side DB hostnames via DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL + compose environment: override. The same pattern is REQUIRED in staging + prod compose files before Komodo redeploy at yelli-maes.powerbyte.app — otherwise the staging app container would hit the same PrismaClientInitializationError on first /api/auth/callback/credentials. Action: add 3 lines (environment: block + 2 var overrides) to deploy/compose/stage/docker-compose.app.yml and deploy/compose/prod/docker-compose.app.yml; add DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL to .env.staging and .env.prod (with the staging/prod container hostnames yelli_staging_postgres / yelli_prod_postgres respectively). Group with the staging-validation Phase 7 task.
+
+## 2026-06-02 — 🟤 decision Browser device fingerprinting = localStorage UUID v4, not deterministic hash
+- Type:      🟤 decision
+- Phase:     Phase 7 Feature 1 — wire trpc.device.register
+- Files:     apps/yelli/src/components/devices/RegisterDeviceButton.tsx
+- Concepts:  device-registry, fingerprint, localStorage, uuid, privacy
+- Narrative: Chose opaque random UUID v4 stored in localStorage under `yelli.deviceFingerprint` over deterministic fingerprinting (e.g. SHA-256 of UA+screen+lang). Reasons: (1) stable across sessions same browser, (2) opaque — no PII leakage in the fingerprint string itself, (3) survives Safari ITP/2-week storage purge IF the user revisits within window (acceptable tradeoff since auto-archive @90d offline per PRODUCT.md handles long absences), (4) deterministic fingerprinting breaks when user changes screen/language and would create duplicate Device rows. The Device schema's browserFingerprint column is `String @db.VarChar(128)` so UUID's 36 chars fit comfortably. If a power-user wipes localStorage they re-register — acceptable for a B2B internal tool.
