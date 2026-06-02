@@ -1,5 +1,16 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Phase 6 dev verification
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor)
+- Why:                 Phase 6 first-run startup, migration, health check, Visual QA per Rule 16
+- Files added:         (none)
+- Files modified:      .env.dev (URL-encode `/`→`%2F` in DATABASE_URL pwd), apps/yelli/package.json (next-auth 5.0.0-beta.22 → 5.0.0-beta.31), pnpm-lock.yaml (regen, net -65 lines), .gitignore (+ .playwright-mcp/)
+- Files deleted:       (none) — docker volume yelli_dev_postgres_data dropped (was 2026-05-14 pre-brownfield, no migrations applied yet)
+- Schema/migrations:   0001_init + 0002_user_security_version applied to yelli_dev (fresh init)
+- Errors encountered:  (1) Zod `.url()` rejection of DATABASE_URL with raw `/` in pwd. (2) Postgres role mismatch from pre-brownfield volume. (3) pgbouncer.ini:3 syntax error (edoburu image + AUTH_SECRET `+/` chars). (4) /login + / RSC 500 "TypeError: a.get is not a function" — next-auth/Next.js 16 sync cookies() incompat.
+- Errors resolved:     (1) Sonnet D1 URL-encoded `/`→`%2F`. (2) docker volume rm + clean re-init. (3) DEFERRED — pgbouncer non-blocking, app uses DATABASE_URL direct. (4) Sonnet D2 bumped next-auth to beta.31 (Rule 16 one-auto-fix), Next 16 async cookies() now compat.
+- Pending:             Seed (`WEBMASTER_PASSWORD='<…>' pnpm --filter @yelli/db db:seed`) + post-seed login flow verification — user runs locally.
+
 ## 2026-06-02 — Phase 4 Part 8 — CI workflows + MANIFEST + ESLint 9 + env schema finalization + Phase 4 COMPLETE
 - Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor — V32 R1 Zero Opus Execution; dispatches D1–D3b + D4 governance)
 - Why:                 Part 8 of Phase 4 — CI workflow matrix (lint/typecheck/test/build + security audit + docker-publish + semver release), MANIFEST.txt enumerating 178 files across Parts 1–8, ESLint 9 flat config migration (Next.js 16 dropped `next lint`), env schema fix (12 missing vars + DATABASE_URL URL-encoding), and Phase 5 validation gate (all 9 commands PASS). Phase 4 complete.

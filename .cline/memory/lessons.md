@@ -216,3 +216,25 @@
 - Files:     .env.dev, .env.staging, .env.prod, apps/yelli/src/env.ts
 - Concepts:  zod, url-validation, database-url, percent-encoding, prisma, credentials
 - Narrative: apps/yelli/src/env.ts validates DATABASE_URL with Zod's `.url()` which uses the WHATWG URL parser — strict RFC 3986 compliant. If DB_PASSWORD contains `/` (common in openssl-generated passwords), the raw DATABASE_URL fails parsing because `/` in the password segment is not valid without encoding. Fix: in the DATABASE_URL env var value, replace `/` with `%2F` in the password segment only. DB_PASSWORD itself stays unencoded (Prisma reads it separately). This encoding must be re-applied any time credentials are rotated. The sync-credentials-to-env.sh script should be updated to apply this encoding automatically when assembling DATABASE_URL from DB_PASSWORD components.
+
+
+## 2026-06-02 — 🔴 next-auth 5.0.0-beta.22 incompatible with Next.js 16 async cookies()
+- Type:      🔴 gotcha
+- Phase:     Phase 6 Visual QA (Rule 16)
+- Files:     apps/yelli/package.json, apps/yelli/src/server/auth/{session,config}.ts (no edits needed)
+- Concepts:  next-auth, Next.js 16, RSC, cookies async, auth(), typecheck-pass-runtime-fail
+- Narrative: next-auth 5.0.0-beta.22 calls `cookies().get(...)` synchronously. Next.js 16 made cookies()/headers() async — calling .get on the returned Promise throws "TypeError: a.get is not a function" with a Server Component digest. Phase 5 typecheck + build PASS because the failure surfaces only at runtime in auth() calls from RSC pages (/, /login). Fix: bump to 5.0.0-beta.31 — drop-in upgrade, no source code changes needed, typecheck still 0 errors, lockfile shrinks -65 lines. Always re-test RSC pages calling auth() after any Next.js major bump.
+
+## 2026-06-02 — 🔴 .env.dev DATABASE_URL must percent-encode `/` in password (root .env.dev too, not just apps/yelli/.env.local)
+- Type:      🔴 gotcha
+- Phase:     Phase 6 first-run app startup
+- Files:     .env.dev, apps/yelli/src/env.ts
+- Concepts:  Zod .url(), DATABASE_URL, URL-encoding, %2F, env.local vs .env.dev
+- Narrative: Phase 4 Part 8 lessons.md noted this for apps/yelli/.env.local (build-time .env.local that next build reads in NODE_ENV=production), but the root .env.dev used by docker compose `env_file:` at container runtime was NOT fixed. Container ran `Invalid environment variables: { DATABASE_URL: [ 'Invalid url' ] }`. Fix: percent-encode `/`, `@`, `:`, `?`, `#`, `%`, `+`, `&`, `=`, `[`, `]`, `!`, `$`, `'`, `(`, `)`, `*`, `,`, `;` in any password value inside any DATABASE_URL / PGBOUNCER_DATABASE_URL across ALL .env files. Apply to .env.staging / .env.prod proactively.
+
+## 2026-06-02 — 🟤 pgbouncer.ini syntax error from edoburu image + AUTH_SECRET special chars (deferred to Phase 7)
+- Type:      🟤 decision
+- Phase:     Phase 6 first-run app startup
+- Files:     deploy/compose/dev/docker-compose.db.yml (pgbouncer service)
+- Concepts:  pgbouncer, edoburu/pgbouncer, AUTH_SECRET, .ini parser, restart loop
+- Narrative: yelli_dev_pgbouncer crash-loops with `ERROR syntax error in configuration (/etc/pgbouncer/pgbouncer.ini:3)`. Root cause: edoburu image generates pgbouncer.ini from env vars; AUTH_SECRET (48-char base64 with `+/` chars) breaks .ini line parsing on line 3. Decision: DEFER to Phase 7. App uses DATABASE_URL direct to yelli_dev_postgres:5432 (bypasses pgbouncer), so non-blocking for Phase 6 dev verification. Phase 7 fix options: (a) switch to bitnami/pgbouncer image, (b) write pgbouncer.ini via a configmap-style volume mount, (c) use auth_query + auth_file pattern instead of env-vars. Multi-tenant load eventually requires pgbouncer — must resolve before staging deploy.

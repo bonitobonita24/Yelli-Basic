@@ -183,5 +183,5 @@ Branch: scaffold/part-8 (pending squash-merge)
 - ✅ Phase 4 Part 8 — CI workflows + MANIFEST + ESLint 9 + env schema: complete 2026-06-02 (8/8 — COMPLETE)
 
 **Phase 4 COMPLETE — all 9 Phase 5 validation commands PASS. Next: human triggers Phase 5 in fresh session.**
-- ❌ Phase 5: validation pending
-- ❌ Phase 6: Docker + Visual QA pending
+- ✅ Phase 5: validation PASS — 2026-06-02 — 9/9 commands clean (0 lint, 7/7 typecheck, build OK, 0 HIGH/CRITICAL)
+- ✅ Phase 6 (dev verification): PASS-WITH-PENDING-SEED — 2026-06-02 — all containers healthy, migrations applied, /api/health 200, /login interactive. Login-flow verification pending seed.

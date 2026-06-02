@@ -25,6 +25,9 @@ logs/
 dist/
 build/
 
+# Playwright MCP session artifacts (console + page snapshots)
+.playwright-mcp/
+
 # ─── Environment files — NEVER commit real credentials ───
 .env
 .env.*
