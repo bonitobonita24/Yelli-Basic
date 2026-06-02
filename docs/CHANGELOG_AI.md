@@ -1,5 +1,28 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Phase 4 Part 8 — CI workflows + MANIFEST + ESLint 9 + env schema finalization + Phase 4 COMPLETE
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor — V32 R1 Zero Opus Execution; dispatches D1–D3b + D4 governance)
+- Why:                 Part 8 of Phase 4 — CI workflow matrix (lint/typecheck/test/build + security audit + docker-publish + semver release), MANIFEST.txt enumerating 178 files across Parts 1–8, ESLint 9 flat config migration (Next.js 16 dropped `next lint`), env schema fix (12 missing vars + DATABASE_URL URL-encoding), and Phase 5 validation gate (all 9 commands PASS). Phase 4 complete.
+- Files added:
+    .github/workflows/ci.yml (77L — governance gate + quality matrix + security audit)
+    .github/workflows/docker-publish.yml (73L — Docker Hub push on v*.*.* tags + main)
+    .github/workflows/release.yml (70L — semver :vX.Y.Z + floating :prod tags)
+    MANIFEST.txt (199L — 178 files across Parts 1–8; Part 6 skipped PWA-only)
+    eslint.config.mjs (ESLint 9 flat config, replaces .eslintrc.js which is retained for IDE compat)
+- Files modified:
+    apps/yelli/package.json (lint script: turbo next lint → eslint . --ext .ts,.tsx)
+    .env.dev, .env.staging, .env.prod, .env.example (appended 12 missing vars: S3_*, SMTP_*, WEB_PUSH_*, TURNSTILE_* already present)
+    apps/yelli/.env.local (created, gitignored — dev bridge for Next.js next build which loads .env.local in NODE_ENV=production, not .env.dev)
+    apps/yelli/.env.development.local (created, gitignored — dev server bridge)
+- Schema/migrations:   none
+- Errors encountered/resolved:
+    Lint (turbo): turbo passes task name as positional arg → `next lint` invocation → Next.js 16 removed `next lint` binary. Fix: switch to direct `eslint . --ext .ts,.tsx`; create ESLint 9 flat config eslint.config.mjs (flat config required for ESLint 9).
+    Build (Zod env schema): 12 env vars referenced in src/ missing from apps/yelli/src/env.ts Zod schema — build-time validation threw. Fix: added S3_REGION, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_ENDPOINT, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_FROM, SMTP_PASSWORD, WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY.
+    Build (DATABASE_URL URL-encoding): DB_PASSWORD contains `/` → Zod `.url()` strict parser rejected. Fix: URL-encode `/` → `%2F` in DATABASE_URL value across all 3 env files (DB_PASSWORD itself unchanged).
+    Build (Next.js .env loading): `next build` loads `.env.local` / `.env.production.local` in NODE_ENV=production, NOT `.env.dev`. Created apps/yelli/.env.local + .env.development.local (gitignored) as dev bridges.
+    VAPID keys: generated via `npx --yes web-push generate-vapid-keys`; written to env files + CREDENTIALS.md.
+- Phase 4 capstone: Phase 4 complete — all 8 Parts squash-merged to main. All 9 Phase 5 commands PASS (3 vulns: 1 low + 2 moderate, no HIGH/CRITICAL). Next: human triggers Phase 5 in fresh session.
+
 ## 2026-06-02 — Phase 4 Part 7 — Governance tools + Compose stacks + SocratiCode artifacts
 - Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor — V32 R1; 7 Sonnet dispatches: D1 tools/, D2 dev compose, D3 stage compose, D4 prod compose + cloudflared, D5 scripts + COMMANDS + SocratiCode, D6a/b/c fixes, D7 governance)
 - Why:                 Part 7 of Phase 4 — generate governance tools (validate-inputs/check-env/check-product-sync/hydration-lint), Docker Compose stacks for dev/stage/prod with Rule 5 split-by-service-group pattern, image promotion pipeline, command reference, and SocratiCode context artifacts. Aligns with V27 Traefik labels (staging/prod), Komodo auto_update staging, cloudflared sidecar migration asset for current live deploy.

@@ -1,8 +1,8 @@
 # Implementation Map — Yelli
 
-Last updated: 2026-06-02 by CLAUDE_CODE (Phase 4 Part 7 complete — governance tools + compose stacks)
-Current phase: Phase 4 Part 7 complete
-Branch: main (scaffold/part-7 squash-merged)
+Last updated: 2026-06-02 by CLAUDE_CODE (Phase 4 Part 8 complete — CI workflows + MANIFEST + ESLint 9 + env schema; Phase 4 COMPLETE 8/8)
+Current phase: Phase 4 complete — awaiting human trigger for Phase 5
+Branch: scaffold/part-8 (pending squash-merge)
 
 ## Current State (May 2026 — pre-Spec-Driven, retained as Phase 4 reference)
 
@@ -152,12 +152,16 @@ Branch: main (scaffold/part-7 squash-merged)
 - RETAIN: deploy/windows/apply-update.ps1, Install-Yelli.cmd, Install-Yelli.ps1 (LAN distribution)
 - RETAIN: scripts/gen-cert.sh, scripts/tunnel.sh (LAN HTTPS cert + dev tunnel)
 
-### Phase 4 Part 8 — CI + governance + MANIFEST + SocratiCode index
-- Add: .github/workflows/ci.yml (governance + quality + security audit)
-- Add: .github/workflows/docker-publish.yml (push to Docker Hub `powerbyteit/yelli:vX.Y.Z` + `:prod`)
-- Add: MANIFEST.txt
-- Update: .socraticodecontextartifacts.json (extend after Phase 4 Part 7)
-- Run: codebase_index after Part 8 complete
+### Phase 4 Part 8 — CI + governance + MANIFEST + SocratiCode index ✅ COMPLETE (2026-06-02)
+✅ Phase 4 Part 8 — CI workflows + MANIFEST + ESLint 9 + env schema (done 2026-06-02)
+- .github/workflows/ci.yml — governance gate (validate-inputs, check-env, check-product-sync) → quality matrix [lint, typecheck, test, build] parallel → security audit (blocks on HIGH/CRITICAL CVE)
+- .github/workflows/docker-publish.yml — Docker Hub multi-platform push; tags: :staging-latest (Komodo auto-update) + :latest (manual prod deploy) + :sha-{short} (immutable per-commit)
+- .github/workflows/release.yml — semver release workflow; tags: :vX.Y.Z + floating :prod on v*.*.* git tags
+- MANIFEST.txt — 178 files enumerated across Parts 1–8; Part 6 SKIPPED (PWA-only, no native mobile)
+- eslint.config.mjs — ESLint 9 flat config; apps/yelli/package.json lint script updated to `eslint . --ext .ts,.tsx` (Next.js 16 removed `next lint`)
+- env schema finalized — 12 missing vars added to apps/yelli/src/env.ts (S3_*, SMTP_*, WEB_PUSH_*); DATABASE_URL `/` → `%2F` URL-encoding; apps/yelli/.env.local + .env.development.local added (gitignored, Next.js build bridges)
+- Phase 5 validation gate: all 9 commands PASS (pnpm install / validate-inputs / check-env / check-product-sync / lint / typecheck / test / build / audit); 3 vulns (1 low + 2 moderate, no HIGH/CRITICAL)
+- SocratiCode index: pending human trigger (`codebase_index {}` after fresh session)
 
 ## Migration Notes
 - migration.brownfield: true in inputs.yml
@@ -175,7 +179,9 @@ Branch: main (scaffold/part-7 squash-merged)
 - ✅ Phase 4 Part 4 — packages/ui + packages/jobs + packages/storage: complete 2026-06-01 (Tailwind preset + 6 BullMQ queues with worker stubs + S3/MinIO wrapper; workspace typecheck 0 errors)
 - ✅ Phase 4 Part 5 — apps/yelli (Next.js scaffold): complete 2026-06-02
 - ❌ Phase 4 Part 6 — SKIPPED (PWA-only, no native mobile)
-- ✅ Phase 4 Part 7 — tools/ + deploy/compose/ + SocratiCode artifacts: complete 2026-06-02 (7/8)
-- ❌ Phase 4 Part 8: pending
+- ✅ Phase 4 Part 7 — tools/ + deploy/compose/ + SocratiCode artifacts: complete 2026-06-02
+- ✅ Phase 4 Part 8 — CI workflows + MANIFEST + ESLint 9 + env schema: complete 2026-06-02 (8/8 — COMPLETE)
+
+**Phase 4 COMPLETE — all 9 Phase 5 validation commands PASS. Next: human triggers Phase 5 in fresh session.**
 - ❌ Phase 5: validation pending
 - ❌ Phase 6: Docker + Visual QA pending

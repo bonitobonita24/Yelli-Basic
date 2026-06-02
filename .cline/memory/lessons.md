@@ -195,3 +195,24 @@
 - Files:     deploy/compose/start.sh
 - Concepts:  docker-compose, depends_on, project-name, network-sharing, V31-template-divergence
 - Narrative: V31 framework template shows start.sh looping over each compose file with separate `docker compose -f X up -d` invocations. Problem: each invocation creates its own COMPOSE project (separate from-network perspective even when network is declared external) and `depends_on: postgres` in pgadmin/app fails because postgres is defined in a different invocation/project. Fixed by collapsing to canonical pattern: `docker compose -p yelli_$ENV --env-file .env.$ENV -f db.yml -f cache.yml -f storage.yml -f pgadmin.yml [-f infra.yml] -f app.yml [-f cloudflared.yml] $CMD`. Single project, single network, depends_on resolves across files, --build cleanly applies to app service only on dev up. Documented in DECISIONS_LOG as a divergence from the V31 template — locked for Yelli.
+
+## 2026-06-02 — 🔴 gotcha Next.js 16 removed `next lint` + Turborepo positional arg conflict
+- Type:      🔴 gotcha
+- Phase:     Phase 4 Part 8
+- Files:     apps/yelli/package.json, eslint.config.mjs
+- Concepts:  nextjs-16, next-lint, turbo, eslint-9, flat-config, lint-script
+- Narrative: Next.js 16 removed the `next lint` binary entirely. Turborepo's `turbo run lint` passes the task name as a positional arg to whatever `lint` script is defined — when the script was `next lint`, this worked because Next CLI absorbed it. With the binary gone, the invocation fails with "command not found: next". Fix: change apps/yelli/package.json lint script to `eslint . --ext .ts,.tsx`. ESLint 9 also requires flat config format — create `eslint.config.mjs` at repo root (replaces `.eslintrc.js` which becomes a compatibility stub for IDEs only). Any future project using Next.js 16+ must go direct to `eslint` CLI from day one.
+
+## 2026-06-02 — 🔴 gotcha Next.js `next build` loads `.env.local`, NOT `.env.dev`
+- Type:      🔴 gotcha
+- Phase:     Phase 4 Part 8
+- Files:     apps/yelli/.env.local, apps/yelli/.env.development.local
+- Concepts:  nextjs, env-loading, next-build, dotenv, local-override, gitignore
+- Narrative: Next.js env file loading order is: `.env` → `.env.local` → `.env.[mode]` → `.env.[mode].local`. When `next build` runs (NODE_ENV=production), it loads `.env.production` and `.env.production.local` — it does NOT load `.env.dev`. The Spec-Driven framework stores dev credentials in `.env.dev` (gitignored), but `next build` is blind to it. Fix: create `apps/yelli/.env.local` (gitignored) and `apps/yelli/.env.development.local` (gitignored) as bridges that replicate the dev-specific env vars needed at build/dev-server time. These files must be kept in sync whenever `.env.dev` changes. Add them to `.gitignore`. Reference: Phase 4 Part 8 D3b.
+
+## 2026-06-02 — 🟤 decision Zod `.url()` requires percent-encoded DATABASE_URL (not raw password)
+- Type:      🟤 decision
+- Phase:     Phase 4 Part 8
+- Files:     .env.dev, .env.staging, .env.prod, apps/yelli/src/env.ts
+- Concepts:  zod, url-validation, database-url, percent-encoding, prisma, credentials
+- Narrative: apps/yelli/src/env.ts validates DATABASE_URL with Zod's `.url()` which uses the WHATWG URL parser — strict RFC 3986 compliant. If DB_PASSWORD contains `/` (common in openssl-generated passwords), the raw DATABASE_URL fails parsing because `/` in the password segment is not valid without encoding. Fix: in the DATABASE_URL env var value, replace `/` with `%2F` in the password segment only. DB_PASSWORD itself stays unencoded (Prisma reads it separately). This encoding must be re-applied any time credentials are rotated. The sync-credentials-to-env.sh script should be updated to apply this encoding automatically when assembling DATABASE_URL from DB_PASSWORD components.

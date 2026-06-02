@@ -187,3 +187,27 @@ Locked at: Phase 4 Part 5 (2026-06-02)
 ## LOCKED: Workspace barrel imports — no `.js` extension
 Workspace packages with `main: ./src/index.ts` (consumed as source via `workspace:*` exports) MUST use extension-less imports (`from "./xyz"`) in their barrel and sub-barrel files. TypeScript with moduleResolution=bundler accepts both forms, but Next.js webpack/Turbopack rejects literal `.js` extensions on .ts source. Universal compatibility (TypeScript bundler, webpack, Turbopack, esbuild, Vite) is the no-extension form.
 Locked at: Phase 4 Part 5 (2026-06-02)
+
+## LOCKED: Docker image publishing tags — 4-tag strategy
+Decision: CI/CD produces 4 Docker Hub image tags per release:
+  :staging-latest  — pushed on every merge to main; Komodo staging auto_update polls this
+  :latest          — pushed on every merge to main; used for manual prod deploy from Komodo UI
+  :sha-{short}     — immutable per-commit tag pushed on every merge to main
+  :vX.Y.Z + :prod  — pushed by release.yml workflow when a v*.*.* git tag is created; :prod floats to newest semver release
+Rationale: :staging-latest enables zero-config Komodo auto-update for staging. :latest enables simple manual prod deploy. Immutable sha tags enable rollback without rebuild. Semver :vX.Y.Z tags are the official release artifact. :prod floats for dashboards/monitoring that track "what's in production".
+GitHub Actions never contacts Komodo directly — Docker Hub is the CI/CD handoff point (V27 model).
+Locked at: Phase 4 Part 8 (2026-06-02)
+
+## LOCKED: CI matrix architecture — governance gate + parallel quality matrix + security audit
+Decision: GitHub Actions CI runs 3 job groups in order:
+  1. governance (sequential): validate-inputs → check-env → check-product-sync
+  2. quality (parallel matrix): [lint, typecheck, test, build] — all 4 run in parallel, fail-fast: false
+  3. security (parallel with governance): pnpm audit --audit-level=high — blocks on HIGH or CRITICAL CVE
+All 3 groups must pass before any merge to main. CVE threshold is HIGH (not CRITICAL) — accept no HIGH CVEs without documented mitigation in DECISIONS_LOG.md.
+Locked at: Phase 4 Part 8 (2026-06-02)
+
+## LOCKED: ESLint 9 flat config + Next.js 16 lint removal
+Decision: apps/yelli uses direct ESLint CLI invocation (`eslint . --ext .ts,.tsx`) rather than `next lint`. Root eslint.config.mjs is ESLint 9 flat config format (replaces legacy .eslintrc.js which is retained for IDE backward-compat only).
+Rationale: Next.js 16 removed the `next lint` binary. Turborepo passes the task name as a positional arg which previously resolved via `next lint` shim — that shim is gone. Direct `eslint` invocation is the correct path for ESLint 9+ projects.
+Consequence for future Feature Updates: any lint rule changes go into eslint.config.mjs (flat config). The .eslintrc.js file is a compatibility stub only — do not add rules there.
+Locked at: Phase 4 Part 8 (2026-06-02)
