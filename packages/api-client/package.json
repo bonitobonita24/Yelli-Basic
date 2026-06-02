@@ -15,6 +15,7 @@
   "dependencies": {
     "@trpc/client": "^11.17.0",
     "@trpc/server": "^11.17.0",
-    "@yelli/shared": "workspace:*"
+    "@yelli/shared": "workspace:*",
+    "superjson": "^2.2.1"
   }
 }

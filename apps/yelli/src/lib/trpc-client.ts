@@ -4,6 +4,7 @@ import { createTRPCReact } from "@trpc/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { createYelliTrpcClient } from "@yelli/api-client";
 import type { AppRouter } from "@/server/trpc/root";
+import superjson from "superjson";
 
 /**
  * React Query tRPC hooks — used by client components for queries + mutations.
@@ -26,7 +27,7 @@ export function makeTrpcLinks(url: string) {
     // the same BuiltRouter vs Router<any,any> structural mismatch as in
     // @yelli/api-client (suppressed there with @ts-expect-error on the unbound
     // generic). Omitting the generic avoids the constraint check at this layer.
-    httpBatchLink({ url }),
+    httpBatchLink({ url, transformer: superjson }),
   ];
 }
 

@@ -4,6 +4,13 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-02 — 🔴 tRPC server/client transformer mismatch silent until first client tRPC call
+- Type:      🔴 gotcha
+- Phase:     Phase 7 Feature 3b verification (latent from Phase 4 Part 5)
+- Files:     apps/yelli/src/lib/trpc-client.ts, packages/api-client/src/index.ts, apps/yelli/src/server/trpc/trpc.ts
+- Concepts:  trpc, superjson, transformer, client-server-mismatch, httpBatchLink, latent-bug
+- Narrative: tRPC v11 with `transformer: superjson` on the server REQUIRES every client-side `httpBatchLink` to also pass `transformer: superjson`. Without it, every client call fails with HTTP 400 "Unable to transform response from server". Typecheck does NOT catch this — TransformerOptions is `void` when omitted, and runtime fails on response deserialization. Worse, the mismatch is silent if the only client tRPC use is `createTRPCClient` for server-side calls within Server Components (those bypass the transformer-required serialization path). Symptoms only surface when a real client component does `trpc.X.useQuery` or `useMutation`. Always: when adding `transformer: X` server-side, immediately mirror it in every `httpBatchLink` site and add a vitest covering one minimal client call.
+
 ## 2026-06-01 — ⚖️ trade-off tRPC v11 generic transformer constraint vs concrete router type
 - Type:      ⚖️ trade-off
 - Phase:     Phase 4 Part 2 D3-fix

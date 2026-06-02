@@ -16,6 +16,7 @@ import {
   type HTTPHeaders,
 } from "@trpc/client";
 import type { AnyRouter } from "@trpc/server";
+import superjson from "superjson";
 
 export interface CreateYelliTrpcClientOptions {
   /** Absolute or relative URL to the tRPC HTTP endpoint (e.g. "/api/trpc"). */
@@ -36,6 +37,7 @@ export function createYelliTrpcClient<TRouter extends AnyRouter>(
       // cannot be satisfied by an unbound generic (AnyRouter). This resolves at the call
       // site in apps/yelli (Part 5) where TRouter = concrete AppRouter. No runtime impact.
       httpBatchLink<TRouter>({
+        transformer: superjson,
         url: opts.url,
         ...(opts.headers !== undefined ? { headers: opts.headers } : {}),
       }),

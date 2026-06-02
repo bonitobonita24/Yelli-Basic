@@ -1,5 +1,19 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Bug fix: tRPC client missing superjson transformer (latent Phase 4 bug)
+- Agent: CLAUDE_CODE
+- Why: Server tRPC config has `transformer: superjson` (apps/yelli/src/server/trpc/trpc.ts:52) but both client-side httpBatchLink calls omitted it. Caused all client-side tRPC calls to fail with HTTP 400 "Unable to transform response from server". Latent since Phase 4 Part 5 — only surfaced by Phase 7 Feature 3b Playwright smoke because login uses next-auth (not tRPC) and Feature 2's `trpc.device.list.useQuery` is the first client-side tRPC call ever exercised. Features 1+2 code itself is correct; this is purely a Phase 4 wiring oversight.
+- Files added: none
+- Files modified:
+  - packages/api-client/package.json (added superjson ^2.2.1)
+  - packages/api-client/src/index.ts (import superjson + transformer in httpBatchLink)
+  - apps/yelli/src/lib/trpc-client.ts (import superjson + transformer in httpBatchLink)
+  - pnpm-lock.yaml (regenerated)
+- Files deleted: none
+- Schema/migrations: none
+- Errors encountered: All client-side tRPC procedures returned HTTP 400 with "Unable to transform response from server"
+- Errors resolved: Added matching superjson transformer to both client httpBatchLink calls
+
 ## 2026-06-02 — Phase 7 Feature 3a: staging/prod compose internal-URL override
 - Agent:               CLAUDE_CODE
 - Why:                 Replicate Phase 6.5 dev pattern (DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL with Docker container hostnames) to staging+prod compose files. Required before deploying the Spec-Driven rewrite to yelli-maes.powerbyte.app — without this, app container cannot reach postgres/valkey on `localhost`.
