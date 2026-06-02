@@ -21,6 +21,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      DATABASE_URL: ${DATABASE_URL_INTERNAL}
+      REDIS_URL: ${REDIS_URL_INTERNAL}
     networks: [app_network, proxy]
     depends_on:
       postgres:

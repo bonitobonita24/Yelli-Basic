@@ -1,5 +1,15 @@
 # CHANGELOG_AI
 
+## 2026-06-02 — Phase 7 Feature 3a: staging/prod compose internal-URL override
+- Agent:               CLAUDE_CODE
+- Why:                 Replicate Phase 6.5 dev pattern (DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL with Docker container hostnames) to staging+prod compose files. Required before deploying the Spec-Driven rewrite to yelli-maes.powerbyte.app — without this, app container cannot reach postgres/valkey on `localhost`.
+- Files added:         none
+- Files modified:      .env.staging (added DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL), .env.prod (added DATABASE_URL_INTERNAL + REDIS_URL_INTERNAL), deploy/compose/stage/docker-compose.app.yml (environment: appended 2 lines), deploy/compose/prod/docker-compose.app.yml (environment: appended 2 lines)
+- Files deleted:       none
+- Schema/migrations:   none
+- Errors encountered:  none
+- Errors resolved:     none
+
 ## 2026-06-02 — Phase 6.5 login-flow triage
 - Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 D4+D5)
 - Why:                 Post-seed Rule 16 login flow uncovered 3 scaffold gaps blocking end-to-end auth
