@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start -p 46848",
     "lint": "eslint . --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -59,6 +61,10 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@vitejs/plugin-react": "^4.5.2",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.7.0",
     "@types/react": "^19.0.0",
@@ -70,6 +76,9 @@
     "postcss": "^8.4.47",
     "tailwindcss": "3.4.17",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "^5.6.0"
+    "jsdom": "^26.1.0",
+    "typescript": "^5.6.0",
+    "@vitest/ui": "^3.2.4",
+    "vitest": "^3.2.4"
   }
 }

@@ -4,6 +4,22 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-03 — 🔴 useSession() requires SessionProvider in tree — TypeScript catches nothing
+- Type:      🔴 gotcha
+- Phase:     Phase 7 Feature 3d-1 (surfaced) + 3e (logged)
+- Files:     apps/yelli/src/components/providers/TRPCProvider.tsx, any client component using useSession
+- Concepts:  next-auth, useSession, SessionProvider, ssr-crash, runtime-only-error, provider-tree, react-context
+- Narrative: next-auth/react `useSession()` requires `<SessionProvider>` in the React tree. If missing, the hook crashes at the FIRST render — including during SSR — taking down the entire app with no useful error message at the client. TypeScript does NOT catch this — there is no type-level link between the hook and the provider. The only signal is runtime: a generic React error or a "useContext is undefined" trace deep in the SSR pipeline. Mitigation: when adding `useSession()` to ANY client component for the first time in a Next.js App Router app, IMMEDIATELY verify `<SessionProvider>` wraps the provider chain in the root layout (or in TRPCProvider in this project). Add a vitest component test that renders the component with a fake SessionProvider mock to lock the dependency. (3e infra makes this test now possible.)
+# ---
+
+## 2026-06-03 — 🔴 React 19 + vitest: new JSX transform requires @vitejs/plugin-react in vitest config
+- Type:      🔴 gotcha
+- Phase:     Phase 7 Feature 3e (test infra)
+- Files:     apps/yelli/vitest.config.ts
+- Concepts:  vitest, react-19, jsx-transform, vitejs-plugin-react, ReferenceError-React, testing-setup
+- Narrative: React 19 uses the automatic JSX transform (no `import React from "react"` needed in app code). But vitest's raw Vite pipeline does NOT apply the transform unless you add `@vitejs/plugin-react` to the vitest config `plugins` array. Without it, every JSX expression in test files throws `ReferenceError: React is not defined` at runtime even though the same code compiles fine under Next.js (which applies the transform internally). Fix: `import react from "@vitejs/plugin-react"; defineConfig({ plugins: [react()], ... })`. This is separate from `next/babel` — vitest never runs Next.js's transform pipeline.
+# ---
+
 ## 2026-06-03 — 🟤 "Ringing" state encoded as placeholder-endedAt + time window (no schema migration)
 - Type:      🟤 decision
 - Phase:     Phase 7 Feature 3d-1 server half

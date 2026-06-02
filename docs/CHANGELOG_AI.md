@@ -1,5 +1,32 @@
 # CHANGELOG_AI
 
+## 2026-06-03 — Bug fix retroactive doc: SessionProvider missing from tree (commit 43a1b77)
+- Agent: CLAUDE_CODE
+- Why: During Phase 7 Feature 3d-1 Playwright smoke, the new useSession() call in DeviceList crashed SSR because SessionProvider was not in the provider tree. Sonnet committed the fix directly to main as 43a1b77 mid-smoke without a feature branch (Rule 23 deviation, justified by emergency context). This entry documents the fix retroactively per Rule 15 attribution requirements.
+- Files added: none
+- Files modified:
+  - apps/yelli/src/components/providers/TRPCProvider.tsx (wrapped children in <SessionProvider> from "next-auth/react") — +6 -3 lines
+- Files deleted: none
+- Schema/migrations: none
+- Errors encountered: SSR crash on every page request after 3d-1 client merge
+- Errors resolved: SessionProvider mount in root provider tree
+- Note: Rule 23 (branch-per-feature) deviation deliberate due to emergency. lessons.md gotcha entry added in 3e batch alongside this CHANGELOG retroactive doc.
+
+## 2026-06-03 — Phase 7 Feature 3e: vitest + RTL component test infrastructure
+- Agent: CLAUDE_CODE
+- Why: No test infra existed in apps/yelli (discovered during 3d-1 scope assessment). Future client-component features cannot follow Rule 25 TDD without this. Establishes vitest v3.2.6 (jsdom env) + @vitejs/plugin-react (new JSX transform for React 19) + React Testing Library + jest-dom matchers + a sanity test suite (3 tests) that proves the infra works. Retroactive tests for Phase 7 Features 1+2 and 3d-1 (RegisterDeviceButton, DeviceList, CallingModal, IncomingCallModal) are NOT in this dispatch — they are separate Feature Updates unblocked by this infra.
+- Files added:
+  - apps/yelli/vitest.config.ts (jsdom env, @vitejs/plugin-react for React 19 JSX transform, alias @→./src, setupFiles)
+  - apps/yelli/src/test/setup.ts (jest-dom matchers via @testing-library/jest-dom/vitest + matchMedia stub)
+  - apps/yelli/src/test/sanity.test.tsx (3 tests: RTL render, regex query, toHaveTextContent — proves full infra stack)
+- Files modified:
+  - apps/yelli/package.json (devDeps: @testing-library/jest-dom ^6.6.3, @testing-library/react ^16.3.0, @testing-library/user-event ^14.5.2, @vitejs/plugin-react ^4.5.2, jsdom ^26.1.0, vitest ^3.2.4, @vitest/ui ^3.2.4; scripts: test, test:watch added)
+  - pnpm-lock.yaml (regenerated)
+- Files deleted: none
+- Schema/migrations: none
+- Errors encountered: React is not defined — React 19 uses new JSX transform; vitest needs @vitejs/plugin-react to auto-inject the import
+- Errors resolved: added @vitejs/plugin-react to vitest.config.ts plugins array; all 3 tests pass
+
 ## 2026-06-03 — Phase 7 Feature 3d-1 (client half): call invitation UI
 - Agent: CLAUDE_CODE
 - Why: First user-facing call placement flow per PRODUCT.md core flow A. CALL button on DeviceList rows (hidden against receiver-only peers and self), invite mutation, "Calling..." modal with CANCEL + 30s no-answer auto-end, callee IncomingCallModal with Accept/Reject. NO WebRTC media in this slice — pure invitation lifecycle. 3d-2 will add Valkey pub/sub WS signaling to replace polling.
