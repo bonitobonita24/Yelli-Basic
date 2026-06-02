@@ -4,6 +4,13 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-03 — 🟤 "Ringing" state encoded as placeholder-endedAt + time window (no schema migration)
+- Type:      🟤 decision
+- Phase:     Phase 7 Feature 3d-1 server half
+- Files:     apps/yelli/src/server/trpc/routers/call.ts
+- Concepts:  call-session, ringing, callee-poll, schema-convention, no-migration
+- Narrative: The CallSession schema has no explicit RINGING enum value. Convention from invite mutation: freshly-invited sessions have connectedAt=null AND endedAt set to the same value as startedAt (placeholder). accept/reject/end mutations all UPDATE endedAt to a meaningfully-later time. So "is this still ringing?" = (connectedAt IS NULL) AND (endedAt - startedAt < 1s) AND (startedAt > now - 30s). Prisma can't compare columns natively, so the endedAt≈startedAt check runs in JS after a narrow time-bounded findMany. Acceptable for 3d-1 (polling, low volume). Phase 7 sub-feature 3d-2 should replace this with either (a) a proper RINGING enum value via migration, or (b) a Valkey pub/sub WS channel that bypasses DB polling entirely. Decision deferred until 3d-2 design.
+
 ## 2026-06-02 — 🔴 Docker healthcheck localhost→::1 in alpine breaks IPv4-only Next.js listener
 - Type:      🔴 gotcha
 - Phase:     Phase 7 Feature 3c (also affects all framework templates in CLAUDE.md / phases.md)

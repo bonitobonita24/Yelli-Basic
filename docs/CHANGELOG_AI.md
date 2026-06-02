@@ -1,5 +1,17 @@
 # CHANGELOG_AI
 
+## 2026-06-03 — Phase 7 Feature 3d-1 (server half): add calls.pending query
+- Agent: CLAUDE_CODE
+- Why: Callee side of PRODUCT.md core flow A needs a way to learn "is there a fresh incoming call for me?". 3d-1's IncomingCallModal hook polls this query every 3s. Phase 7 sub-feature 3d-2 will replace polling with a Valkey pub/sub WS subscription per the schema's TODO comments.
+- Files added: none
+- Files modified:
+  - apps/yelli/src/server/trpc/routers/call.ts (+1 procedure `pending` ~55L; also corrected `user` → `owner` relation name and `name` → `displayName` field name per actual Prisma schema)
+- Files deleted: none
+- Schema/migrations: none — uses existing CallSession schema with a time-window + endedAt≈startedAt placeholder filter as the "ringing" state proxy.
+- Errors encountered: Two TS errors — Device relation is `owner` (not `user`), User field is `displayName` (not `name`); nested select on callerDevice requires `include` not `select` at top level for Prisma type inference.
+- Errors resolved: Fixed relation name, field name, and promoted callerDevice to `include` clause.
+- TEST DEFERRAL (Rule 25 deviation): vitest is not yet configured in apps/yelli. No unit test written for `pending`. Phase 7 Feature 3e (RTL + vitest-component infra) is the chronological successor and will retroactively add server-side + client-side tests covering 3d-1.
+
 ## 2026-06-02 — Phase 7 Feature 3c: cleanup batch (icon-192 stub + healthcheck IPv4 fix + stray PNG cleanup)
 - Agent: CLAUDE_CODE
 - Why: Kill console noise + fix Docker container health status. (a) apps/yelli/public/icons/ did not exist, causing 2× 404 in console on every page load — added 192×192 brand-navy stub PNG to satisfy PWA manifest. (b) Docker healthcheck reported "unhealthy" despite GET /api/health returning 200 — root cause: alpine container's `localhost` resolves to ::1 (IPv6) but Next.js standalone listens only on 0.0.0.0:3000 (IPv4). Fixed by switching wget URL to 127.0.0.1 in all 3 env compose files. (c) Removed 2 stray screenshot PNGs (yelli-3b-directory-{pre,post}.png) that accidentally landed in repo root during Phase 7 Feature 3b first smoke + added /yelli-*.png pattern to .gitignore to prevent recurrence.

@@ -289,4 +289,67 @@ export const callRouter = router({
         nextCursor: hasMore && lastItem ? lastItem.id : undefined,
       };
     }),
+
+  /**
+   * Callee-side poll: returns the current ringing CallSession (if any) targeting any
+   * of the calling user's active devices. Used by IncomingCallModal hook.
+   *
+   * "Ringing" = connectedAt is NULL AND endedAt is within 1s of startedAt (the invite
+   * placeholder, untouched by accept/reject/end) AND startedAt > now - 30s.
+   *
+   * Prisma cannot compare two columns natively without raw SQL, so the endedAt≈startedAt
+   * check is done in JS after the candidate fetch. The narrow time window keeps the
+   * candidate set tiny (≤ active inviters in the last 30s).
+   *
+   * TODO Phase 7 sub-feature 3d-2: replace polling with Valkey pub/sub WS subscription.
+   */
+  pending: protectedProcedure
+    .use(requireTenant())
+    .query(async ({ ctx }) => {
+      const userId = ctx.session!.user!.id;
+      const tenantId = ctx.session!.user!.tenantId!;
+
+      const userDevices = await prisma.device.findMany({
+        where: { userId, tenantId, archivedAt: null },
+        select: { id: true },
+      });
+      const deviceIds = userDevices.map((d) => d.id);
+      if (deviceIds.length === 0) return null;
+
+      const ringingThreshold = new Date(Date.now() - 30_000);
+
+      const candidates = await prisma.callSession.findMany({
+        where: {
+          tenantId,
+          calleeDeviceId: { in: deviceIds },
+          connectedAt: null,
+          startedAt: { gte: ringingThreshold },
+        },
+        orderBy: { startedAt: "desc" },
+        take: 5,
+        include: {
+          callerDevice: {
+            select: {
+              displayName: true,
+              owner: { select: { displayName: true, email: true } },
+            },
+          },
+        },
+      });
+
+      const ringing = candidates.find(
+        (c) => Math.abs(c.endedAt.getTime() - c.startedAt.getTime()) < 1000,
+      );
+      if (!ringing) return null;
+
+      return {
+        callSessionId: ringing.id,
+        callerDisplayName:
+          ringing.callerDevice.displayName ??
+          ringing.callerDevice.owner?.displayName ??
+          ringing.callerDevice.owner?.email ??
+          "Unknown",
+        startedAt: ringing.startedAt,
+      };
+    }),
 });
