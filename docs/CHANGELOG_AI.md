@@ -1,5 +1,19 @@
 # CHANGELOG_AI
 
+## 2026-06-03 — Phase 7 Feature 3f: fix PgBouncer config generation (DATABASE_URL → individual env vars)
+- Agent: CLAUDE_CODE
+- Why: PgBouncer container's `[databases]` section was generating garbage when the postgres password contained a literal `/` character (edoburu/pgbouncer entrypoint splits the DATABASE_URL on `/` without URL-decoding). Plain password used in DB_PASSWORD env var, not URL-encoded — so the encoded-in-DATABASE_URL workaround did not apply. App was bypassing pgbouncer via DATABASE_URL_INTERNAL → direct postgres connection, so the bug was non-blocking but real. Additionally, `DATABASE_URL` from env_file contained `?schema=public` which caused a pgbouncer syntax error at startup. Fixed by switching all 3 env (dev/staging/prod) compose pgbouncer services to use individual DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME env vars edoburu also supports, plus setting `DATABASE_URL: ""` in the environment block to prevent the env_file value from taking precedence. No .env changes — those vars already exist as plain strings.
+- Files added: none
+- Files modified:
+  - deploy/compose/dev/docker-compose.db.yml (pgbouncer environment: replaced DATABASE_URL with DATABASE_URL="" + 5 individual DB_* vars)
+  - deploy/compose/stage/docker-compose.db.yml (same)
+  - deploy/compose/prod/docker-compose.db.yml (same)
+- Files deleted: none
+- Schema/migrations: none
+- Errors encountered: garbled [databases] config (RDNEGY@yelli_dev_postgres:5432/yelli_dev = host=... — mangled split on `/`); pgbouncer syntax error from `?schema=public` in dbname; env_file `DATABASE_URL` taking precedence over `environment:` block individual vars
+- Errors resolved: clean [databases] config (yelli_dev = host=yelli_dev_postgres port=5432 auth_user=...) — pgbouncer starts and runs without config errors
+- Note: Pgbouncer is functional now but the app still routes through DATABASE_URL_INTERNAL (direct postgres). Switching the app to pool through pgbouncer is a separate Feature Update (requires verifying transaction-mode pooling against prisma's prepared-statement usage).
+
 ## 2026-06-03 — Bug fix retroactive doc: SessionProvider missing from tree (commit 43a1b77)
 - Agent: CLAUDE_CODE
 - Why: During Phase 7 Feature 3d-1 Playwright smoke, the new useSession() call in DeviceList crashed SSR because SessionProvider was not in the provider tree. Sonnet committed the fix directly to main as 43a1b77 mid-smoke without a feature branch (Rule 23 deviation, justified by emergency context). This entry documents the fix retroactively per Rule 15 attribution requirements.

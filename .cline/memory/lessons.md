@@ -4,6 +4,14 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-03 — 🔴 edoburu/pgbouncer DATABASE_URL parser splits on `/` literally — breaks on passwords with `/`, also breaks on `?schema=public`
+- Type:      🔴 gotcha
+- Phase:     Phase 7 Feature 3f (also affects framework templates)
+- Files:     deploy/compose/{dev,staging,prod}/docker-compose.db.yml
+- Concepts:  pgbouncer, edoburu, database-url, url-encoding, password-with-slash, framework-template-bug, env_file-precedence
+- Narrative: The edoburu/pgbouncer Docker image accepts EITHER `DATABASE_URL` OR individual `DB_HOST`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` env vars. Two bugs in the framework template: (1) The DATABASE_URL parser in its entrypoint splits on `/` literally without URL-decoding — if the postgres password contains `/`, the `[databases]` section is garbled (e.g. `RDNEGY@yelli_dev_postgres:5432/yelli_dev = host=...`). (2) The `?schema=public` suffix on the DATABASE_URL causes a pgbouncer config syntax error and prevents startup. Compounding issue: when both `env_file` and `environment:` define the same key, Docker Compose should let `environment:` win — but edoburu's entrypoint runs in the container's environment where the merged vars are present, and it picks up `DATABASE_URL` from `env_file` because `environment:` sets individual `DB_*` vars, not overriding `DATABASE_URL`. Fix: use individual `DB_*` vars AND explicitly set `DATABASE_URL: ""` in the `environment:` block to blank-out the env_file value. The framework template in CLAUDE.md uses DATABASE_URL and is therefore latently broken for any project whose openssl-generated password contains `/`. Upstream fix needed to Spec-Driven Platform V31+ compose templates.
+# ---
+
 ## 2026-06-03 — 🔴 useSession() requires SessionProvider in tree — TypeScript catches nothing
 - Type:      🔴 gotcha
 - Phase:     Phase 7 Feature 3d-1 (surfaced) + 3e (logged)
