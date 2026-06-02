@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { getServerSession } from "@/server/auth/session";
 import { RegisterDeviceButton } from "@/components/devices/RegisterDeviceButton";
 import { DeviceList } from "@/components/devices/DeviceList";
+import { IncomingCallModal } from "@/components/calls/IncomingCallModal";
 
 export const metadata: Metadata = {
   title: "Directory",
@@ -29,6 +30,8 @@ export default async function AppHomePage() {
       <DeviceList />
 
       <RegisterDeviceButton />
+
+      <IncomingCallModal />
     </main>
   );
 }

@@ -1,5 +1,22 @@
 # CHANGELOG_AI
 
+## 2026-06-03 — Phase 7 Feature 3d-1 (client half): call invitation UI
+- Agent: CLAUDE_CODE
+- Why: First user-facing call placement flow per PRODUCT.md core flow A. CALL button on DeviceList rows (hidden against receiver-only peers and self), invite mutation, "Calling..." modal with CANCEL + 30s no-answer auto-end, callee IncomingCallModal with Accept/Reject. NO WebRTC media in this slice — pure invitation lifecycle. 3d-2 will add Valkey pub/sub WS signaling to replace polling.
+- Files added:
+  - apps/yelli/src/hooks/use-incoming-call.ts (~18L — polls trpc.calls.pending every 3s)
+  - apps/yelli/src/components/calls/CallingModal.tsx (~90L — caller side, CANCEL + 30s no-answer timer)
+  - apps/yelli/src/components/calls/IncomingCallModal.tsx (~75L — callee side, Accept/Reject)
+- Files modified:
+  - apps/yelli/src/components/devices/DeviceList.tsx (added CALL button per row, self-filter, invite mutation, CallingModal mount, error surface)
+  - apps/yelli/src/app/(app)/page.tsx (mount global IncomingCallModal)
+- Files deleted: none
+- Schema/migrations: none
+- Errors encountered: TS2322 on device.userId/displayName (Prisma select inference types these as string | null despite non-null FK in schema)
+- Errors resolved: null-coalescing fallbacks (`?? ""` / `?? "Unknown"`) at call sites; typecheck 0 errors
+- TEST DEFERRAL (Rule 25 deviation): vitest+RTL are not yet configured in apps/yelli. No unit/component tests written for 3d-1 client. Phase 7 Feature 3e (RTL + vitest-component infra) is the chronological successor and will retroactively add tests for Phase 7 Features 1+2 + 3d-1.
+- DEFERRED to 3d-2/3/4: actual WebRTC peer connection, signaling transport (Valkey pub/sub WS), mute/cam/end controls, video elements, connection-state badge.
+
 ## 2026-06-03 — Phase 7 Feature 3d-1 (server half): add calls.pending query
 - Agent: CLAUDE_CODE
 - Why: Callee side of PRODUCT.md core flow A needs a way to learn "is there a fresh incoming call for me?". 3d-1's IncomingCallModal hook polls this query every 3s. Phase 7 sub-feature 3d-2 will replace polling with a Valkey pub/sub WS subscription per the schema's TODO comments.
