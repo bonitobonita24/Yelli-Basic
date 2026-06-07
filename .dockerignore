@@ -1,9 +1,0 @@
-node_modules
-certs
-scripts
-.git
-.gitignore
-.dockerignore
-Dockerfile
-fly.toml
-*.md
