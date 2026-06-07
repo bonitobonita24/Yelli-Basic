@@ -11,7 +11,20 @@ Phase: pre-Phase 0. Next: Bootstrap → Phase 2 → Phase 3.
   - 4 env files validated existing (survived clean-slate wipe with AI-generated credentials intact)
   - 5 decisions locked in DECISIONS_LOG.md (port base 46838, turnstile=false, a11y=none, payment=none, vibe_test=true)
   - Dispatch ratio: 4 sonnet_writes / 0 opus_writes = ∞ (PASS)
-- ⏳ Phase 3.3 — Interactive Prototype & Simulation: NEXT (V32.6)
+
+### Phase 3.3 — Interactive Prototype & Simulation (V32.6, multi-wave)
+- 🚧 Phase 3.3 — IN PROGRESS (Wave 2/N complete, foundation laid 2026-06-08)
+  - Wave 2A — Scaffold: Next.js 14 App Router under prototype/ (10 files, 315L). Dev port 4838. Tailwind theme wired to CSS-var tokens from DESIGN.md (colors, radius, shadow).
+  - Wave 2B — Simulated data layer: prototype/src/lib/sim/ (6 files, 821L) — single swap boundary. 6 entity repos (devices/callSessions/users/tenants/invitations/auditLog) mirror inputs.schema.json shapes. localStorage persistence with cross-tab + same-tab pub/sub. Clock helper for 90d archive time-travel. ⚠ Dispatch overshot V32 R2 500L gate (repo.ts alone 448L) — accepted once for foundational wave; logged in lessons.md.
+  - Wave 2 — Design EXPAND: docs/DESIGN.md +37L (motion + shadows + z-index) per V32.5 INHERIT-not-REPLACE contract. No existing tokens modified.
+  - 1 decision locked in DECISIONS_LOG.md: simulation technique (in-memory + localStorage + 6-namespace barrel; Phase 4 swaps exactly those 6 namespaces for real tRPC calls).
+  - Dispatch ratio this wave: 3 sonnet_writes / 0 opus_writes = ∞ (PASS).
+  - Foundation laid: scaffold boots, sim layer importable. UI does not yet consume sim/ — Wave 3 wires first screen.
+- ⏳ Wave 3 — UI primitives + Calling flow (PRODUCT.md §3 Flow A): NEXT
+- ⏳ Waves 4–11 — Remaining 8 §3 Core User Flows: PENDING (one per wave, strict R2)
+- ⏳ Wave N — /design-review + /design-refine (flagged only): PENDING
+- ⏳ Wave N+1 — docs/PROTOTYPE.md + client sign-off in DECISIONS_LOG.md: PENDING (gate-closure)
+- ⏳ Phase 3.5 — Execution Plan: BLOCKED by Phase 3.3 gate-closure
 
 ## Archived — Pre-Clean-Slate (V31 baseline, archived 2026-06-07)
 

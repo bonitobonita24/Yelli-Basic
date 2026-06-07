@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Yelli design tokens — mirrors docs/DESIGN.md
+ * Single source of truth for prototype colors, typography, motion.
+ * Tailwind theme (tailwind.config.ts) consumes these via var(--token).
+ */
+:root {
+  /* Surfaces */
+  --color-canvas: #FAF7F2;
+  --color-surface: #FFFFFF;
+  --color-surface-elevated: #FFFDFA;
+
+  /* Text */
+  --color-text-primary: #0A0A0A;
+  --color-text-secondary: #4A4A4A;
+  --color-text-muted: #8A8A8A;
+
+  /* Primary + brand accents */
+  --color-primary: #0A0A0A;
+  --color-brand-pink: #FF6FB5;
+  --color-brand-teal: #2EC4B6;
+  --color-brand-lavender: #B8A4E3;
+  --color-brand-peach: #FFB084;
+  --color-brand-mint: #A8E6CF;
+  --color-brand-coral: #FF8A80;
+
+  /* Semantic */
+  --color-success: #A8E6CF;
+  --color-success-strong: #1B8A5A;
+  --color-warning: #FFB084;
+  --color-warning-strong: #C45A1F;
+  --color-error: #FF8A80;
+  --color-error-strong: #B3261E;
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+html,
+body {
+  background: var(--color-canvas);
+  color: var(--color-text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

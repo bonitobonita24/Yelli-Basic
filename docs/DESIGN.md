@@ -574,3 +574,40 @@ The system uses no heavy shadows. Depth comes from the saturated color contrast 
 - Animation and transition timings (3D illustration parallax on scroll, feature card entrance animations) are not in scope.
 - Form validation states beyond `{component.text-input-focused}` are not extracted.
 - The actual Clay product surface (in-app data tables, formula editor, agent builder) shares some tokens with the marketing site but adds many product-specific components that are out of scope.
+
+---
+
+## Motion (EXPAND v32.6 Phase 3.3)
+
+duration:
+  fast: 150ms       # button press, hover fade
+  base: 240ms       # modal entrance, card reveal
+  slow: 400ms       # page transitions, drawer slide
+
+easing:
+  default: cubic-bezier(0.4, 0, 0.2, 1)   # Material standard; harmonizes with rounded Plain Black aesthetic
+  emphasized: cubic-bezier(0.2, 0, 0, 1)  # entrance emphasis
+  exit: cubic-bezier(0.4, 0, 1, 1)        # exit acceleration
+
+reduced_motion: respect `prefers-reduced-motion: reduce` — collapse all transitions to 0ms.
+
+## Shadows (EXPAND v32.6 Phase 3.3)
+
+shadow:
+  none: none
+  hairline: 0 1px 2px rgba(10, 10, 10, 0.06)
+  card: 0 2px 8px rgba(10, 10, 10, 0.08)
+  raised: 0 8px 24px rgba(10, 10, 10, 0.12)
+  modal: 0 16px 48px rgba(10, 10, 10, 0.18)
+
+Note: Yelli's playful warm aesthetic favors soft + diffused shadows over crisp drop shadows. Use sparingly — rounded radii + cream surface already provide elevation cues.
+
+## Z-Index (EXPAND v32.6 Phase 3.3)
+
+z-index:
+  base: 0
+  sticky: 10        # sticky headers
+  dropdown: 100     # popovers, role select
+  drawer: 200       # settings drawer
+  modal: 1000       # call modal, branding modal
+  toast: 2000       # transient notifications

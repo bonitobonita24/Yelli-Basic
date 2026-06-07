@@ -2,6 +2,30 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-08 — Phase 3.3 Wave 2 — Prototype scaffold + simulated data layer
+- Agent: CLAUDE_CODE
+- Why: V32.6 Phase 3.3 hard gate before Phase 3.5 — lay the prototype foundation (Next.js scaffold + sim/ swap-boundary module + design-token EXPAND) so subsequent waves can build flow screens against a stable base.
+- Files added:
+  - prototype/package.json, prototype/tsconfig.json, prototype/tailwind.config.ts, prototype/next.config.mjs, prototype/postcss.config.mjs
+  - prototype/src/app/layout.tsx, prototype/src/app/page.tsx, prototype/src/app/globals.css
+  - prototype/README.md, prototype/.gitignore
+  - prototype/src/lib/sim/types.ts (105L) — 6 entity shapes mirroring PRODUCT.md §11
+  - prototype/src/lib/sim/storage.ts (73L) — SSR-safe localStorage + cross-tab/same-tab pub/sub
+  - prototype/src/lib/sim/repo.ts (448L) — typed repos for all 6 entities + per-write AuditLog
+  - prototype/src/lib/sim/seed.ts (146L) — idempotent LAN-anon / LAN-account / Cloud demo fixtures
+  - prototype/src/lib/sim/clock.ts (41L) — time-travel helper for 90d archive simulation
+  - prototype/src/lib/sim/index.ts (8L) — barrel export, the ONLY UI import surface
+- Files modified:
+  - docs/DESIGN.md (+37L EXPAND per V32.5 INHERIT-not-REPLACE: motion 3 durations + 3 easings, shadows 5 elevations, z-index 6 layers; no existing tokens modified)
+  - .cline/STATE.md, docs/DECISIONS_LOG.md, docs/IMPLEMENTATION_MAP.md, .cline/memory/lessons.md (this dispatch — governance writes)
+- Schema/migrations: none (sim layer only — real schema lives in Phase 4 Part 3)
+- Errors encountered: 1 — Wave 2B Sonnet dispatch wrote 821L total (repo.ts alone 448L), exceeding V32 R2 500L-per-task gate by 64%. The repo file naturally grew large because the swap-boundary contract requires one barrel covering all 6 entities + per-write audit-log entries; no meaningful abstraction layer can be inserted without breaking the Phase 4 swap promise.
+- Errors resolved: tactically accepted (no further split for this foundational wave; the volume is one-time). Logged as 🔴 gotcha in `.cline/memory/lessons.md`. Future per-flow waves will be strictly under the gate (UI primitives and flow screens are naturally smaller surfaces).
+- Decisions locked: simulation technique (in-memory + localStorage + 6-namespace barrel) recorded in DECISIONS_LOG.md as LOCKED 2026-06-08.
+- Dispatch ledger: 3 Sonnet dispatches (A=scaffold 315L/~112s, B=sim 821L/~141s, C=this governance checkpoint). dispatch_ratio: 3 sonnet_writes / 0 opus_writes = ∞ (target ≥ 3.0, status PASS).
+- LOC delta: ~1173L net new (315 scaffold + 821 sim + 37 DESIGN.md EXPAND) plus ~70L across 5 governance files.
+- Next: Wave 3 — UI primitives (shadcn aligned to expanded tokens) + first Core User Flow (Calling, per PRODUCT.md §3 Flow A). Then iterative waves per remaining 8 flows → /design-review + docs/PROTOTYPE.md + client sign-off → Phase 3.3 gate-closure → Phase 3.5.
+
 ### 2026-06-07 — Phase 3 spec files generated (V32.6.1 canary rebuild)
 - Agent: CLAUDE_CODE
 - Why: Generate inputs.yml + JSON schema + sync-credentials script per CLAUDE.md Phase 3 contract. Validate env files survived clean-slate wipe with credentials intact.

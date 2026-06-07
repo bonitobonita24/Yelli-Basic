@@ -233,3 +233,18 @@ None. Reason: Yelli is a P2P calling app, no transactional surface. No Xendit/St
 Enabled. Reason: framework default; cheap insurance against PRODUCT.md gaps before Phase 4 scaffolding burns context. Already passed for V32.6.1 baseline.
 
 Locked at: Phase 3 of V32.6.1 canary rebuild (2026-06-07).
+
+
+## LOCKED 2026-06-08 — Phase 3.3 simulation technique (V32.6)
+
+Decision: the Phase 3.3 interactive prototype uses an **in-memory mock service layer + localStorage persistence**, mirroring the inputs.schema.json entity shapes, exposed behind a single barrel export at `prototype/src/lib/sim/index.ts`. Cross-tab and same-tab reactivity is wired via the native `window` `'storage'` event plus a custom `'yelli:sim:change'` event. A `clock.ts` time-travel helper supports edge cases that depend on wall-clock progression (notably the 90d-offline → device-archive rule).
+
+Rationale: Yelli is workflow-heavy (signaling, role propagation, audit-log invariants) with light per-entity CRUD volume. localStorage gives instant reads, survives page reloads (matches PWA expectations declared in PRODUCT.md §8), and avoids forcing a real backend into the prototype phase. This matches the user-confirmed choice during the Phase 3.3 kickoff Q&A. A pure in-memory layer would have lost state on reload; full IndexedDB would have over-engineered the swap boundary.
+
+Swap boundary (the contract Phase 4 honors): exactly 6 repo namespaces — `devices`, `callSessions`, `users`, `tenants`, `invitations`, `auditLog` — plus `seedDefaults()` and the shared `types` export. Phase 4 swaps these six namespaces (or their counterparts under `apps/web/src/`) for real tRPC client calls. UI consumers do NOT change. `storage.ts` and `clock.ts` are sim-only debug helpers and are removed (not swapped) when the real backend is wired.
+
+Prototype runtime: Next.js 14 App Router (matches inputs.yml `apps[].framework=next` lock). This maximizes Phase 4 code reuse — UI primitives, layout shell, font wiring, and Tailwind token plumbing built in Phase 3.3 carry forward verbatim.
+
+Flow scope: all 9 Core User Flows declared in PRODUCT.md §3 MUST be walkable end-to-end in the prototype before Phase 3.3 gate-closure (per the V32.6 hard-gate requirement before Phase 3.5 begins).
+
+Locked at: Phase 3.3 Wave 2 of V32.6.1 canary rebuild (2026-06-08).

@@ -4,6 +4,14 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-08 — 🔴 Sim-layer repo file overshoots V32 R2 500L gate when one file covers all entities
+- Type:      🔴 gotcha
+- Phase:     Phase 3.3 Wave 2B
+- Files:     prototype/src/lib/sim/repo.ts (448L) — contributed to dispatch total 821L vs the 500L gate.
+- Concepts:  V32 R2, dispatch splitting, sim-layer architecture, audit-log coupling, swap-boundary contract
+- Narrative: V32 R2 caps each Sonnet task at ≤500L written. A single repo.ts covering all 6 entities (devices/callSessions/users/tenants/invitations/auditLog) PLUS the audit-log write paired with every mutation naturally grew to 448L; combined with the surrounding types/storage/seed/clock/index files the dispatch wrote 821L total (64% over gate). Mechanical CRUD code can't be meaningfully abstracted without breaking the swap-boundary contract — Phase 4 needs ONE barrel export with no abstraction layer in between, otherwise the tRPC swap requires touching UI consumers. Future fix: split repo.ts into per-entity files (devices.repo.ts, callSessions.repo.ts, users.repo.ts, tenants.repo.ts, invitations.repo.ts, auditLog.repo.ts) AND dispatch each as its own Sonnet task with its own ≤500L budget. Trade-off: more dispatches = more baseline-overhead waste per the V32.1 operational note (~30–50K tokens of skill+MCP context inherited per dispatch before work begins). Accepted the overshoot ONCE for the foundational wave; enforcing strict R2 going forward on flow-screen waves. Action: log the overshoot in CHANGELOG, document the per-entity split pattern here so the next Sim-layer build (in any project) doesn't repeat it.
+# ---
+
 ## 2026-06-03 — 🔴 edoburu/pgbouncer DATABASE_URL parser splits on `/` literally — breaks on passwords with `/`, also breaks on `?schema=public`
 - Type:      🔴 gotcha
 - Phase:     Phase 7 Feature 3f (also affects framework templates)

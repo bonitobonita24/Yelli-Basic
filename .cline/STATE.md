@@ -1,45 +1,59 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Phase 3 Complete (V32.6.1 canary rebuild, 2026-06-07)
+## Current State — Phase 3.3 Wave 2 Complete (V32.6.1 canary rebuild, 2026-06-08)
 
-PHASE:        Phase 3 — Spec files generated
-LAST_DONE:    Phase 3 spec generation: inputs.yml + inputs.schema.json + 4 env files (validated existing) + scripts/sync-credentials-to-env.sh. 4 Sonnet dispatches under V32 R1/R7 (A=inputs+schema parallel-eligible but ran first due to dependency for B's port lookup; B=env validation, C=sync script ran in parallel after A; D=governance writes). All decisions locked in DECISIONS_LOG.md: port base 46838, turnstile=false, accessibility=none, payment=none, vibe_test=true.
-NEXT:         Phase 3.3 — Interactive Prototype & Simulation (V32.6, auto-runs after Phase 3). Builds client-validated prototype with simulated backend from PRODUCT.md + Phase 3 spec. Outputs docs/PROTOTYPE.md + prototype/ + client sign-off in DECISIONS_LOG.md. Hard gate before Phase 3.5 (Execution Plan).
-BLOCKERS:     None for Phase 3.3 dev. CREDENTIALS.md has 27 ⏳ placeholders (GitHub PAT, Docker Hub token, SMTP, Komodo, third-party API keys) — all Phase-5-deferred, not blocking Phase 3.3.
-GIT_BRANCH:   main @ 7e27984. 2 commits ahead of origin (90da70b + 7e27984 = clean-slate prep + CLAUDE.md re-add). Working tree dirty post-Phase-3 (new files: inputs.yml, inputs.schema.json, scripts/sync-credentials-to-env.sh; plus governance updates).
-PORTS:        base=46838 LOCKED. db=46838, pgbouncer=46839, valkey=46840, minio=46841, minio_console=46842, mailhog=46843, mailhog_ui=46844, pgadmin=46845, app=46848, worker=46849, prisma_studio=46858.
+PHASE:        Phase 3.3 — Interactive Prototype & Simulation (Wave 2/N+ complete; foundation laid)
+LAST_DONE:    Phase 3.3 Wave 2 lays the prototype foundation in two parallel Sonnet dispatches per V32 R7. Wave 2A: Next.js 14 App Router scaffold under prototype/ (10 files, 315L) — package.json + tsconfig + tailwind.config.ts (tokens → CSS vars) + next.config.mjs + postcss + src/app/{layout,page,globals.css} placeholders + README + .gitignore. Dev port 4838 (intentionally separate from Yelli main app port 46848 — prototype is a sandbox, not the Phase 4 app). Wave 2B: simulated data layer at prototype/src/lib/sim/ (6 files, 821L) — types.ts (6 entity shapes mirroring PRODUCT.md §11 L194-211) + storage.ts (SSR-safe localStorage wrapper + cross-tab 'storage' event + same-tab 'yelli:sim:change' custom-event pub/sub) + repo.ts (typed repos for all 6 entities with per-write AuditLog) + seed.ts (idempotent LAN-anon / LAN-account / Cloud demo fixtures) + clock.ts (time-travel helper for 90d offline → archive simulation) + index.ts (barrel — single import surface for UI). docs/DESIGN.md EXPAND per V32.5 INHERIT-not-REPLACE: +37L appended (motion 3 durations + 3 easings, shadows 5 elevations, z-index 6 layers). Zero existing tokens modified.
+NEXT:         Wave 3 — UI primitives (Button, Card, Dialog, Input, etc. from shadcn aligned to expanded tokens) + first Core User Flow (Calling, per PRODUCT.md §3 Flow A). Then iterative waves per remaining 8 §3 flows (Receive, Admin-Assigns-Role, Register Device, Login, Invite, Manage Devices, Audit View, Tenant Export). Goal: all 9 §3 Core User Flows walkable end-to-end + docs/PROTOTYPE.md written + /design-review green + client sign-off in DECISIONS_LOG.md → Phase 3.3 gate-closure → Phase 3.5 Execution Plan.
+BLOCKERS:     None. User can verify scaffold boots: `cd prototype && npm install && npm run dev` → http://localhost:4838 should render placeholder. Sim layer is import-only at this stage (no UI consumes it yet — Wave 3 wires the first screen). CREDENTIALS.md 27 ⏳ placeholders remain Phase-5-deferred, not blocking Phase 3.3.
+GIT_BRANCH:   main. Working tree dirty: docs/DESIGN.md modified (+37L EXPAND), prototype/ untracked (16 files, 1136L = 315 scaffold + 821 sim). About to commit as feat(phase-3.3).
+PORTS:        base=46838 LOCKED for Yelli main app (Phase 4 onward). Prototype runtime uses port 4838 (sandbox isolation — no collision with reserved ranges). db=46838, pgbouncer=46839, valkey=46840, minio=46841, minio_console=46842, mailhog=46843, mailhog_ui=46844, pgadmin=46845, app=46848, worker=46849, prisma_studio=46858.
 MODELS:
   planning:   claude-code (Opus 4.7 — Architect ONLY per V32 R1)
   execution:  claude-sonnet-4-6
   governance: gemini-2.5-flash-lite
-LINES_TOUCHED: ~711L net new (151 inputs.yml + 274 inputs.schema.json + 99 sync script + ~50 DECISIONS_LOG append + ~40 CHANGELOG append + ~30 IMPLEMENTATION_MAP update + ~67 this STATE.md rewrite). Env files were validated-existing (0L delta).
+LINES_TOUCHED: ~1173L net new (315 scaffold + 821 sim + 37 DESIGN.md EXPAND). Plus governance updates this dispatch (~70L across STATE/DECISIONS/CHANGELOG/IMPLEMENTATION_MAP/lessons).
 CHECKPOINT_TYPE: full
 FILES_TOUCHED:
-  - inputs.yml (CREATED — Worker A)
-  - inputs.schema.json (CREATED — Worker A)
-  - .env.dev (VALIDATED — Worker B, no edit)
-  - .env.staging (VALIDATED — Worker B, no edit)
-  - .env.prod (VALIDATED — Worker B, no edit)
-  - .env.example (VALIDATED — Worker B, no edit)
-  - scripts/sync-credentials-to-env.sh (CREATED — Worker C, +x)
-  - .cline/STATE.md (this — Worker D)
-  - docs/DECISIONS_LOG.md (Worker D — Phase 3 locks)
-  - docs/CHANGELOG_AI.md (Worker D — Phase 3 entry)
-  - docs/IMPLEMENTATION_MAP.md (Worker D — Phase 3 row)
-TIER_CLASSIFICATION: 2 — moderate (711L across 11 files, but no single Sonnet task exceeded 500L; achieved via parallel R7 dispatch)
+  Wave 2A — Scaffold (Sonnet, CREATED):
+  - prototype/package.json
+  - prototype/tsconfig.json
+  - prototype/tailwind.config.ts
+  - prototype/next.config.mjs
+  - prototype/postcss.config.mjs
+  - prototype/src/app/layout.tsx
+  - prototype/src/app/page.tsx
+  - prototype/src/app/globals.css
+  - prototype/README.md
+  - prototype/.gitignore
+  Wave 2B — Simulated data layer (Sonnet, CREATED):
+  - prototype/src/lib/sim/types.ts
+  - prototype/src/lib/sim/storage.ts
+  - prototype/src/lib/sim/repo.ts (448L — overshot R2 500L gate at task level; see lessons.md)
+  - prototype/src/lib/sim/seed.ts
+  - prototype/src/lib/sim/clock.ts
+  - prototype/src/lib/sim/index.ts
+  Wave 2A — Design EXPAND (Sonnet, EDITED — V32.5 INHERIT-not-REPLACE):
+  - docs/DESIGN.md (+37L appended: motion + shadows + z-index)
+  Wave 2C — Governance (Sonnet, this dispatch — EDITED):
+  - .cline/STATE.md
+  - docs/DECISIONS_LOG.md
+  - docs/CHANGELOG_AI.md
+  - docs/IMPLEMENTATION_MAP.md
+  - .cline/memory/lessons.md
+TIER_CLASSIFICATION: 3 — heavy (multi-wave Phase 3.3; this checkpoint is Wave 2/N — foundation laid, per-flow waves remain)
 DISPATCH_LEDGER (this session):
-  A (inputs+schema):    Sonnet, 4 tool uses, 158s, 425L written
-  B (env validation):   Sonnet, 8 tool uses, 99s, 0L written (existing validated)
-  C (sync script):      Sonnet, 3 tool uses, 47s, 99L written
-  D (governance):       Sonnet (this dispatch), ~6 tool uses target
+  A (scaffold):     Sonnet, 315L written, ~112s
+  B (sim layer):    Sonnet, 821L written, ~141s  ⚠ OVERSHOT V32 R2 500L gate — repo.ts alone 448L; combined with siblings = 821L (64% over). Future flow waves split narrower. See lessons.md 🔴 entry below.
+  C (checkpoint):   Sonnet, this dispatch (governance writes only)
 dispatch_ratio:
-  sonnet_writes: 4
+  sonnet_writes: 3
   opus_writes: 0
   ratio: ∞
   target: ≥ 3.0
   status: PASS
-NEXT_DISPATCH: Phase 3.3 — Interactive Prototype & Simulation. Reads PRODUCT.md §3 (Core User Flows) + DESIGN.md (PA baseline) + Phase 3 schema. Builds prototype/ with simulated data layer + finalized design tokens. Hard gate before Phase 3.5.
+NEXT_DISPATCH: Wave 3 — UI primitives + Calling flow. Strict R2 enforcement from here on (per-flow waves naturally smaller). Then iterative waves until all 9 §3 flows walkable, then /design-review + /design-refine (flagged only) + docs/PROTOTYPE.md + client sign-off → Phase 3.3 gate-closure → Phase 3.5.
 
 ## Archived — Pre-Clean-Slate (V31 baseline, archived 2026-06-07)
 
