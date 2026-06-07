@@ -1,5 +1,18 @@
 # CHANGELOG_AI
 
+## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
+
+### 2026-06-07 — Clean-slate wipe for V32.6.1 canary rebuild
+- Agent: CLAUDE_CODE
+- Tag: clean-slate-20260607
+- Commit: 0a94f48
+- Backup: ~/clean-slate-backup-20260607T064929Z.tar.gz
+- Pre-wipe IMPLEMENTATION_MAP archived for reference.
+
+## Archived — Pre-Clean-Slate (V31 baseline, archived 2026-06-07)
+
+Reference-only. No code from the entries below survives on the filesystem after commit `0a94f48`. Retained as historical attribution + decision trail for the V32.6.1 rebuild.
+
 ## 2026-06-03 — Phase 7 Feature 3f: fix PgBouncer config generation (DATABASE_URL → individual env vars)
 - Agent: CLAUDE_CODE
 - Why: PgBouncer container's `[databases]` section was generating garbage when the postgres password contained a literal `/` character (edoburu/pgbouncer entrypoint splits the DATABASE_URL on `/` without URL-decoding). Plain password used in DB_PASSWORD env var, not URL-encoded — so the encoded-in-DATABASE_URL workaround did not apply. App was bypassing pgbouncer via DATABASE_URL_INTERNAL → direct postgres connection, so the bug was non-blocking but real. Additionally, `DATABASE_URL` from env_file contained `?schema=public` which caused a pgbouncer syntax error at startup. Fixed by switching all 3 env (dev/staging/prod) compose pgbouncer services to use individual DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME env vars edoburu also supports, plus setting `DATABASE_URL: ""` in the environment block to prevent the env_file value from taking precedence. No .env changes — those vars already exist as plain strings.

@@ -1,5 +1,14 @@
 # Implementation Map — Yelli
 
+## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
+
+Filesystem: clean-slate. No apps/, packages/, deploy/, inputs.yml.
+Phase: pre-Phase 0. Next: Bootstrap → Phase 2 → Phase 3.
+
+## Archived — Pre-Clean-Slate (V31 baseline, archived 2026-06-07)
+
+Reference-only. No code from the sections below survives on the filesystem after commit `0a94f48` (clean-slate wipe). Retained so the V32.6.1 rebuild can re-reference proven decisions without re-deriving them.
+
 Last updated: 2026-06-02 by CLAUDE_CODE (Phase 4 Part 8 complete — CI workflows + MANIFEST + ESLint 9 + env schema; Phase 4 COMPLETE 8/8)
 Current phase: Phase 4 complete — awaiting human trigger for Phase 5
 Branch: scaffold/part-8 (pending squash-merge)

@@ -1,5 +1,17 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
+
+## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
+
+PHASE:   pre-Phase 0 (post clean-slate)
+NEXT:    Bootstrap (Phase 0)
+CANARY:  V32.6.1 ground-up rebuild
+BACKUP:  ~/clean-slate-backup-20260607T064929Z.tar.gz
+
+## Archived — Pre-Clean-Slate (V31 baseline, archived 2026-06-07)
+
+Reference-only. The state below describes the pre-wipe Phase 7 sequence; no code from that build survives on the filesystem after commit `0a94f48`.
+
 # Updated: 2026-06-02 23:18 GMT+8 by CLAUDE_CODE (Opus 4.7 Architect, V32 R1 — STATE.md exception)
 
 PHASE:        Phase 7 FULL SEQUENCE COMPLETE: 3a + 3b + 3c + 3d-1 + 3e + 3f all shipped to main. 3a: stage+prod compose internal-URL (0df2f63). 3b: Features 1+2 verified end-to-end + latent Phase 4 transformer bug fix (0c2f736). 3c: icon-192 stub + healthcheck IPv4 fix + stray PNG cleanup (8feeb08). 3d-1: server calls.pending query (00268f7) + client invitation UI — CALL button + CallingModal + IncomingCallModal (9b401c0) + emergency SessionProvider fix (43a1b77). 3e: vitest + RTL + jsdom + jest-dom infra + 3/3 sample tests passing + 43a1b77 CHANGELOG retroactive doc + useSession 🔴 gotcha (9cc28d5). 3f: pgbouncer DATABASE_URL → individual DB_* env vars across all 3 envs, fixed garbled [databases] config caused by `/` in password + `?schema=public` syntax error + env_file/environment merge precedence (f90f080). NEXT-NEXT options listed in NEXT field.
