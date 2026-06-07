@@ -5,10 +5,10 @@ interface BottomNavProps {
 
 function BottomNav({ go, currentScreen }: BottomNavProps) {
   const items: Array<[string, string, string]> = [
-    ["app",      "Directory", "👥"],
-    ["members",  "Members",   "🧑‍💼"],
-    ["branding", "Branding",  "🎨"],
-    ["settings", "You",       "⚙️"],
+    ["app",            "Directory", "👥"],
+    ["admin-members",  "Members",   "🧑‍💼"],
+    ["branding",       "Branding",  "🎨"],
+    ["settings",       "You",       "⚙️"],
   ];
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#fffaf0] border-t border-[#e5e5e5] grid grid-cols-4">

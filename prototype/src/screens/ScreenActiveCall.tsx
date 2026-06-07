@@ -1,6 +1,6 @@
 'use client';
 
-import { auditLog, callSessions, devices } from '@/lib/sim';
+import { callSessions, devices } from '@/lib/sim';
 
 type Screen = 'app' | 'call';
 
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function ScreenActiveCall(props: Props): JSX.Element {
-  const { go, activeCallId, tenantId } = props;
+  const { go, activeCallId } = props;
 
   const session = activeCallId ? callSessions.byId(activeCallId) : null;
   const calleeDevice =
@@ -34,12 +34,6 @@ export function ScreenActiveCall(props: Props): JSX.Element {
   const initials = calleeDevice.displayName.split(' ').map((n) => n[0]).slice(0, 2).join('');
   const endCall = (): void => {
     callSessions.end(session.id, 'completed');
-    auditLog.append({
-      tenantId,
-      actorUserId: null,
-      action: 'call.ended',
-      payload: { sessionId: session.id, endReason: 'completed' },
-    });
     go('app');
   };
 

@@ -206,12 +206,7 @@ export const callSessions = {
     };
     const rows = readTable<CallSession>(TABLES.callSessions);
     writeTable(TABLES.callSessions, [...rows, row]);
-    auditLog.append({
-      tenantId: caller.tenantId,
-      actorUserId: caller.userId,
-      action: 'call.start',
-      payload: { sessionId: row.id, callerId, calleeId },
-    });
+    // Calls are NOT audit-logged — they live in CallSession entity (PRODUCT.md §11).
     return row;
   },
   connect(id: string): CallSession {
@@ -236,12 +231,7 @@ export const callSessions = {
     writeTable(TABLES.callSessions, next);
     const updated = next.find((c) => c.id === id);
     if (!updated) throw new Error(`session ${id} not found`);
-    auditLog.append({
-      tenantId: updated.tenantId,
-      actorUserId: null,
-      action: 'call.end',
-      payload: { sessionId: id, reason, durationSec: updated.durationSec },
-    });
+    // Calls are NOT audit-logged — they live in CallSession entity (PRODUCT.md §11).
     return updated;
   },
 };

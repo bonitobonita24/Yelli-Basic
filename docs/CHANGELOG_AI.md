@@ -474,3 +474,26 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Dispatch ledger:     5 Sonnet dispatches under V32 R1 (D1 ui scaffold, D2 jobs core, D3 jobs workers, D4 storage, D5 governance+verify+merge). Each ≤500L per V32 R2.
 - Notes:               Workers are STUBS — payload validation + structured JSON logging only; real logic deferred to Phase 5 Feature Updates (TODO comments mark each handler). packages/ui ships minimal preset only — no shadcn primitives yet (Phase 4 Part 5 will run `npx shadcn add` inside packages/ui). Branding upload MIME whitelist = PNG/JPG only — SVG deferred per security.md rule 6 default; re-enable requires DOMPurify wiring in Phase 5/7.
 - LOC delta:           ~660 lines created across 11 files in packages/db/.
+
+## 2026-06-08 — Phase 3.3 Wave 4: Flows B (Receive) + C (Admin-Assigns-Role) walkable
+- Agent:               CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32.6.1 R1/R6/R7)
+- Why:                 Wire the second and third Core User Flows in the Phase 3.3 prototype: Flow B (Receive — incoming-call overlay + accept/reject) and Flow C (Admin-Assigns-Role — device call-role assignment surface). Parallel R7 dispatch since flows are independent. Reconcile audit-action vocabulary to PRODUCT.md §11 — Wave 3B emitted speculative `call.placed`/`call.ended` not present in the §11 enum; calls live in CallSession entity via `endReason`, not AuditLog.
+- Files added:
+  - prototype/src/components/OverlayIncomingCall.tsx (59L — modal: caller initials avatar + ✕ red Reject + 📞 green Accept; inline modal shell; in-app vs native push explanatory copy)
+  - prototype/src/components/OverlayCallRoleAssign.tsx (88L — Both/Caller only/Receiver only radio + live `device.role.assign` audit preview + Save disabled when unchanged)
+  - prototype/src/screens/ScreenAdminMembers.tsx (187L — narrowed to Flow C call-role-assign scope; member promote/demote/suspend/remove deferred to later waves; responsive mobile-cards + desktop-table; filter pills + search visual-only; refreshKey state forces re-render after sim.devices.setRole)
+- Files modified:
+  - prototype/src/screens/ScreenApp.tsx (overlay slot at line 214 wired; demo trigger synthesizes incoming session via callSessions.create(peer, me); accept → go('call'); reject → callSessions.end(id, 'declined'); explicit call.placed audit emit dropped)
+  - prototype/src/screens/ScreenActiveCall.tsx (call.ended audit emit + auditLog import dropped)
+  - prototype/src/lib/sim/repo.ts (internal call.start/call.end emits dropped from callSessions.create + callSessions.end; §11 reference comment added — calls live in CallSession entity, not AuditLog)
+  - prototype/src/app/page.tsx (Screen union widened to 'admin-members'; ScreenAdminMembers render branch; activeCallId prop wired to ScreenApp)
+  - prototype/src/components/BottomNav.tsx (Members tab key rerouted from 'members' → 'admin-members')
+- Files deleted:       none
+- Schema/migrations:   none (Phase 3.3 — sim layer only)
+- Errors encountered:  none in either parallel Sonnet dispatch — both reported DONE first attempt; combined `cd prototype && npx tsc --noEmit` exits 0 with no errors.
+- Errors resolved:     n/a
+- Dispatch ledger:     2 Sonnet Scouts (R6) + 2 Sonnet Executors (R7 parallel) + 3 Opus governance writes (R8 allow-list) + 1 Sonnet drift-review write (lessons.md, R9). Wave 4A: 1 created + 4 modified, 219s, 26 tool uses, ~150L net. Wave 4B: 2 created + 2 modified, 192s, 18 tool uses, ~280L net. Each ≤500L per V32 R2.
+- Audit reconciliation: grep over `prototype/src/screens/*.tsx` + `prototype/src/lib/sim/repo.ts` for `call.placed|call.ended|call.start|call.end` returns ZERO matches. PRODUCT.md §11 contract restored — sim AuditLog now strictly matches §11 enum vocabulary. Canonical Flow C action `device.role.assign` with payload `{from, to}` emitted on every role assignment.
+- Sim semantics gap (deferred):  `sim.devices.setRole` already audits internally with `{deviceId, role}` payload but lacks the `from` field PRODUCT.md §11 mandates. Wave 4B layered a second fully-specified entry rather than refactor repo.ts mid-wave. Phase 4 backend swap will collapse both into the real assignment endpoint with a single §11-conformant audit row.
+- dispatch_ratio:      3 sonnet_writes / 3 opus_writes = 1.0 (WARN — boundary). Same governance-doc-batching pattern as Wave 3 (1.33 WARN). Sonnet handled 100% of executor work — code, scouts, drift review. The R9 lessons.md drift entry was itself dispatched to Sonnet because lessons.md is not on the R8 allow-list. See `.cline/memory/lessons.md` for the typed `⚖️ trade-off` entry on per-wave governance-batching ratio inflation.
+- LOC delta:           ~430L net new across 8 files in prototype/.

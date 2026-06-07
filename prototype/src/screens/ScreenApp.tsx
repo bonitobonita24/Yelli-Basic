@@ -6,7 +6,8 @@ import CallRoleLabel from '@/components/CallRoleLabel';
 import TenantTopBar from '@/components/TenantTopBar';
 import BottomNav from '@/components/BottomNav';
 import AppFooter from '@/components/AppFooter';
-import { auditLog, callSessions, devices, type CallRole, type Device } from '@/lib/sim';
+import OverlayIncomingCall from '@/components/OverlayIncomingCall';
+import { callSessions, devices, type CallRole, type Device } from '@/lib/sim';
 
 type Screen = 'app' | 'call';
 type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
@@ -18,6 +19,7 @@ type Props = {
   myCallRole: CallRole;
   setMyCallRole: (r: CallRole) => void;
   tenantId: string;
+  activeCallId: string | null;
   setActiveCallId: (id: string | null) => void;
 };
 
@@ -44,7 +46,7 @@ function formatLastSeen(d: Device): string {
 }
 
 export function ScreenApp(props: Props): JSX.Element {
-  const { go, overlay, setOverlay, myCallRole, setMyCallRole, tenantId, setActiveCallId } = props;
+  const { go, overlay, setOverlay, myCallRole, setMyCallRole, tenantId, activeCallId, setActiveCallId } = props;
   const canInitiate = myCallRole === 'caller' || myCallRole === 'both';
 
   const allDevices = useMemo(() => devices.list(tenantId), [tenantId]);
@@ -62,12 +64,6 @@ export function ScreenApp(props: Props): JSX.Element {
     if (!myDevice) return;
     try {
       const session = callSessions.create(myDevice.id, calleeDeviceId);
-      auditLog.append({
-        tenantId,
-        actorUserId: myDevice.userId,
-        action: 'call.placed',
-        payload: { sessionId: session.id, callerDeviceId: myDevice.id, calleeDeviceId },
-      });
       setActiveCallId(session.id);
       go('call');
     } catch {
@@ -199,7 +195,23 @@ export function ScreenApp(props: Props): JSX.Element {
               <div className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Demo</div>
               <div className="mt-1 text-[13px] text-[#3a3a3a]">Offline reconnecting banner →</div>
             </button>
-            <button onClick={() => setOverlay('incomingCall')} className="text-left rounded-[16px] border border-dashed border-[#0a0a0a]/30 bg-[#faf5e8] p-4 md:p-5 hover:bg-[#f5f0e0] min-h-[64px]">
+            <button
+              onClick={() => {
+                if (!myDevice) return;
+                const callerPeer = visibleMembers.find(
+                  (d) => d.id !== myDevice.id && d.callRole !== 'receiver',
+                );
+                if (!callerPeer) return;
+                try {
+                  const session = callSessions.create(callerPeer.id, myDevice.id);
+                  setActiveCallId(session.id);
+                  setOverlay('incomingCall');
+                } catch {
+                  // forbidden-by-role — silently ignored in prototype
+                }
+              }}
+              className="text-left rounded-[16px] border border-dashed border-[#0a0a0a]/30 bg-[#faf5e8] p-4 md:p-5 hover:bg-[#f5f0e0] min-h-[64px]"
+            >
               <div className="text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Demo</div>
               <div className="mt-1 text-[13px] text-[#3a3a3a]">Incoming call modal →</div>
             </button>
@@ -210,8 +222,27 @@ export function ScreenApp(props: Props): JSX.Element {
       <AppFooter />
       <BottomNav go={go} currentScreen="app" />
 
-      {/* TODO Wave 4 — overlays */}
-      {overlay === 'incomingCall' && null}
+      {/* Wave 4A — Flow B (Receive). Other overlays remain TODO. */}
+      {overlay === 'incomingCall' && (() => {
+        const session = activeCallId ? callSessions.byId(activeCallId) : null;
+        const callerDevice = session ? devices.byId(session.callerDeviceId) : null;
+        if (!session || !callerDevice) return null;
+        return (
+          <OverlayIncomingCall
+            callerName={callerDevice.displayName}
+            callerDeviceName={callerDevice.displayName}
+            onAccept={() => {
+              setOverlay(null);
+              go('call');
+            }}
+            onReject={() => {
+              callSessions.end(session.id, 'declined');
+              setActiveCallId(null);
+              setOverlay(null);
+            }}
+          />
+        );
+      })()}
       {overlay === 'namePicker' && null}
       {overlay === 'pwa' && null}
       {overlay === 'offline' && null}

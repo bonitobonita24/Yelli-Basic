@@ -327,3 +327,40 @@
 - Files:     apps/yelli/src/components/devices/RegisterDeviceButton.tsx
 - Concepts:  device-registry, fingerprint, localStorage, uuid, privacy
 - Narrative: Chose opaque random UUID v4 stored in localStorage under `yelli.deviceFingerprint` over deterministic fingerprinting (e.g. SHA-256 of UA+screen+lang). Reasons: (1) stable across sessions same browser, (2) opaque — no PII leakage in the fingerprint string itself, (3) survives Safari ITP/2-week storage purge IF the user revisits within window (acceptable tradeoff since auto-archive @90d offline per PRODUCT.md handles long absences), (4) deterministic fingerprinting breaks when user changes screen/language and would create duplicate Device rows. The Device schema's browserFingerprint column is `String @db.VarChar(128)` so UUID's 36 chars fit comfortably. If a power-user wipes localStorage they re-register — acceptable for a B2B internal tool.
+
+## 2026-06-08 — ⚖️ trade-off Per-wave governance batching inflates dispatch_ratio (Phase 3.3 W3+W4)
+- Type:      ⚖️ trade-off
+- Phase:     Phase 3.3 Wave 3 + Wave 4 (Interactive Prototype & Simulation — multi-wave cadence)
+- Files:     docs/STATE.md, docs/CHANGELOG_AI.md, docs/IMPLEMENTATION_MAP.md, .cline/memory/lessons.md
+- Concepts:  dispatch_ratio, R8-allow-list, R9-drift-metric, multi-wave-checkpoint, measurement-artifact, ratio-gaming
+- Narrative: Phase 3.3's multi-wave cadence checkpoints 3 governance docs per wave (STATE.md +
+  CHANGELOG_AI.md + IMPLEMENTATION_MAP.md) directly via Opus under the R8 allow-list. Wave 3
+  closed at sonnet_writes/opus_writes = 4/3 = 1.33 (WARN); Wave 4 closed at 2/3 = 0.67 (FAIL)
+  before this R9 drift entry, lifting to 3/3 = 1.0 (WARN boundary) once this Sonnet-written
+  lessons.md append is counted. The ratio is NOT a real executor-drift signal here — all code
+  work was 100% Sonnet: parallel Scout-Sonnet dispatches per R6 fed parallel executor-Sonnet
+  dispatches per R7 (Wave 4A receive-flow + Wave 4B admin-assigns-role landed in a single
+  Opus response with two Agent calls). The inflation is a pure measurement artifact of
+  synchronous multi-doc governance batching at wave boundaries — three legitimate Opus writes
+  against fewer Sonnet writes inside one checkpoint window.
+  R9 mandates a lessons.md drift entry whenever the ratio falls below 1.0; this entry is that
+  drift entry. Because lessons.md is NOT on the R8 allow-list, Sonnet writes it, which itself
+  contributes +1 sonnet_write — that is what carries Wave 4 from 0.67 → 1.0. The bookkeeping
+  is self-balancing for the FAIL→WARN transition by design.
+  ⚖️ Trade-off accepted: this is an acceptable cost of the multi-wave Phase 3.3 cadence.
+  Ratios rebound to PASS (≥3.0) in waves where no simultaneous three-doc Opus checkpoint
+  occurs (e.g. mid-wave Sonnet executor batches between checkpoints). The alternative —
+  splitting the Opus checkpoint across multiple synthetic Sonnet dispatches to inflate the
+  ratio — would be ratio-gaming, not real dispatch discipline, and would obscure the actual
+  signal R9 is meant to surface (Opus drift into executor work).
+  Mitigation guidance for future multi-wave phases:
+    1. Accept WARN status on per-wave checkpoints when code work is verifiably 100% Sonnet
+       (Scouts + executors all dispatched via Agent(model: "sonnet"); no Opus Edit/Write on
+       non-allow-list paths within the wave window).
+    2. Only FAIL ratios that REMAIN <1.0 after all R9 drift writes are accounted for should
+       trigger real executor-discipline review.
+    3. Cross-wave/cumulative ratio over the whole phase is a more honest metric than per-wave
+       ratio for multi-wave phases — but per-wave is what STATE.md captures, so document the
+       trade-off here once and reference this entry on future multi-wave WARN closures.
+    4. Do NOT split single Opus governance checkpoints into multiple Sonnet dispatches purely
+       to lift the per-wave ratio. That is gaming the metric, not honoring R8/R9.

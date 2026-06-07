@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { ScreenApp } from '@/screens/ScreenApp';
 import { ScreenActiveCall } from '@/screens/ScreenActiveCall';
+import { ScreenAdminMembers } from '@/screens/ScreenAdminMembers';
 import { seedDefaults, tenants, type CallRole } from '@/lib/sim';
 
-type Screen = 'app' | 'call';
+type Screen = 'app' | 'call' | 'admin-members';
 type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
 
 export default function HomePage(): JSX.Element {
@@ -44,6 +45,10 @@ export default function HomePage(): JSX.Element {
     );
   }
 
+  if (screen === 'admin-members') {
+    return <ScreenAdminMembers go={go} tenantId={tenantId} />;
+  }
+
   return (
     <ScreenApp
       go={go}
@@ -52,6 +57,7 @@ export default function HomePage(): JSX.Element {
       myCallRole={myCallRole}
       setMyCallRole={setMyCallRole}
       tenantId={tenantId}
+      activeCallId={activeCallId}
       setActiveCallId={setActiveCallId}
     />
   );
