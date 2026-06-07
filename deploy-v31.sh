@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# Spec-Driven Platform V32 — File Deployment Script
+# Spec-Driven Platform V32.6.1 — File Deployment Script
 # ============================================================
 # SAFETY CONTRACT (read this before running)
 # ============================================================
@@ -100,7 +100,7 @@ if [ ! -d "$AI_PROMPT" ]; then
 fi
 
 echo "============================================================"
-echo "  Spec-Driven Platform V32 — Deployment"
+echo "  Spec-Driven Platform V32.6.1 — Deployment"
 echo "============================================================"
 echo "  Project root:  $PROJECT"
 echo "  Source folder: $AI_PROMPT"
@@ -334,7 +334,7 @@ echo ""
 # ============================================================
 # GROUP 2 — OVERWRITE: Modular rule files (.claude/rules/)
 # ============================================================
-echo "─── Group 2: .claude/rules/ (OVERWRITE — 6 modular files) ───"
+echo "─── Group 2: .claude/rules/ (OVERWRITE — 7 modular files) ───"
 mkdir -p "$PROJECT/.claude/rules"
 
 overwrite_with_backup "$AI_PROMPT/phases.md"    "$PROJECT/.claude/rules/phases.md"

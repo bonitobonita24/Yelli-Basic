@@ -12,7 +12,7 @@
 2. In Claude Code: say "Feature Update"
    In Copilot/Claude Code: say "Feature Update" + attach all 9 docs (Rule 4)
 3. Claude Code MUST:
-   a. Read all 9 governance docs (lessons.md first — ALL 🔴 gotchas → ALL 🟤 decisions)
+   a. Hydrate the 9 governance docs (Rule 4) (lessons.md first — ALL 🔴 gotchas → ALL 🟤 decisions)
    b. Run blast-radius check if code-review-graph installed (step 3 of Phase 7)
    c. Run codebase_search before opening any file (Rule 17)
    d. Implement only files in blast-radius scope

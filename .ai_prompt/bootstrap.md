@@ -341,7 +341,7 @@ Step 6 — .cline/memory/agent-log.md
 
 Step 7 — .claude/settings.json
   Claude Code writes Claude Code config with all 9 context file paths
-  (lessons.md listed first, matching Rule 4 read order).
+  (lessons.md listed first, matching Rule 4 hydration order).
 
 Step 8 — Bootstrap files
   .gitignore initial content (CREDENTIALS.md MUST be here from day 1 — before any other step commits):
@@ -1073,7 +1073,7 @@ Step 19 — Loading Library Lock (NEW V31.3 — UI dual-path decision)
 
      Classification source:
        - Phase 2.8 mockup tags each rendered component as `shadcn` or `custom`.
-       - Phase 4 Part 2 reads those tags to pick the correct path automatically.
+       - Phase 4 Part 5 reads those tags to pick the correct path automatically.
 
      Locked at Bootstrap Step 19. No re-asking allowed.
      ```
@@ -1088,7 +1088,7 @@ Step 19 — Loading Library Lock (NEW V31.3 — UI dual-path decision)
      - Concepts:  loading-state, skeleton, phantom-ui, shadcn, ui-rules.Rule-11, dual-path
      - Narrative: V31.3 locks loading states to a dual-path policy. shadcn primitives use
        shadcn <Skeleton> inline. Custom (non-shadcn) components MUST wrap in <phantom-ui>
-       — never hand-roll a skeleton twin. Phase 4 Part 2 installs both libraries and picks
+       — never hand-roll a skeleton twin. Phase 4 Part 5 installs both libraries and picks
        the right path per component using Phase 2.8 mockup classification tags.
      ```
 
@@ -1098,7 +1098,7 @@ Step 19 — Loading Library Lock (NEW V31.3 — UI dual-path decision)
      ```
 
   Note: NO npm install runs here. package.json does not yet exist at Bootstrap.
-  The actual installs happen in Phase 4 Part 2 (UI scaffold):
+  The actual installs happen in Phase 4 Part 5 (UI scaffold):
     - `npx shadcn@latest add skeleton` (added to the shadcn add list)
     - `npm i @aejkatappaja/phantom-ui` (postinstall auto-wires ssr.css into app/layout.tsx)
     - Pin phantom-ui to resolved exact version after install completes.

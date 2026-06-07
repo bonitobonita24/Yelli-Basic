@@ -8,7 +8,7 @@
 > **Agents:** Read Section 6 (Model Routing) and Section 7 (How Tools Connect to PRODUCT.md)
 > before making any tool selection decisions.
 >
-> Last updated: V31 · Powerbyte IT Solutions · Lipa City, Philippines
+> Last updated: V32.6.1 · Powerbyte IT Solutions · Lipa City, Philippines
 
 ---
 
@@ -316,7 +316,46 @@ Added:    V23 (Phase 7 Rule 25 Stage 2)
 
 ---
 
-### 3.7 Domain Plugin Packs (optional — install per project need)
+### 3.7 react-doctor (React diagnostics — per-phase supplementary)
+```
+URL:      https://github.com/millionco/react-doctor
+Type:     React diagnostics linter (deterministic, oxlint-based) — supplementary, NOT a Primary Group slot
+Added:    V32.4 (wired at Phase 4 Parts 5-6 / Phase 5 / Phase 7)
+Install:  npx react-doctor@latest install   (its own agent installer — not a /plugin or git-clone)
+```
+
+**What it does:** Catches bad AI-generated React across state & effects, performance, architecture, security, accessibility, and bundle size. Deterministic static analysis (oxlint) — no API key, no LLM cost, reproducible. By Aiden Bai (Million.js). 11.9K★, MIT.
+
+**When loaded:** Phase 4 Parts 5-6 (Web UI), Phase 5 (Validation), and Phase 7 (Feature Updates) — see `phases.md` Step 6 Skill Activation Plan. Not a Primary Group slot.
+
+**How /scan-project surfaces it:** A React signal (react/next/react-native dep or `.tsx`/`.jsx` files) triggers a one-shot read-only `npx react-doctor@latest` audit → react-doctor is recommended by actual issue count → installed only on explicit approval (an **approval-gated** external install, distinct from ktx's signal-gated auto-install).
+
+---
+
+### 3.8 designer-skills (Design orchestration bundle — per-phase supplementary)
+```
+URL:      https://github.com/julianoczkowski/designer-skills
+Type:     8-skill design orchestration bundle by Julian Oczkowski — supplementary, NOT a Primary Group slot
+Added:    V32.5 (framework-prescribed at Phase 2.8 hand-off / Phase 4 Parts 5-6 / Phase 7)
+Install:  npx skills add julianoczkowski/designer-skills   (approval-gated via /scan-project)
+```
+
+**What it does:** Encodes a deliberate design process so AI agents follow a structured path instead of producing random output. 8 slash commands: `/design-aesthetic`, `/design-tokens`, `/design-review`, `/design-refine`, `/design-system`, `/design-flow`, `/design-handoff`, `/design-audit`. Mobile-first by default, dark mode by default, 8 named aesthetic philosophies. All artifacts saved to `.design/<feature>/` — additive, never collides with `docs/PRODUCT.md` (Rule 1 still holds).
+
+**When loaded:** Phase 2.8 → Phase 4 hand-off (consumes PA artifacts), Phase 4 Parts 5-6 (Web UI), and Phase 7 (Feature Updates) — see `phases.md` Step 6 Skill Activation Plan + the three V32.5 MODEL hooks. Not a Primary Group slot.
+
+**V32.5 INHERIT-not-REPLACE contract:** Planning Assistant Step 7 emits `docs/DESIGN.md` (token baseline) + `docs/MOCKUP.jsx` (visual baseline) as the **human-verified design contract**. Claude Code's designer-skills MUST inherit:
+- `/design-tokens` EXPANDS the DESIGN.md token table — **never regenerates**
+- `/design-review` audits MOCKUP.jsx against the expanded tokens
+- `/design-refine` runs ONLY on flagged components
+
+This preserves Rule 1 (human owns PA artifacts; Claude Code cannot silently overwrite verified design intent). If PA Step 7 was skipped (no DESIGN.md), Phase 4 may invoke `/design-aesthetic` once to establish a baseline + log to PRODUCT.md Section 10 (Scenario 33 path).
+
+**How /scan-project surfaces it:** A frontend+styling signal (React/Vue/Svelte + Tailwind/CSS-in-JS + no existing `.design/` folder + no token system + active UI files) → recommendation surfaces in Phase 4 step 3d → **approval-gated** install via `npx skills add julianoczkowski/designer-skills`. Distinct from ktx's signal-gated unattended auto-install; designer-skills + react-doctor are both approval-gated external installs.
+
+---
+
+### 3.9 Domain Plugin Packs (optional — install per project need)
 
 These are installable skill packs that add domain-specific knowledge without changing the core framework.
 
@@ -333,13 +372,13 @@ These are installable skill packs that add domain-specific knowledge without cha
 - Government + marine conservation → `spec-driven-govt` triggered
 - The pack's SKILL.md is read contextually — only when the current task matches its domain
 
-### 3.8 Memory Governance Layer (V31.2)
+### 3.10 Memory Governance Layer (V31.2)
 ```
 Type:     Governance rules file (not a skill — a .claude/rules/ module)
 Added:    V31.1
 Location: .claude/rules/memory-governance.md
 Install:  Auto-installed by /scan-project on Spec-Driven projects
-          Manual: copy from docs/SpecDrivenAIMegaPrompt/memory-governance.md
+          Manual: copy from specdrivenprompt/memory-governance.md
 ```
 
 **What it does:** Prevents context thrashing via 5 integrated systems:
@@ -1071,5 +1110,5 @@ The Master Prompt contains a UI COMPONENT RULES section that enforces shadcn/ui 
 
 ---
 
-*This reference is part of the 17-file V32.1 deliverable set (16 files placed in `.ai_prompt/` + deploy script at project root):*
+*This reference is part of the 17-file V32.6.1 deliverable set (16 files placed in `.ai_prompt/` + deploy script at project root):*
 *CLAUDE_v31_compact.md · Master_Prompt_v31.md · bootstrap.md · phases.md · security.md · ui-rules.md · scenarios.md · templates.md · memory-governance.md · Product_md_Planning_Assistant_v31.md · Framework_Feature_Index_v31.md · AI_Tools_Skills_MCPs_Reference_v31.md · Post_Generation_Security_Checklist_v31.md · ChatGPT_V31_Cross_Audit_Prompt.md · Prompt_References.md · Prompt_References.html · plus `deploy-v31.sh` at project root.*

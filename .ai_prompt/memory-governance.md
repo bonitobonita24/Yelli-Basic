@@ -187,9 +187,17 @@ LINES_TOUCHED: "~[N] lines created/modified this session"
 CHECKPOINT_TYPE: "full | lightweight"
 FILES_TOUCHED: ["path/to/file1.ts", "path/to/file2.tsx", ...]
 TIER_CLASSIFICATION: "[1|2|3] — [lightweight|moderate|heavy]"
+dispatch_ratio:
+  sonnet_writes: <N>
+  opus_writes: <N>
+  ratio: <sonnet_writes / opus_writes>
+  target: ≥ 3.0
+  status: PASS | WARN | FAIL
 ```
 
 > **V32 note:** STATE.md is the ONE file Opus is permitted to write directly (the checkpoint exception to R1). All other writes — including governance docs — must be dispatched to Sonnet.
+
+> **`dispatch_ratio` (V32.2)** — Append the dispatch-ratio block per §4 R9 (sonnet_writes / opus_writes, target ≥ 3.0, status PASS/WARN/FAIL). FAIL triggers a `lessons.md` entry. See §4 R9 (Dispatch Ratio Metric) — every checkpoint MUST include the `dispatch_ratio` block.
 
 ### Target 2 — Claude Code Memory (zero-cost resume)
 
@@ -240,28 +248,35 @@ Both persist — memory for fast resume, lessons.md for governance audit trail.
 **This section defines the one-liner hook injected into every phase pre-flight in `phases.md`.**
 You do not need to read this section during execution — it documents where the hooks live.
 
-### Hook Text (V32 — injected into each phase)
+### Hook Text (V32.3 — injected into each phase)
 
 ```
 ⚠ MEMORY GOVERNANCE (memory-governance.md):
   PRE:   Run Tiered Decomposition (§1) — `wc -l` all files in scope, ≤ 500 lines per Sonnet task.
   POST:  Run Smart Checkpoint (§2) if any files were created or modified.
-  MODEL: ZERO OPUS EXECUTION (V32). Opus's only allowed actions in this session are: read context, plan, decompose, review Sonnet output, write STATE.md checkpoint. ALL other file writes (code, configs, governance docs, tests) MUST be dispatched via Agent(model: "sonnet") per §4. Before each dispatch: run `wc -l` on every file in scope; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. NO exceptions. NO "last resort." NO Opus executor escalation. If you find yourself about to call Edit/Write on a project file, STOP and dispatch.
+  MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions in this session are: read context, plan, decompose, review Sonnet output, write STATE.md checkpoint. ALL other file writes (code, configs, governance docs, tests) MUST be dispatched via Agent(model: "sonnet") per §4. Before each dispatch: run `wc -l` on every file in scope; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Allow-list governance docs > 200 lines MUST also go through Scout-Sonnet with the Governance Extraction Schema (§4) — direct Opus read of a > 200-line allow-list doc counts as `opus_writes` for `dispatch_ratio`. NO exceptions. NO "last resort." NO Opus executor escalation. If you find yourself about to call Edit/Write on a non-allow-list project file, STOP and dispatch.
 ```
 
-### Injection Points
+### Injection Points (14 hooks total)
 
-The hook appears in the pre-flight/context-budget section of:
-- Phase 2 (Discovery Interview)
-- Phase 3 (Generate Spec Files)
-- Phase 3.5 (Execution Plan)
-- Phase 4 (Full Scaffold — each Part's pre-flight)
-- Phase 5 (Validation)
-- Phase 6 (Docker + Visual QA)
-- Phase 6.5 (Error Triage)
-- Phase 7 (Feature Update)
-- Phase 7R (Feature Rollback)
-- Phase 8 (Iterative Buildout)
+The hook appears in the pre-flight/context-budget section of every Claude-Code-executed phase. Phase 4's pre-flight fires once per Part-pair:
+
+1. Phase 2 (Discovery Interview)
+2. Phase 3 (Generate Spec Files)
+3. Phase 3.3 (Interactive Prototype & Simulation — NEW V32.6)
+4. Phase 3.5 (Execution Plan)
+5. Phase 4 Parts 1-2 (Monorepo + shared packages)
+6. Phase 4 Parts 3-4 (Prisma schema + tRPC/Auth/security)
+7. Phase 4 Parts 5-6 (Next.js web + Expo mobile UI)
+8. Phase 4 Parts 7-8 (Background jobs + storage)
+9. Phase 5 (Validation)
+10. Phase 6 (Docker + Visual QA)
+11. Phase 6.5 (Error Triage)
+12. Phase 7 (Feature Update)
+13. Phase 7R (Feature Rollback)
+14. Phase 8 (Iterative Buildout)
+
+Phase 0 (Bootstrap), Phase 1 (Concept), Phase 2.7 (Pre-PRD checkpoint), and Phase 2.8 (Mockup) are human-executed in Claude.ai — no agent-side hook required. Designer-skills MODEL HOOKs at Phase 2.8 / Phase 4 Parts 5-6 / Phase 7 (V32.5) layer on top of the governance hook; they are gate-keepers, not separate budget hooks.
 
 ### Relationship to Existing Rules
 
@@ -269,6 +284,18 @@ The hook appears in the pre-flight/context-budget section of:
 - The V32 Tiered Decomposition Engine (§1) uses file-size checks (`wc -l`) — mechanically verifiable, not estimated.
 - Phase-specific anti-thrashing rules (Phase 8 sub-batches, Phase 4 fresh context) remain valid.
 - This layer adds structure on top — it does not replace existing protections.
+
+### Output Equivalence Guarantee (V32.5.1)
+
+Tiered Decomposition is **result-preserving**: a Tier-3 task executed as N Sonnet sub-batches produces the same final committed state as a hypothetical single-context execution would have. The split exists to bound each executor's context, not to alter what gets built. Concretely:
+- Sub-batches are scoped by module boundary or file group, not by arbitrary line cuts mid-function.
+- STATE.md persists the join state between sub-batches so the next batch resumes with full prior context.
+- Smart Checkpoint (§2) records `dispatch_ratio` + `files_changed` so an auditor can verify the sum-of-parts equals the would-have-been whole.
+- If a sub-batch reveals that an earlier batch made a now-wrong decision, Opus re-plans (Tier reassessment) rather than papering over — Output Equivalence is the contract.
+
+### Mid-Session Thrash Rescue
+
+If a Sonnet swarm starts thrashing mid-phase (context overflow, repeated retries, incoherent diffs), invoke **Prompt 3.19 (Emergency Anti-Thrashing)** from `.ai_prompt/Prompt_References.md` — a general-purpose Opus rescue prompt that re-decomposes the interrupted work, writes a fresh STATE.md checkpoint, and dispatches a clean Sonnet batch from a smaller scope. Do NOT escalate to Opus-executor as a workaround — that violates R1 (Zero Opus Execution).
 
 ---
 
@@ -381,8 +408,11 @@ Blocks: [what depends on this task completing]
 ### Sonnet Status Handling (V32)
 
 ```
-DONE
-  → Opus proceeds to spec compliance review
+DONE (V32.2 tightened — diff-review mandatory)
+  → Opus reads the full diff returned by Sonnet, OR runs `git diff` against prior commit.
+  → Diff review is the quality gate. Review-by-summary is FORBIDDEN.
+  → If diff was not read in full → task is NOT DONE; re-dispatch with explicit "return diff in full" instruction.
+  → Then proceed: spec compliance review → quality review (V32 two-stage).
 
 DONE_WITH_CONCERNS
   → Opus reads concerns before reviewing
@@ -412,6 +442,151 @@ AFTER 3 RE-DECOMPOSITION ATTEMPTS ON SAME TASK:
   → Defer remaining work to next session.
   → NEVER fall back to Opus execution. The Opus executor path is removed in V32.
 ```
+
+### Dispatch Discipline Rules (V32.2)
+
+Four new rules added 2026-06-01 to address the dominant Opus-token leak: exploratory reads, serial dispatches, and silent R1 bypasses on "small" edits.
+
+**R6 Scout-Before-Plan (V32.2)**
+
+Opus's exploratory reads burn architect attention without improving decisions. Any source/config/test file > 100 lines that Opus needs to understand for planning MUST be summarized by a Scout-Sonnet:
+
+```
+Agent(
+  model: "sonnet",
+  subagent_type: "Explore",
+  prompt: "Extract from <path>: [structured schema — e.g., 'every Edit/Write call site,
+           the auth check before each, any tenant-scope filter']. Return as JSON.
+           Do NOT summarize freeform — match the schema exactly."
+)
+```
+
+**Architect-read allow-list** (Opus reads directly when ≤ 200 lines; files > 200 lines route through Scout-Sonnet with the **Governance Extraction Schema** below — V32.3):
+- `docs/PRODUCT.md` (source of truth, Rule 1)
+- `docs/STATE.md`, `docs/DECISIONS_LOG.md`, `docs/CHANGELOG_AI.md`, `docs/IMPLEMENTATION_MAP.md`
+- `.cline/STATE.md`
+- `.claude/rules/*.md`, `.ai_prompt/*.md` (framework governance — session-start only)
+
+R6 extends R5 (Scout-Before-Edit) from Sonnet's editing context to Opus's planning context. **V32.3 closes the "growing governance doc" loophole** — as allow-list docs grow past 200 lines, Smart Hydration keeps them Scout-mediated rather than burning the full file into Opus context.
+
+**Governance Extraction Schema (V32.3 — Smart Governance Hydration)**
+
+Per-doc extraction contract for the 9 governance docs of Rule 4. Scout-Sonnet returns the schema below — Opus consumes the hydration brief, never the full file (when > 200 lines).
+
+```
+governance_hydration:
+  task_domain: "<keyword[,keyword,...] for filtering — derived from current task>"
+
+  lessons_md:                       # .cline/memory/lessons.md
+    gotchas_in_full: [...]          # ALL 🔴 entries — verbatim
+    decisions_in_full: [...]        # ALL 🟤 entries — verbatim
+    keyword_matched: [...]          # remaining entries whose title matches task_domain
+
+  product_md:                       # docs/PRODUCT.md
+    sections_for_task: [...]        # sections matching task_domain (e.g., "Module X", "Role Y")
+    out_of_scope_relevant: bool     # true if task touches anything listed in Out of Scope
+
+  inputs_yml:                       # full read (always small + structural)
+
+  inputs_schema_json:                # full read (always structural)
+
+  changelog_ai_md:                  # docs/CHANGELOG_AI.md
+    recent_entries: [...]           # last N entries (default N = 20)
+    red_flagged: [...]              # any 🔴 entries regardless of recency
+    task_domain_hits: [...]         # entries whose summary matches task_domain
+
+  decisions_log_md:                 # docs/DECISIONS_LOG.md
+    matched_decisions: [...]        # decisions matching task_domain — verbatim
+    all_unresolved: [...]           # every unresolved decision regardless of domain
+
+  implementation_map_md:            # docs/IMPLEMENTATION_MAP.md
+    area_status: [...]              # status of areas touched by task_domain
+    blocked_or_partial: [...]       # any area in BLOCKED / PARTIAL state regardless
+
+  project_memory_md:                # full read (always small + ambient)
+
+  agent_log_md:                     # .cline/memory/agent-log.md
+    current_session: [...]          # action entries from current session
+    task_domain_hits: [...]         # action entries matching task_domain from prior sessions
+
+  hydration_metadata:
+    files_scout_hydrated: <int>     # how many of the 9 went through Scout
+    files_direct_read: <int>        # how many were ≤ 200 lines (direct)
+    files_missing: [...]            # files that don't exist yet
+    total_brief_tokens: <int>       # estimated brief size returned to Opus
+```
+
+**Dispatch template:**
+
+```
+Agent(
+  model: "sonnet",
+  subagent_type: "Explore",
+  prompt: "Hydrate the 9 governance docs for task: '<one-line task summary>'.
+           task_domain keywords: <keyword,keyword,...>.
+           Return the V32.3 Governance Extraction Schema exactly — JSON-ish blocks
+           with VERBATIM quotes for 🔴/🟤 entries, matched decisions, and
+           BLOCKED/PARTIAL areas. Do NOT summarize freeform. Mark files > 200 lines
+           as scout-hydrated; files ≤ 200 lines may be direct-read sections."
+)
+```
+
+**Size threshold:** 200 lines. Files at exactly 200 lines: direct read. Files > 200 lines: Scout. The threshold is mechanically verifiable via `wc -l` — the same instrument R2/R3/R5 use. **Why 200 not 100:** R6 already uses 100 lines for arbitrary non-allow-list source files. Allow-list governance docs are higher-signal-per-line (decisions, status entries, attributed changelog records) than arbitrary source files, so the threshold is doubled. Anything > 200 lines is large enough that the hydration brief saves Opus context significantly.
+
+**Why Rule 4 reframed from "read" to "hydrate":** Reading implies full-file ingestion. Hydration means "load the task-relevant slice into context". The 9-file list stays (provenance, integrity, and the audit trail for what was checked) — but the mechanism is now Scout-mediated for any file that has grown past the threshold. Opus context stays small. Sonnet handles the read.
+
+**R9 interaction (V32.3 — counted as an Opus burn):** A direct Opus read of a > 200-line allow-list governance doc counts as an `opus_writes` event for `dispatch_ratio` purposes. The metric treats Opus context burn as the equivalent failure mode to an Opus Edit/Write call — both indicate dispatch discipline drift. Smart Checkpoint logs the file path and line count in the drift entry so the operator can audit which docs grew past the threshold without triggering Scout.
+
+**R7 Default Parallel Fan-Out (V32.2)**
+
+When Opus dispatches ≥ 2 Sonnet subagents whose tasks have NO inter-dependency, they MUST go in a SINGLE response with multiple Agent tool calls (parallel). Inter-dependency must be declared in the dispatch plan ("task B reads task A's output"). Otherwise: parallel by default.
+
+```
+// CORRECT — parallel:
+[single response]
+  Agent(prompt: "task A scope...")
+  Agent(prompt: "task B scope...")
+  Agent(prompt: "task C scope...")
+
+// FORBIDDEN — serial (unless N depends on N-1):
+[response 1]: Agent(prompt: "task A scope...")
+  ↓ wait for result
+[response 2]: Agent(prompt: "task B scope...")
+```
+
+Wall-clock savings compound: 3 parallel dispatches ≈ 1 dispatch worth of wall-clock; 3 serial ≈ 3×. Token savings: Opus reasoning between dispatches is eliminated.
+
+**R8 Opus Write Allow-List (V32.2)**
+
+Closes R1's "STATE.md exception only" wording with an enumerated CLOSED list. Opus MAY directly call Edit/Write ONLY on:
+
+```
+docs/STATE.md
+docs/DECISIONS_LOG.md
+docs/CHANGELOG_AI.md
+docs/IMPLEMENTATION_MAP.md
+.cline/STATE.md
+```
+
+ALL other paths (source code, configs, tests, schemas, governance docs not listed, framework files) MUST be dispatched to Sonnet via `Agent(model: "sonnet")`. The list is CLOSED — additions require a Master Prompt revision, not session-level discretion. If a path is not on the list and Opus is about to Edit/Write, STOP and write a Sonnet dispatch scope instead.
+
+**R9 Dispatch Ratio Metric (V32.2)**
+
+Every Smart Checkpoint (§2) MUST append to `docs/STATE.md`:
+
+```
+dispatch_ratio:
+  sonnet_writes: <count of Sonnet Edit/Write calls this session>
+  opus_writes: <count of Opus Edit/Write calls this session>
+  ratio: <sonnet_writes / opus_writes>
+  target: ≥ 3.0
+  status: PASS (≥3.0) | WARN (1.0–2.99) | FAIL (<1.0)
+```
+
+`FAIL` status triggers a `docs/lessons.md` entry for the next session:
+> "Dispatch discipline drift — review which Opus writes should have been Sonnet dispatches. Session <id> ended with ratio <X>."
+
+The metric is per-session, not cumulative. Resets at each new Claude Code session. Counts are gathered by inspecting the session's tool-call log at Smart Checkpoint time.
 
 ### When to Use Each Model (V32)
 

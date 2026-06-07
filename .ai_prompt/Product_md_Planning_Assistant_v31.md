@@ -105,18 +105,18 @@ REALISTIC DUMMY DATA RULES:
 
 LOADING PATH CLASSIFICATION (NEW V31.3 — supports ui-rules.md Rule 11):
   Every rendered component in the mockup MUST be tagged with the loading path
-  the Spec-Driven framework will use in Phase 4 Part 2:
+  the Spec-Driven framework will use in Phase 4 Part 5:
 
     data-loading-path="shadcn"   — component is a shadcn primitive or composition
                                    (Card, Table, Form, Dialog, Tabs, Sheet, Avatar,
                                    Button, Input, Badge, Select, etc., or a layout
                                    built entirely from those).
-                                   → Phase 4 Part 2 will use shadcn <Skeleton> inline.
+                                   → Phase 4 Part 5 will use shadcn <Skeleton> inline.
 
     data-loading-path="custom"   — component is bespoke / non-shadcn (custom data
                                    viz, third-party widget, custom dashboard tile,
                                    any layout NOT composable from shadcn primitives).
-                                   → Phase 4 Part 2 will wrap it in <phantom-ui>.
+                                   → Phase 4 Part 5 will wrap it in <phantom-ui>.
 
   Apply the attribute on the OUTER wrapper of each distinct visual component.
   Nested children inherit by default — only add the attribute again on a child
@@ -136,9 +136,9 @@ LOADING PATH CLASSIFICATION (NEW V31.3 — supports ui-rules.md Rule 11):
   the composition; pick "custom" only when the component cannot be expressed
   using shadcn primitives. When in doubt, prefer "shadcn".
 
-  Phase 4 Part 2 reads these tags from the saved mockup (Phase 2.8 Step 7a HTML
+  Phase 4 Part 5 reads these tags from the saved mockup (Phase 2.8 Step 7a HTML
   archive) and picks PATH A or PATH B per component automatically. Without these
-  tags, Phase 4 Part 2 must re-classify by hand — slower and more error-prone.
+  tags, Phase 4 Part 5 must re-classify by hand — slower and more error-prone.
 ```
 
 This design capability is used ONLY in Phase 2.8. You do NOT do visual design during
@@ -1167,7 +1167,12 @@ IF user replies "confirmed" (or similar positive):
 
     → Output as a downloadable artifact: "docs/DESIGN.md"
     → Tell the user: "Place this in your project's docs/ folder alongside PRODUCT.md.
-      Claude Code will read it during Phase 4 UI parts and apply the tokens automatically."
+      Claude Code will read it during Phase 4 UI parts and apply the tokens automatically.
+      (V32.5: docs/DESIGN.md is the human-verified BASELINE. If the designer-skills bundle
+      is installed in your project, /design-tokens will EXPAND this token table — never
+      regenerate it; /design-review will audit your MOCKUP.jsx against the expanded tokens;
+      /design-refine runs ONLY on flagged components. Your aesthetic decision stays
+      authoritative.)"
 
   STEP 7c — IF DESIGN_AESTHETIC_CHOSEN:
     → Add a one-line pointer to PRODUCT.md Section 10 (Non-functional Requirements):

@@ -494,11 +494,11 @@ UNKNOWN      → SpecStory diff exists but source cannot be determined
 CHANGELOG_AI or agent-log write. Append governance docs after the implementation step,
 not before or during.
 
-### Rule 4 — Read all 9 context documents before changing anything
+### Rule 4 — Hydrate all 9 governance docs before changing anything
 
 **MANDATORY SEQUENCE — DO NOT SKIP, DO NOT REORDER, DO NOT PROCEED UNTIL COMPLETE:**
 
-Read these 9 files in this exact order before taking ANY action:
+Hydrate these 9 governance docs in this exact order before taking ANY action (V32.3: files >200 lines route through Sonnet Scout via the Governance Extraction Schema — see memory-governance.md §4):
 
 1. `.cline/memory/lessons.md` — READ FIRST. Read ALL 🔴 gotcha entries in full. Then ALL 🟤 decision entries in full. For remaining entries: read ONLY entries whose title contains a keyword matching the current task domain. Skip all others.
 2. `docs/PRODUCT.md` — the feature specification
@@ -510,7 +510,7 @@ Read these 9 files in this exact order before taking ANY action:
 8. `project.memory.md` — active rules and agent stack
 9. `.cline/memory/agent-log.md` — running log of every agent action
 
-**Rule: Do not write a single line of code until all 9 files are read.**
+**Rule: Do not write a single line of code until all 9 files are hydrated.**
 **Rule: If any file does not exist yet — note it as missing and continue reading the rest.**
 **Rule: If DECISIONS_LOG.md contains the answer to a question — do not ask it again.**
 
@@ -1345,12 +1345,12 @@ No separate installation needed per project. Zero API key required.
 ## UI LOADING STATE TEMPLATES (NEW V31.3 — supports ui-rules.md Rule 11)
 
 Rule 11 mandates a dual-path loading-state policy. These are the canonical snippets
-agents use during Phase 4 Part 2 (UI scaffold), Phase 7 (Feature Update), and any
+agents use during Phase 4 Parts 5-6 (UI scaffold), Phase 7 (Feature Update), and any
 async/suspense boundary.
 
 ### PATH A — shadcn `<Skeleton>` (for shadcn-composed UI — DEFAULT)
 
-Install once per app (already covered by Bootstrap Step 19 + Phase 4 Part 2):
+Install once per app (already covered by Bootstrap Step 19 + Phase 4 Part 5):
 ```bash
 npx shadcn@latest add skeleton
 ```
@@ -1424,7 +1424,7 @@ return <UsersList data={data} />;
 
 ### PATH B — `<phantom-ui>` wrapper (for bespoke / non-shadcn UI)
 
-Install once per app (Phase 4 Part 2 — added after the shadcn add sequence):
+Install once per app (Phase 4 Part 5 — added after the shadcn add sequence):
 ```bash
 npm i @aejkatappaja/phantom-ui
 # postinstall auto-detects Next.js and adds:

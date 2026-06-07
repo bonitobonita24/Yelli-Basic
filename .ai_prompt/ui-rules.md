@@ -74,7 +74,7 @@ Rule 11 (Loading States — dual-path) was added in V31.3 to eliminate hand-roll
     Reference: https://ui.shadcn.com/docs/monorepo
     In the framework's monorepo: packages/ui/ contains shared shadcn/ui components.
     App-specific components live in apps/[app]/src/components/.
-    Phase 4 Part 2 runs shadcn init on the packages/ui workspace.
+    Phase 4 Part 5 runs shadcn init on the packages/ui workspace.
 
 11. Loading states — DUAL-PATH (NEW V31.3). Every async/suspense boundary MUST use one of:
 
@@ -103,7 +103,7 @@ Rule 11 (Loading States — dual-path) was added in V31.3 to eliminate hand-roll
     you MUST use phantom-ui instead.
 
     CLASSIFICATION SOURCE: Phase 2.8 mockup tags each rendered component as `shadcn` or
-    `custom`. Phase 4 Part 2 picks the correct path automatically from those tags.
+    `custom`. Phase 4 Part 5 picks the correct path automatically from those tags.
 ```
 
 **shadcn/ui MCP Server** — enables agents to search and install components via natural language.
