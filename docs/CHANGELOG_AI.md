@@ -2,6 +2,27 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-08 — Phase 3.3 Wave 3 — Calling flow walkable (PRODUCT.md §3 Flow A)
+- Agent: CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1; Opus writes restricted to R8 allow-list)
+- Why: V32.6 Phase 3.3 first Core User Flow — wire the Wave 2 sim layer to a walkable Calling experience inheriting MOCKUP.jsx visuals VERBATIM (V32.5 INHERIT-not-REPLACE). Validates the swap-boundary contract end-to-end before remaining 8 flows.
+- Files added:
+  - prototype/src/lib/tokens.ts (12L), prototype/src/lib/dummy-tenant.ts (11L)
+  - prototype/src/components/Pill.tsx (34L), CallRoleLabel.tsx (13L), AppFooter.tsx (12L), TenantTopBar.tsx (59L "use client"), BottomNav.tsx (33L)
+  - prototype/src/screens/ScreenApp.tsx (220L "use client") — Directory + Demo-view-as role toggle + CALL placement
+  - prototype/src/screens/ScreenActiveCall.tsx (84L "use client") — in-call view + END
+- Files modified:
+  - prototype/src/app/page.tsx (REPLACED from Wave 2 placeholder, 58L) — screen router useState<"app"|"call"> + seedDefaults bootstrap + runtime tenantId from tenants.list()[0]
+  - .cline/STATE.md, docs/CHANGELOG_AI.md, docs/IMPLEMENTATION_MAP.md (governance — Opus R8 allow-list writes)
+- Schema/migrations: none (sim layer only)
+- Sim methods exercised: seedDefaults, tenants.list, devices.list, devices.setRole, devices.byId, callSessions.create, callSessions.byId, callSessions.end, auditLog.append. Wired CALL → create+audit.write('call.placed') → setActiveCallId → go('call'). Wired END → end(id,'completed')+audit.write('call.ended') → go('app'). Wired "Demo: view as" → devices.setRole + state.
+- Errors encountered: 3 typecheck residuals from parallel Sonnet dispatches — (1) Wave 3A used `export default` while Wave 3B used `import { Named }` (R7 parallel coordination gap); (2) `tenants.list()[0]` failed TS2532 under noUncheckedIndexedAccess; (3) `go: (screen: Screen) => void` failed strictFunctionTypes contravariance against BottomNav's wider `(screen: string) => void`.
+- Errors resolved: 2 small Sonnet fix dispatches (3C-1 + 3C-2). 5 import lines changed to default + nullable guard via `?? ""` + widened ScreenApp signature with `as Screen` cast in page.tsx. Final `npx tsc --noEmit` exits 0.
+- Audit-action reconciliation pending: `sim.callSessions.create` already emits internal `call.start` audit + `.end` emits `call.end`; Wave 3B layered PRODUCT.md §11 names `call.placed`/`call.ended` on top (additive). Next wave drops sim-emitted names in favor of PRODUCT.md canonical.
+- Stubs deferred to Wave 4: incomingCall / namePicker / pwa / offline overlays render null; mute/camera/speaker/swap call controls are no-op `onClick`; 02:14 timer hardcoded; "me device" picked as `visibleMembers[0]` (no auth context yet).
+- Dispatch ledger: 3 Sonnet scouts (PRODUCT/DESIGN/MOCKUP) + 2 Sonnet exec (3A 174L/123s/13t, 3B 361L/199s/15t) + 2 Sonnet fixes (3C-1 ~8L/57s/6t, 3C-2 ~2L/59s/9t). dispatch_ratio: 4 sonnet_writes / 3 opus_writes (3 governance docs) = 1.33 (WARN — within tolerance; R9 FAIL only triggers <1.0). Three independent governance docs in one checkpoint inflate the opus side this wave; rebounds next wave.
+- LOC delta: ~570L net new across 11 files. Each Sonnet dispatch ≤500L per V32 R2 — improvement vs Wave 2B's 821L overshoot.
+- Next: Wave 4 — Flow B Receive (incoming-call overlay + accept/reject paths). Likely paired with Flow C Admin-Assigns-Role in same dispatch round if R7 parallelism holds.
+
 ### 2026-06-08 — Phase 3.3 Wave 2 — Prototype scaffold + simulated data layer
 - Agent: CLAUDE_CODE
 - Why: V32.6 Phase 3.3 hard gate before Phase 3.5 — lay the prototype foundation (Next.js scaffold + sim/ swap-boundary module + design-token EXPAND) so subsequent waves can build flow screens against a stable base.

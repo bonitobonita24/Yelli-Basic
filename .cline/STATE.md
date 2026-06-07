@@ -1,59 +1,58 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Phase 3.3 Wave 2 Complete (V32.6.1 canary rebuild, 2026-06-08)
+## Current State — Phase 3.3 Wave 3 Complete (V32.6.1 canary rebuild, 2026-06-08)
 
-PHASE:        Phase 3.3 — Interactive Prototype & Simulation (Wave 2/N+ complete; foundation laid)
-LAST_DONE:    Phase 3.3 Wave 2 lays the prototype foundation in two parallel Sonnet dispatches per V32 R7. Wave 2A: Next.js 14 App Router scaffold under prototype/ (10 files, 315L) — package.json + tsconfig + tailwind.config.ts (tokens → CSS vars) + next.config.mjs + postcss + src/app/{layout,page,globals.css} placeholders + README + .gitignore. Dev port 4838 (intentionally separate from Yelli main app port 46848 — prototype is a sandbox, not the Phase 4 app). Wave 2B: simulated data layer at prototype/src/lib/sim/ (6 files, 821L) — types.ts (6 entity shapes mirroring PRODUCT.md §11 L194-211) + storage.ts (SSR-safe localStorage wrapper + cross-tab 'storage' event + same-tab 'yelli:sim:change' custom-event pub/sub) + repo.ts (typed repos for all 6 entities with per-write AuditLog) + seed.ts (idempotent LAN-anon / LAN-account / Cloud demo fixtures) + clock.ts (time-travel helper for 90d offline → archive simulation) + index.ts (barrel — single import surface for UI). docs/DESIGN.md EXPAND per V32.5 INHERIT-not-REPLACE: +37L appended (motion 3 durations + 3 easings, shadows 5 elevations, z-index 6 layers). Zero existing tokens modified.
-NEXT:         Wave 3 — UI primitives (Button, Card, Dialog, Input, etc. from shadcn aligned to expanded tokens) + first Core User Flow (Calling, per PRODUCT.md §3 Flow A). Then iterative waves per remaining 8 §3 flows (Receive, Admin-Assigns-Role, Register Device, Login, Invite, Manage Devices, Audit View, Tenant Export). Goal: all 9 §3 Core User Flows walkable end-to-end + docs/PROTOTYPE.md written + /design-review green + client sign-off in DECISIONS_LOG.md → Phase 3.3 gate-closure → Phase 3.5 Execution Plan.
-BLOCKERS:     None. User can verify scaffold boots: `cd prototype && npm install && npm run dev` → http://localhost:4838 should render placeholder. Sim layer is import-only at this stage (no UI consumes it yet — Wave 3 wires the first screen). CREDENTIALS.md 27 ⏳ placeholders remain Phase-5-deferred, not blocking Phase 3.3.
-GIT_BRANCH:   main. Working tree dirty: docs/DESIGN.md modified (+37L EXPAND), prototype/ untracked (16 files, 1136L = 315 scaffold + 821 sim). About to commit as feat(phase-3.3).
+PHASE:        Phase 3.3 — Interactive Prototype & Simulation (Wave 3/N+ complete; first Core User Flow walkable)
+LAST_DONE:    Phase 3.3 Wave 3 wires the Calling flow (PRODUCT.md §3 Flow A) end-to-end against the Wave 2 sim layer. Three parallel/serial Sonnet dispatches per V32 R7. Wave 3A (Sonnet, 174L): shared layout chrome ported VERBATIM from docs/MOCKUP.jsx lines 21-280 — `src/lib/tokens.ts` (T color constant) + `src/lib/dummy-tenant.ts` (TENANT/ME placeholders until sim tenant/user wiring) + 5 components (`Pill`, `CallRoleLabel`, `AppFooter`, `TenantTopBar`, `BottomNav`) under `src/components/`. Wave 3B (Sonnet, 361L): Calling flow — REPLACED `src/app/page.tsx` (58L screen router with `useState<"app"|"call">` + sim.seed bootstrap + `tenants.list()[0]` runtime tenant id) + created `src/screens/ScreenApp.tsx` (220L — ported MOCKUP §529-671 VERBATIM, swapped MEMBERS array for `sim.devices.list(tenantId)`, derived online/archived status from Device fields, wired "Demo: view as" buttons → `sim.devices.setRole`, wired CALL buttons → `sim.callSessions.create` + `sim.auditLog.append({action:'call.placed'})` + `setActiveCallId` + `go('call')`) + created `src/screens/ScreenActiveCall.tsx` (84L — ported MOCKUP §672-720 VERBATIM, looks up active session via `sim.callSessions.byId`, wired END button → `sim.callSessions.end(id,'completed')` + `auditLog.append({action:'call.ended'})` + `go('app')`, stubbed mute/camera/speaker as no-op). Wave 3C (Sonnet, 2 fix dispatches, ~10L combined): named→default import alignment across 5 components + `noUncheckedIndexedAccess` guard on `tenants.list()[0]?.id` + strictFunctionTypes contravariance fix on `go` prop (widened ScreenApp signature to `(screen: string) => void`, cast in page.tsx). Final state: `cd prototype && npx tsc --noEmit` exits 0. Sim methods exercised: seedDefaults / tenants.list / devices.list / devices.setRole / devices.byId / callSessions.create / callSessions.byId / callSessions.end / auditLog.append. Note: `callSessions.create` already emits `call.start` audit internally + `callSessions.end` already emits `call.end` — Wave 3B added redundant explicit `call.placed`/`call.ended` (PRODUCT.md §11 action names); reconcile in Wave 4 (likely keep PRODUCT.md names, drop internal-emit).
+NEXT:         Wave 4 — second Core User Flow. Recommended order: Flow B (Receive — incoming-call overlay + accept/reject paths reusing ScreenActiveCall) since the IncomingCall overlay was stubbed null in 3B and demo-trigger button already exists in ScreenApp aside. After 4: Flow C (Admin-Assigns-Role — Members screen with role select). Remaining flows D-I (Register Device / Login / Invite / Manage Devices / Audit View / Tenant Export) per iterative waves. Parallel housekeeping: reconcile audit action names (keep PRODUCT.md `call.placed`/`call.ended`, drop sim-emitted `call.start`/`call.end`). Goal unchanged: all 9 §3 flows walkable + docs/PROTOTYPE.md + /design-review green + client sign-off → Phase 3.3 gate-closure → Phase 3.5.
+BLOCKERS:     None. User can verify Calling flow boots: `cd prototype && npm install && npm run dev` → http://localhost:4838 → directory renders with seeded devices → tap CALL on a row → routes to ScreenActiveCall → tap red phone → routes back. "Demo: view as caller/receiver/both" buttons toggle CALL button visibility. CREDENTIALS.md 27 ⏳ placeholders remain Phase-5-deferred, not blocking Phase 3.3.
+GIT_BRANCH:   main. Working tree dirty: prototype/package-lock.json untracked + 9 new src files + 1 modified page.tsx. About to commit as feat(phase-3.3): wave 3 — calling flow walkable.
 PORTS:        base=46838 LOCKED for Yelli main app (Phase 4 onward). Prototype runtime uses port 4838 (sandbox isolation — no collision with reserved ranges). db=46838, pgbouncer=46839, valkey=46840, minio=46841, minio_console=46842, mailhog=46843, mailhog_ui=46844, pgadmin=46845, app=46848, worker=46849, prisma_studio=46858.
 MODELS:
   planning:   claude-code (Opus 4.7 — Architect ONLY per V32 R1)
   execution:  claude-sonnet-4-6
   governance: gemini-2.5-flash-lite
-LINES_TOUCHED: ~1173L net new (315 scaffold + 821 sim + 37 DESIGN.md EXPAND). Plus governance updates this dispatch (~70L across STATE/DECISIONS/CHANGELOG/IMPLEMENTATION_MAP/lessons).
+LINES_TOUCHED: ~570L net new across 11 files (174 Wave 3A + 361 Wave 3B + ~10 Wave 3C fixes + ~25L net delta on page.tsx replacement). Each Sonnet dispatch ≤500L per V32 R2 — improvement vs Wave 2B (821L overshoot).
 CHECKPOINT_TYPE: full
 FILES_TOUCHED:
-  Wave 2A — Scaffold (Sonnet, CREATED):
-  - prototype/package.json
-  - prototype/tsconfig.json
-  - prototype/tailwind.config.ts
-  - prototype/next.config.mjs
-  - prototype/postcss.config.mjs
-  - prototype/src/app/layout.tsx
-  - prototype/src/app/page.tsx
-  - prototype/src/app/globals.css
-  - prototype/README.md
-  - prototype/.gitignore
-  Wave 2B — Simulated data layer (Sonnet, CREATED):
-  - prototype/src/lib/sim/types.ts
-  - prototype/src/lib/sim/storage.ts
-  - prototype/src/lib/sim/repo.ts (448L — overshot R2 500L gate at task level; see lessons.md)
-  - prototype/src/lib/sim/seed.ts
-  - prototype/src/lib/sim/clock.ts
-  - prototype/src/lib/sim/index.ts
-  Wave 2A — Design EXPAND (Sonnet, EDITED — V32.5 INHERIT-not-REPLACE):
-  - docs/DESIGN.md (+37L appended: motion + shadows + z-index)
-  Wave 2C — Governance (Sonnet, this dispatch — EDITED):
-  - .cline/STATE.md
-  - docs/DECISIONS_LOG.md
-  - docs/CHANGELOG_AI.md
-  - docs/IMPLEMENTATION_MAP.md
-  - .cline/memory/lessons.md
-TIER_CLASSIFICATION: 3 — heavy (multi-wave Phase 3.3; this checkpoint is Wave 2/N — foundation laid, per-flow waves remain)
+  Wave 3A — Shared layout + tokens (Sonnet, CREATED):
+  - prototype/src/lib/tokens.ts (12L)
+  - prototype/src/lib/dummy-tenant.ts (11L)
+  - prototype/src/components/Pill.tsx (34L)
+  - prototype/src/components/CallRoleLabel.tsx (13L)
+  - prototype/src/components/AppFooter.tsx (12L)
+  - prototype/src/components/TenantTopBar.tsx (59L, "use client")
+  - prototype/src/components/BottomNav.tsx (33L)
+  Wave 3B — Calling flow (Sonnet, CREATED + REPLACED):
+  - prototype/src/app/page.tsx (REPLACED, 58L — screen router + sim bootstrap)
+  - prototype/src/screens/ScreenApp.tsx (220L, "use client" — Directory + Demo-view-as + CALL)
+  - prototype/src/screens/ScreenActiveCall.tsx (84L, "use client" — in-call + END)
+  Wave 3C — Typecheck fixes (Sonnet, EDITED):
+  - prototype/src/screens/ScreenApp.tsx (5 import lines + 1 prop type line)
+  - prototype/src/app/page.tsx (3 lines: nullable guard + go cast)
+  Wave 3D — Governance (Opus allow-list, this checkpoint — EDITED):
+  - .cline/STATE.md (this entry)
+  - docs/CHANGELOG_AI.md (Wave 3 entry append)
+  - docs/IMPLEMENTATION_MAP.md (Phase 3.3 status line)
+TIER_CLASSIFICATION: 2 — moderate (multi-file UI port + sim wiring; well-bounded scope per dispatch, each ≤500L)
 DISPATCH_LEDGER (this session):
-  A (scaffold):     Sonnet, 315L written, ~112s
-  B (sim layer):    Sonnet, 821L written, ~141s  ⚠ OVERSHOT V32 R2 500L gate — repo.ts alone 448L; combined with siblings = 821L (64% over). Future flow waves split narrower. See lessons.md 🔴 entry below.
-  C (checkpoint):   Sonnet, this dispatch (governance writes only)
+  Scout A (PRODUCT.md §3 Flow A):   Sonnet Scout, ~1.1K-token brief
+  Scout B (DESIGN.md tokens):        Sonnet Scout, ~1.8K-token brief
+  Scout C (MOCKUP.jsx Screen*):      Sonnet Scout, ~3K-token verbatim port (re-scout — first attempt returned no JSX)
+  3A (chrome + tokens):              Sonnet, 174L, 7 files, 123s, 13 tool uses
+  3B (calling flow):                 Sonnet, 361L, 3 files, 199s, 15 tool uses
+  3C-1 (import/null fixes):          Sonnet, ~8L, 57s, 6 tool uses
+  3C-2 (variance fix):               Sonnet, ~2L, 59s, 9 tool uses
+  3D (this checkpoint):              Opus (R8 allow-list — STATE.md + CHANGELOG_AI.md + IMPLEMENTATION_MAP.md)
 dispatch_ratio:
-  sonnet_writes: 3
-  opus_writes: 0
-  ratio: ∞
+  sonnet_writes: 4 (3A, 3B, 3C-1, 3C-2)
+  opus_writes: 3 (STATE.md + CHANGELOG_AI.md + IMPLEMENTATION_MAP.md — R8 allow-list)
+  ratio: 1.33
   target: ≥ 3.0
-  status: PASS
-NEXT_DISPATCH: Wave 3 — UI primitives + Calling flow. Strict R2 enforcement from here on (per-flow waves naturally smaller). Then iterative waves until all 9 §3 flows walkable, then /design-review + /design-refine (flagged only) + docs/PROTOTYPE.md + client sign-off → Phase 3.3 gate-closure → Phase 3.5.
+  status: WARN (1.0-2.99 — within tolerance, not FAIL)
+  note: Three independent governance docs land in this checkpoint; ratio rebounds next wave when execution dispatches resume without simultaneous multi-doc writes. Not a drift signal (per R9 only <1.0 triggers lessons.md review).
+NEXT_DISPATCH: Wave 4 — Flow B Receive (incoming-call overlay + accept routes through ScreenActiveCall, reject closes overlay + writes audit). Reuses existing screens + components; expected ≤300L (single overlay component + small wiring delta in ScreenApp). Same R7 parallel pattern if Flow C Admin-Assigns-Role bundled (Members screen — independent of overlay, ~300L). Strict R2/R3 enforcement.
 
 ## Archived — Pre-Clean-Slate (V31 baseline, archived 2026-06-07)
 

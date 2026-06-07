@@ -13,15 +13,16 @@ Phase: pre-Phase 0. Next: Bootstrap → Phase 2 → Phase 3.
   - Dispatch ratio: 4 sonnet_writes / 0 opus_writes = ∞ (PASS)
 
 ### Phase 3.3 — Interactive Prototype & Simulation (V32.6, multi-wave)
-- 🚧 Phase 3.3 — IN PROGRESS (Wave 2/N complete, foundation laid 2026-06-08)
+- 🚧 Phase 3.3 — IN PROGRESS (Wave 3/N complete, first Core User Flow walkable 2026-06-08)
   - Wave 2A — Scaffold: Next.js 14 App Router under prototype/ (10 files, 315L). Dev port 4838. Tailwind theme wired to CSS-var tokens from DESIGN.md (colors, radius, shadow).
   - Wave 2B — Simulated data layer: prototype/src/lib/sim/ (6 files, 821L) — single swap boundary. 6 entity repos (devices/callSessions/users/tenants/invitations/auditLog) mirror inputs.schema.json shapes. localStorage persistence with cross-tab + same-tab pub/sub. Clock helper for 90d archive time-travel. ⚠ Dispatch overshot V32 R2 500L gate (repo.ts alone 448L) — accepted once for foundational wave; logged in lessons.md.
   - Wave 2 — Design EXPAND: docs/DESIGN.md +37L (motion + shadows + z-index) per V32.5 INHERIT-not-REPLACE contract. No existing tokens modified.
+  - ✅ Wave 3 — Calling flow walkable (PRODUCT.md §3 Flow A) 2026-06-08: 11 files, ~570L net new. (3A) shared layout chrome ported VERBATIM from MOCKUP.jsx lines 21-280: T color constant + TENANT/ME placeholders + 5 components (Pill, CallRoleLabel, AppFooter, TenantTopBar "use client", BottomNav). (3B) Calling flow VERBATIM from MOCKUP.jsx lines 529-720: page.tsx screen router (useState<"app"|"call">) + ScreenApp (Directory + Demo-view-as role toggle + CALL placement wired to sim.callSessions.create + auditLog.append) + ScreenActiveCall (in-call view + END wired to sim.callSessions.end + auditLog.append). (3C) 2 typecheck fix dispatches (~10L combined): import default-vs-named alignment + nullable guard + strictFunctionTypes contravariance. Final `cd prototype && npx tsc --noEmit` exits 0. Sim methods exercised: seedDefaults / tenants.list / devices.list / devices.setRole / devices.byId / callSessions.create / callSessions.byId / callSessions.end / auditLog.append. Stubbed for Wave 4: 4 overlays (incomingCall/namePicker/pwa/offline) render null; mute/camera/speaker/swap controls no-op; 02:14 timer hardcoded. Each Sonnet dispatch ≤500L per V32 R2 (improvement vs Wave 2B).
   - 1 decision locked in DECISIONS_LOG.md: simulation technique (in-memory + localStorage + 6-namespace barrel; Phase 4 swaps exactly those 6 namespaces for real tRPC calls).
-  - Dispatch ratio this wave: 3 sonnet_writes / 0 opus_writes = ∞ (PASS).
-  - Foundation laid: scaffold boots, sim layer importable. UI does not yet consume sim/ — Wave 3 wires first screen.
-- ⏳ Wave 3 — UI primitives + Calling flow (PRODUCT.md §3 Flow A): NEXT
-- ⏳ Waves 4–11 — Remaining 8 §3 Core User Flows: PENDING (one per wave, strict R2)
+  - Dispatch ratio Wave 3: 4 sonnet_writes / 3 opus_writes = 1.33 (WARN — within tolerance; three governance docs in one checkpoint inflate opus side this wave).
+  - Walkable now: directory renders seeded devices → tap CALL on a row OR tap big CALL hero → routes to ScreenActiveCall → tap red phone → routes back. "Demo: view as caller/receiver/both" toggles CALL button visibility per role-hide rule.
+- ⏳ Wave 4 — Flow B Receive (incoming-call overlay + accept/reject): NEXT (likely paired with Flow C Admin-Assigns-Role per R7)
+- ⏳ Waves 5–10 — Remaining 7 §3 Core User Flows: PENDING (one per wave, strict R2)
 - ⏳ Wave N — /design-review + /design-refine (flagged only): PENDING
 - ⏳ Wave N+1 — docs/PROTOTYPE.md + client sign-off in DECISIONS_LOG.md: PENDING (gate-closure)
 - ⏳ Phase 3.5 — Execution Plan: BLOCKED by Phase 3.3 gate-closure

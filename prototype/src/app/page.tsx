@@ -1,65 +1,58 @@
-import Link from 'next/link';
+'use client';
 
-const flows: ReadonlyArray<{
-  href: string;
-  label: string;
-  description: string;
-}> = [
-  {
-    href: '/lan',
-    label: 'LAN edition',
-    description: 'Anonymous local-network calling — no account required.',
-  },
-  {
-    href: '/cloud',
-    label: 'Cloud edition',
-    description: 'B2B multi-tenant calling across networks.',
-  },
-  {
-    href: '/admin',
-    label: 'Admin console',
-    description: 'Tenant + device management, role assignment, audit.',
-  },
-];
+import { useEffect, useState } from 'react';
+import { ScreenApp } from '@/screens/ScreenApp';
+import { ScreenActiveCall } from '@/screens/ScreenActiveCall';
+import { seedDefaults, tenants, type CallRole } from '@/lib/sim';
+
+type Screen = 'app' | 'call';
+type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
 
 export default function HomePage(): JSX.Element {
+  const [screen, setScreen] = useState<Screen>('app');
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [myCallRole, setMyCallRole] = useState<CallRole>('both');
+  const [overlay, setOverlay] = useState<Overlay>(null);
+  const [tenantId, setTenantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    seedDefaults({ edition: 'lan', lanAccountMode: false });
+    const list = tenants.list();
+    const first = list[0];
+    if (first) {
+      setTenantId(first.id);
+    }
+  }, []);
+
+  if (!tenantId) {
+    return (
+      <main className="min-h-screen bg-[#fffaf0] grid place-items-center">
+        <div className="text-[14px] text-[#6a6a6a]">Initializing prototype…</div>
+      </main>
+    );
+  }
+
+  const go = (s: string): void => setScreen(s as Screen);
+
+  if (screen === 'call') {
+    return (
+      <ScreenActiveCall
+        go={go}
+        activeCallId={activeCallId}
+        tenantId={tenantId}
+      />
+    );
+  }
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-10 px-6 py-16">
-      <header className="space-y-3">
-        <p className="text-sm font-medium uppercase tracking-wide text-text-muted">
-          Phase 3.3 prototype
-        </p>
-        <h1 className="text-4xl font-bold tracking-tight text-text-primary sm:text-5xl">
-          Yelli Prototype
-        </h1>
-        <p className="max-w-prose text-base text-text-secondary">
-          Interactive walkthrough of every Core User Flow, wired to a simulated
-          backend. Subsequent waves wire LAN, Cloud, and Admin flows on top of
-          this scaffold.
-        </p>
-      </header>
-
-      <nav aria-label="Prototype flow entry points" className="grid gap-4">
-        {flows.map((flow) => (
-          <Link
-            key={flow.href}
-            href={flow.href}
-            className="rounded-lg bg-surface px-5 py-4 shadow-card transition-colors duration-fast ease-default hover:bg-surface-elevated"
-          >
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="text-lg font-semibold">{flow.label}</span>
-              <span className="text-sm text-text-muted">→</span>
-            </div>
-            <p className="mt-1 text-sm text-text-secondary">
-              {flow.description}
-            </p>
-          </Link>
-        ))}
-      </nav>
-
-      <footer className="text-xs text-text-muted">
-        Scaffold only — flow screens land in Wave 2B+.
-      </footer>
-    </main>
+    <ScreenApp
+      go={go}
+      overlay={overlay}
+      setOverlay={setOverlay}
+      myCallRole={myCallRole}
+      setMyCallRole={setMyCallRole}
+      tenantId={tenantId}
+      setActiveCallId={setActiveCallId}
+    />
   );
 }
