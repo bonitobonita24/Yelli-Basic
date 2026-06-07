@@ -2,6 +2,27 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-07 — Phase 3 spec files generated (V32.6.1 canary rebuild)
+- Agent: CLAUDE_CODE
+- Why: Generate inputs.yml + JSON schema + sync-credentials script per CLAUDE.md Phase 3 contract. Validate env files survived clean-slate wipe with credentials intact.
+- Files added:
+  - inputs.yml (151L) — V3 schema; locked tech stack + port base 46838 + 8 entities + 6 modules + 4 roles
+  - inputs.schema.json (274L) — JSON Schema Draft 2020-12 strict validation
+  - scripts/sync-credentials-to-env.sh (99L, +x) — propagates CREDENTIALS.md filled values → .env files (Xendit + Turnstile sections pruned per Yelli config)
+- Files modified:
+  - .cline/STATE.md (rewrite — Phase 3 complete)
+  - docs/DECISIONS_LOG.md (append — port strategy, turnstile=false, a11y=none, payment=none, vibe_test=true all LOCKED)
+  - docs/IMPLEMENTATION_MAP.md (append — Phase 3 row)
+- Files validated (existing, no edit):
+  - .env.dev, .env.staging, .env.prod, .env.example (survived clean-slate wipe, gitignored, AI-generated credentials intact)
+- Schema/migrations: none (Phase 4 Part 3 owns schema)
+- Errors encountered: none
+- Errors resolved: none
+- Dispatch ledger: 4 Sonnet dispatches under V32 R1/R7 (A=inputs+schema, B=env validation, C=sync script, D=governance writes). dispatch_ratio: 4 sonnet_writes / 0 opus_writes = ∞ (target ≥ 3.0, status PASS).
+- Decisions locked in DECISIONS_LOG.md: port base 46838, Turnstile disabled, accessibility=none, payment=none, vibe_test enabled.
+- LOC delta: ~711 lines net new + 4 governance file updates.
+- Next: Phase 3.3 (Interactive Prototype & Simulation, V32.6) auto-runs from PRODUCT.md §3 + DESIGN.md baseline.
+
 ### 2026-06-07 — Clean-slate wipe for V32.6.1 canary rebuild
 - Agent: CLAUDE_CODE
 - Tag: clean-slate-20260607

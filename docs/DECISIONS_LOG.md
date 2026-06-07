@@ -211,3 +211,25 @@ Decision: apps/yelli uses direct ESLint CLI invocation (`eslint . --ext .ts,.tsx
 Rationale: Next.js 16 removed the `next lint` binary. Turborepo passes the task name as a positional arg which previously resolved via `next lint` shim — that shim is gone. Direct `eslint` invocation is the correct path for ESLint 9+ projects.
 Consequence for future Feature Updates: any lint rule changes go into eslint.config.mjs (flat config). The .eslintrc.js file is a compatibility stub only — do not add rules there.
 Locked at: Phase 4 Part 8 (2026-06-02)
+
+
+## LOCKED: V32.6.1 Phase 3 spec generation decisions — 2026-06-07
+Decision: Phase 3 of V32.6.1 canary rebuild locks the following 5 decisions in addition to the V31 baseline preserved through the clean-slate wipe.
+
+### Port strategy (Rule 22)
+Random base: 46838. Offsets: db=+0, pgbouncer=+1, valkey=+2, minio=+3, minio_console=+4, mailhog=+5, mailhog_ui=+6, pgadmin=+7, app=+10, worker=+11, prisma_studio=+20. Stored in inputs.yml ports.dev.*. Staging + prod use standard ports (DB=5432, Valkey=6379, MinIO=9000, app internal=3000 via Traefik).
+Reproducibility: regenerating env files from the same base yields identical port assignments.
+
+### Bot protection (Cloudflare Turnstile)
+Disabled. Reason: Yelli is LAN-first with optional Cloud edition. LAN edition has no public attack surface (private network deployment). Cloud edition relies on Auth.js v5 credential gate + tiered rate limiting (10/min auth IP, 100/min API user, 300/min public IP). No Turnstile widget on prod hostname. Revisit if Cloud edition adds public marketing/landing surfaces.
+
+### Accessibility level
+None (shadcn/ui keyboard + focus defaults only). Reason: B2B internal-use tool; no contract WCAG requirement. No a11y skill checklist gate in Phase 4 Parts 5-6 or Phase 7 delivery. Revisit if customer demands WCAG AA.
+
+### Payment gateway
+None. Reason: Yelli is a P2P calling app, no transactional surface. No Xendit/Stripe/PayMongo integration. Removes XENDIT_* env vars from all 3 env files and webhook security scaffolding from Phase 4 Part 5.
+
+### vibe_test (Phase 2.7 spec stress-test)
+Enabled. Reason: framework default; cheap insurance against PRODUCT.md gaps before Phase 4 scaffolding burns context. Already passed for V32.6.1 baseline.
+
+Locked at: Phase 3 of V32.6.1 canary rebuild (2026-06-07).

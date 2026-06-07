@@ -5,6 +5,14 @@
 Filesystem: clean-slate. No apps/, packages/, deploy/, inputs.yml.
 Phase: pre-Phase 0. Next: Bootstrap → Phase 2 → Phase 3.
 
+### Phase 3 — Spec files (V32.6.1 canary rebuild)
+- ✅ Phase 3 — Spec files generated: complete 2026-06-07
+  - inputs.yml (151L), inputs.schema.json (274L), scripts/sync-credentials-to-env.sh (99L)
+  - 4 env files validated existing (survived clean-slate wipe with AI-generated credentials intact)
+  - 5 decisions locked in DECISIONS_LOG.md (port base 46838, turnstile=false, a11y=none, payment=none, vibe_test=true)
+  - Dispatch ratio: 4 sonnet_writes / 0 opus_writes = ∞ (PASS)
+- ⏳ Phase 3.3 — Interactive Prototype & Simulation: NEXT (V32.6)
+
 ## Archived — Pre-Clean-Slate (V31 baseline, archived 2026-06-07)
 
 Reference-only. No code from the sections below survives on the filesystem after commit `0a94f48` (clean-slate wipe). Retained so the V32.6.1 rebuild can re-reference proven decisions without re-deriving them.

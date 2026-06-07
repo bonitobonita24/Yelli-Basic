@@ -1,0 +1,151 @@
+schema_version: 3
+app:
+  name: "Yelli"
+  slug: "yelli"
+  purpose: "Dual-mode (LAN + Cloud) peer-to-peer calling for marine ops and small teams"
+
+domains:
+  prod: "yelli.app"
+  staging: "yelli-staging.app"
+
+tenancy:
+  mode: "multi"
+  notes: "Cloud edition multi-tenant; LAN edition runs single-tenant from same codebase"
+
+apps:
+  - name: "yelli"
+    framework: "next"
+    type: "web"
+
+entities:
+  - Device
+  - CallSession
+  - User
+  - Tenant
+  - AuditLog
+  - BrandAsset
+  - CallSnapshot
+  - SessionInvalidation
+
+modules:
+  - calling
+  - identity
+  - admin
+  - pwa
+  - device-registry
+  - tenant-management
+
+roles:
+  - device-user
+  - member
+  - tenant-admin
+  - powerbyte-super-admin
+
+tech_stack:
+  frontend: "Next.js 16 App Router"
+  api: "tRPC v11"
+  orm: "Prisma"
+  auth: "Auth.js v5"
+  database: "PostgreSQL 16"
+  cache: "Valkey 7"
+  storage_dev: "MinIO"
+  storage_prod: "S3"
+  ui: "shadcn/ui + Tailwind CSS"
+
+ports:
+  dev:
+    base: 46838
+    db: 46838
+    pgbouncer: 46839
+    valkey: 46840
+    minio: 46841
+    minio_console: 46842
+    mailhog: 46843
+    mailhog_ui: 46844
+    pgadmin: 46845
+    app: 46848
+    worker: 46849
+    prisma_studio: 46858
+
+jobs:
+  enabled: true
+  provider: "bullmq"
+  queues:
+    - "device-archive"
+    - "tenant-export"
+
+storage:
+  enabled: true
+  provider_dev: "minio"
+  provider_prod: "s3"
+  buckets:
+    dev: "yelli-dev"
+    staging: "yelli-staging"
+    prod: "yelli-prod"
+
+deploy:
+  k8s:
+    enabled: false
+
+docker:
+  publish: true
+  registry: "docker.io"
+  hub_repo: "powerbyteit/yelli"
+  image_name: "yelli"
+  platforms:
+    - "linux/amd64"
+    - "linux/arm64"
+  build_on_push_to: "main"
+  dev_build: true
+
+git:
+  default_branch: "main"
+  branch_pattern: "feat/{slug}"
+  commit_style: "conventional"
+  squash_merge: true
+  use_worktrees: true
+
+models:
+  planning: "claude-code"
+  execution: "claude-sonnet-4-6"
+  governance: "gemini-2.5-flash-lite"
+
+payment:
+  gateway: "none"
+
+turnstile:
+  enabled: false
+
+accessibility:
+  level: "none"
+
+context7:
+  enabled: true
+
+vibe_test:
+  enabled: true
+
+security:
+  cors_origins:
+    dev:
+      - "http://localhost:46848"
+      - "http://127.0.0.1:46848"
+    staging:
+      - "https://yelli-staging.app"
+      - "https://*.yelli-staging.app"
+    prod:
+      - "https://yelli.app"
+      - "https://*.yelli.app"
+  audit_events:
+    - "device.*"
+    - "call.*"
+    - "user.*"
+    - "tenant.*"
+    - "admin.*"
+    - "role-change"
+    - "password-reset"
+  rate_limiting:
+    auth_per_minute_per_ip: 10
+    api_per_minute_per_user: 100
+    public_per_minute_per_ip: 300
+    upload_per_minute_per_user: 20
