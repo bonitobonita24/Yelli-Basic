@@ -89,32 +89,43 @@ export const devices = {
   },
   setDisplayName(id: string, displayName: string): Device {
     const rows = readTable<Device>(TABLES.devices);
+    const prior = rows.find((d) => d.id === id);
+    if (!prior) throw new Error(`device ${id} not found`);
     const next = rows.map((d) => (d.id === id ? { ...d, displayName } : d));
     writeTable(TABLES.devices, next);
-    const updated = next.find((d) => d.id === id);
-    if (!updated) throw new Error(`device ${id} not found`);
-    auditLog.append({
-      tenantId: updated.tenantId,
-      actorUserId: updated.userId,
-      action: 'device.rename',
-      payload: { deviceId: id, displayName },
-    });
+    const updated = next.find((d) => d.id === id)!;
+    if (prior.displayName.trim() === '') {
+      auditLog.append({
+        tenantId: updated.tenantId,
+        actorUserId: updated.userId,
+        action: 'device.first_join',
+        payload: { deviceId: id, name: displayName },
+      });
+    } else {
+      auditLog.append({
+        tenantId: updated.tenantId,
+        actorUserId: updated.userId,
+        action: 'device.rename',
+        payload: { deviceId: id, from: prior.displayName, to: displayName },
+      });
+    }
     return updated;
   },
   setRole(id: string, role: CallRole, adminUserId?: string): Device {
     const rows = readTable<Device>(TABLES.devices);
+    const prior = rows.find((d) => d.id === id);
+    if (!prior) throw new Error(`device ${id} not found`);
     const t = now();
     const next = rows.map((d) =>
       d.id === id ? { ...d, callRole: role, assignedRoleAt: t } : d,
     );
     writeTable(TABLES.devices, next);
-    const updated = next.find((d) => d.id === id);
-    if (!updated) throw new Error(`device ${id} not found`);
+    const updated = next.find((d) => d.id === id)!;
     auditLog.append({
       tenantId: updated.tenantId,
       actorUserId: adminUserId ?? null,
       action: 'device.role.assign',
-      payload: { deviceId: id, role },
+      payload: { deviceId: id, from: prior.callRole, to: role },
     });
     return updated;
   },

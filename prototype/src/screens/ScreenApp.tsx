@@ -8,7 +8,7 @@ import BottomNav from '@/components/BottomNav';
 import AppFooter from '@/components/AppFooter';
 import OverlayIncomingCall from '@/components/OverlayIncomingCall';
 import OverlayNamePicker from '@/components/OverlayNamePicker';
-import { auditLog, callSessions, devices, type CallRole, type Device } from '@/lib/sim';
+import { callSessions, devices, type CallRole, type Device } from '@/lib/sim';
 
 type Screen = 'app' | 'call';
 type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
@@ -94,20 +94,6 @@ export function ScreenApp(props: Props): JSX.Element {
 
   const saveMyName = (name: string): void => {
     if (!myDevice) return;
-    const isFirstJoin = myDevice.displayName.trim().length === 0;
-    if (isFirstJoin) {
-      // PRODUCT.md §11 audit action `device.first_join`. Payload schema is not
-      // specified — using {name} as the minimal context permitted by §11's
-      // "minimal context, no sensitive data" guidance. NOTE: devices.setDisplayName
-      // also emits a trailing `device.rename` audit; collapse-to-single-emit
-      // refactor is flagged for housekeeping in next wave.
-      auditLog.append({
-        tenantId: myDevice.tenantId,
-        actorUserId: myDevice.userId,
-        action: 'device.first_join',
-        payload: { name },
-      });
-    }
     devices.setDisplayName(myDevice.id, name);
     setRefreshKey((k) => k + 1);
     setOverlay(null);
