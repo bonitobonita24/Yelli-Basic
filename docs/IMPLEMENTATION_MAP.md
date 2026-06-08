@@ -220,3 +220,12 @@ Branch: scaffold/part-8 (pending squash-merge)
 **Phase 4 COMPLETE — all 9 Phase 5 validation commands PASS. Next: human triggers Phase 5 in fresh session.**
 - ✅ Phase 5: validation PASS — 2026-06-02 — 9/9 commands clean (0 lint, 7/7 typecheck, build OK, 0 HIGH/CRITICAL)
 - ✅ Phase 6 (dev verification): PASS-WITH-PENDING-SEED — 2026-06-02 — all containers healthy, migrations applied, /api/health 200, /login interactive. Login-flow verification pending seed.
+
+## Phase 3.3 — Interactive Prototype & Simulation (V32.6.1 canary)
+- ✅ Wave 2 (2026-06-08): scaffold + simulated backend layer (commit `a6ee171`)
+- ✅ Wave 3 (2026-06-08): Flow A Calling walkable (commit `d48418f`)
+- ✅ Wave 4 (2026-06-08): Flow B Receive + Flow C Admin-Assigns-Role walkable + audit vocabulary reconciled to §11 (commit `f17e7ab`)
+- ✅ Wave 5 (2026-06-09): Flow D Register-Device walkable — `OverlayNamePicker.tsx` (64L) + `ScreenApp.tsx` wiring (auto-trigger when displayName empty + `device.first_join` UI emit on first-set + double-emit accepted, flagged for housekeeping) (commit `989f893`)
+- 4 of 9 §3 Core User Flows now walkable: A Calling + B Receive + C Admin-Assigns-Role + D Register-Device
+- Pending flows: E Login (LAN anonymous admin) · F Invite · G Manage Devices (full) · H Audit View · I Tenant Export
+- Gate-closure blockers: 5 remaining flows + `docs/PROTOTYPE.md` + `/design-review` green + client sign-off in `docs/DECISIONS_LOG.md`

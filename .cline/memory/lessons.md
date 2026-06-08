@@ -364,3 +364,69 @@
        trade-off here once and reference this entry on future multi-wave WARN closures.
     4. Do NOT split single Opus governance checkpoints into multiple Sonnet dispatches purely
        to lift the per-wave ratio. That is gaming the metric, not honoring R8/R9.
+
+## 2026-06-09 — 🔴 gotcha V32.1 dispatch-layer regression: small-prompt rejections cascade to full executor failure
+- Type:      🔴 gotcha
+- Phase:     Phase 3.3 Wave 5 (V32.6.1 canary rebuild)
+- Files:     N/A — affects ALL future dispatches in sessions with heavy reminder/skill load
+- Concepts:  V32.1, baseline-overhead, dispatch-layer, prompt-too-long, R1-deviation, R9-FAIL, Sonnet-subagent-context
+- Narrative:
+  During Wave 5 execution, 4 consecutive `Agent(model: "sonnet")` dispatch
+  attempts were rejected with `"Prompt is too long"` at progressively smaller
+  prompt sizes (~1.5K → 1K → 700 → 600 tokens). Each rejection returned an
+  `agentId` indicating the agent was partially spawned but the request body
+  exceeded the LLM context window before the prompt was even evaluated.
+
+  Root cause is V32.1 baseline-overhead (already documented in
+  memory-governance.md §1): Sonnet subagents inherit ~30-50K tokens of
+  auto-loaded skills + MCP descriptions + CLAUDE.md before any task prompt.
+  In sessions with multiple sticky <system-reminder> banners and a large
+  skill registry (this session had 4 reminder banners + skill list + MCP
+  list + 4 deferred-tool re-announcements), baseline overhead can exceed
+  Sonnet's effective task budget AT THE SPAWN STEP, before tool-use even
+  begins. The "≤1K-token dispatch prompt" mitigation from memory-governance.md
+  §1 is INSUFFICIENT when baseline is already over the cap.
+
+  Confirmed coping strategies (from this incident):
+  1. `Agent(subagent_type: "Explore")` SUCCEEDED at Scout work even when
+     general-purpose Sonnet failed — Explore has a lighter inherited context
+     profile (no skill-list auto-load, fewer MCPs surfaced). Use Explore for
+     READ-ONLY discovery dispatches as a robust fallback.
+  2. Explore cannot Edit/Write — it is read-only. For executor work blocked
+     by this regression, no Sonnet alternative is currently known.
+
+  Mitigation attempts that DID NOT work:
+  - Reducing prompt to ~600 tokens of pure task instructions
+  - Splitting into multiple smaller dispatches (each rejected identically)
+  - SendMessage to partially-spawned agents (would still need a payload)
+
+  Wave 5 resolution: fell back to Opus inline execution for the bounded
+  ~112L code change. This is a V32 R1 deviation, documented in commit body
+  + STATE.md dispatch_ledger + this entry. dispatch_ratio = 0 / 8 = 0.0
+  (R9 FAIL), but the cause is NOT Opus drift into executor work — it is
+  dispatch-layer rejection cascade. Future R9 audits must distinguish
+  these two FAIL modes:
+    (a) Opus drift (REAL R9 signal): Opus chose to skip dispatch because
+        the task "felt small" — actionable, requires discipline review.
+    (b) Dispatch-layer rejection cascade (FALSE R9 signal): Opus tried to
+        dispatch but the layer rejected — not actionable as drift; requires
+        infrastructure fix.
+
+  Before Wave 6:
+  - Probe baseline overhead via a deliberate failing dispatch + measure
+    the gap between prompt size and rejection threshold.
+  - Try `Agent(subagent_type: "code-simplifier")` and `Agent(subagent_type: "Plan")`
+    paths — they may inherit different (lighter) skill profiles.
+  - If still blocked: dispatch via `Agent(subagent_type: "Explore")` for
+    discovery + use the Explore output to write a fully-detailed task spec,
+    then attempt the executor dispatch with the spec inlined as the prompt
+    body (no reasoning required from the executor, just verbatim instructions).
+  - If still blocked: file the incident, accept Opus-inline fallback for
+    bounded waves, and flag the regression as a session-level constraint
+    rather than treating each R1 deviation as discipline failure.
+
+  Cross-link:
+  - memory-governance.md §1 "Operational Note — Sonnet Subagent Context Overhead (V32.1)"
+  - memory-governance.md §4 R9 "Dispatch Ratio Metric"
+  - Wave 4D drift entry (different cause: governance-doc batching inflated ratio
+    in a session where Sonnet executor DID work fine)
