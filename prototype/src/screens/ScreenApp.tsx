@@ -1,13 +1,14 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Pill from '@/components/Pill';
 import CallRoleLabel from '@/components/CallRoleLabel';
 import TenantTopBar from '@/components/TenantTopBar';
 import BottomNav from '@/components/BottomNav';
 import AppFooter from '@/components/AppFooter';
 import OverlayIncomingCall from '@/components/OverlayIncomingCall';
-import { callSessions, devices, type CallRole, type Device } from '@/lib/sim';
+import OverlayNamePicker from '@/components/OverlayNamePicker';
+import { auditLog, callSessions, devices, type CallRole, type Device } from '@/lib/sim';
 
 type Screen = 'app' | 'call';
 type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
@@ -49,7 +50,9 @@ export function ScreenApp(props: Props): JSX.Element {
   const { go, overlay, setOverlay, myCallRole, setMyCallRole, tenantId, activeCallId, setActiveCallId } = props;
   const canInitiate = myCallRole === 'caller' || myCallRole === 'both';
 
-  const allDevices = useMemo(() => devices.list(tenantId), [tenantId]);
+  // refreshKey forces re-read of the sim layer after device mutations (rename, etc.)
+  const [refreshKey, setRefreshKey] = useState(0);
+  const allDevices = useMemo(() => devices.list(tenantId), [tenantId, refreshKey]);
   const visibleMembers = allDevices.filter((d) => d.archivedAt === null);
   const onlineMembers = visibleMembers.filter((d) => {
     const s = deviceStatus(d);
@@ -76,6 +79,38 @@ export function ScreenApp(props: Props): JSX.Element {
       devices.setRole(myDevice.id, r);
     }
     setMyCallRole(r);
+  };
+
+  // Flow D — Register Device: auto-open the name picker when me.displayName is
+  // unset on first launch. PRODUCT.md §3 says the Device row is server-created
+  // on first connect with displayName initially blank; the picker collects it.
+  // Current seed populates all names, so this only fires in genuine first-join
+  // scenarios — but the Edit button (sidebar "You" card) opens it on demand.
+  useEffect(() => {
+    if (myDevice && myDevice.displayName.trim().length === 0 && overlay === null) {
+      setOverlay('namePicker');
+    }
+  }, [myDevice, overlay, setOverlay]);
+
+  const saveMyName = (name: string): void => {
+    if (!myDevice) return;
+    const isFirstJoin = myDevice.displayName.trim().length === 0;
+    if (isFirstJoin) {
+      // PRODUCT.md §11 audit action `device.first_join`. Payload schema is not
+      // specified — using {name} as the minimal context permitted by §11's
+      // "minimal context, no sensitive data" guidance. NOTE: devices.setDisplayName
+      // also emits a trailing `device.rename` audit; collapse-to-single-emit
+      // refactor is flagged for housekeeping in next wave.
+      auditLog.append({
+        tenantId: myDevice.tenantId,
+        actorUserId: myDevice.userId,
+        action: 'device.first_join',
+        payload: { name },
+      });
+    }
+    devices.setDisplayName(myDevice.id, name);
+    setRefreshKey((k) => k + 1);
+    setOverlay(null);
   };
 
   return (
@@ -243,7 +278,17 @@ export function ScreenApp(props: Props): JSX.Element {
           />
         );
       })()}
-      {overlay === 'namePicker' && null}
+      {overlay === 'namePicker' && myDevice && (
+        myDevice.displayName.trim().length > 0 ? (
+          <OverlayNamePicker
+            initialName={myDevice.displayName}
+            onSave={saveMyName}
+            onClose={() => setOverlay(null)}
+          />
+        ) : (
+          <OverlayNamePicker initialName={myDevice.displayName} onSave={saveMyName} />
+        )
+      )}
       {overlay === 'pwa' && null}
       {overlay === 'offline' && null}
     </div>
