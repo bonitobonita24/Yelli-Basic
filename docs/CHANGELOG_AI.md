@@ -2,6 +2,40 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-09 — Phase 3.3 Wave 6 — Housekeeping: sim audit emits canonical (collapses Wave 4B + Wave 5 double-emit pairs)
+- Agent: CLAUDE_CODE (Opus 4.7 inline — R1 DEVIATION, see Dispatch ledger)
+- Why: STATE.md NEXT-field housekeeping bundle. Two prior waves left audit-emit drift: Wave 4B's `device.role.assign` payload was `{deviceId, role}` instead of §11's `{from, to}`; Wave 5's first-join scenario emitted BOTH a UI-side `device.first_join` and sim's trailing `device.rename` for the same operation. Closing both before Phase 4 backend swap ensures the sim layer's audit shape already matches the production contract — the swap becomes a pure persistence substitution, not a vocabulary migration.
+- Scope decision: User selected "Housekeeping only (~40L, safe)" via AskUserQuestion when offered three options (housekeeping-only / Flow E-only / both). Flow E (LAN-anonymous-admin login) deferred to Wave 7. Rationale: prior wave's 4/4 dispatch failures made a combined ~150L wave higher-risk; housekeeping-only maximized landing probability.
+- Files modified:
+  - prototype/src/lib/sim/repo.ts (+19/-12 = +7L net) — setDisplayName captures prior row, branches on `prior.displayName.trim() === ''` to emit `device.first_join {deviceId, name}` (first set) vs `device.rename {deviceId, from, to}` (subsequent); setRole captures prior row, emits `device.role.assign {deviceId, from, to}` (was `{deviceId, role}`)
+  - prototype/src/screens/ScreenApp.tsx (+4/-14 = -10L net) — saveMyName collapses from 19L → 5L; removed UI-side conditional `auditLog.append({action:'device.first_join'})` block (sim is now sole emission point); removed `isFirstJoin` local; dropped `auditLog` import from `@/lib/sim` (verified unused via grep before removal)
+- Files added: none
+- Files deleted: none
+- Schema/migrations: none (sim layer only)
+- Audit vocabulary state (post-Wave 6):
+  - `device.first_join` — now emitted by sim.devices.setDisplayName on first-set (was UI duplicate + sim's wrong-action `device.rename`)
+  - `device.rename` — now emitted with canonical `{deviceId, from, to}` payload on subsequent rename (was `{deviceId, displayName}`)
+  - `device.role.assign` — now emitted with canonical `{deviceId, from, to}` payload (was `{deviceId, role}`)
+  - `device.create` — STILL emits non-canonical action name (§11 prefers `device.first_join` on Device row creation); preserved this wave to keep scope bounded. Phase 4 backend collapses this into a single `device.first_join` per Device insert + rename.
+- Errors encountered: zero. TypeScript exits 0 first try (mechanical refactor with no signature changes — all callers of setDisplayName/setRole continue to compile unchanged).
+- Errors resolved: n/a
+- Dispatch ledger (this session):
+  - Attempt 1: `Agent(subagent_type:"code-simplifier", model:"sonnet")` — REJECTED "Prompt is too long" at ~1500 token prompt
+  - Attempt 2: `Agent(subagent_type:"general-purpose", model:"sonnet")` with minimal ~30-token prompt pointing at `.wave6-task.md` scratch file (deliberate baseline-pressure test) — STILL REJECTED "Prompt is too long"
+  - Fallback: Opus 4.7 inline — SUCCEEDED. R1 deviation documented in commit body.
+  - Combined with Wave 5: 6 total dispatch-layer rejections across two distinct subagent_types this session, prompt sizes 30–1500 tokens, all rejected BEFORE prompt evaluation. Confirms V32.1 operational note (baseline overhead from auto-loaded skills + MCP context inheritance) — NOT Opus drift. Per V32 R4, this exceeds the 3-attempt re-decomposition ceiling; correct response is defer or scope-reduce dispatch path entirely, not infinite retry.
+- dispatch_ratio (this session):
+  - sonnet_writes: 0 (dispatch-layer-blocked, both attempts)
+  - opus_writes: ~5 (2 code Edits + 1 scratch Write + 1 scratch rm + this checkpoint's governance Edits — full count after checkpoint completes)
+  - ratio: 0 / 5 = 0
+  - target: ≥ 3.0
+  - status: FAIL (<1.0)
+  - trigger: extends prior wave's lessons.md entry on dispatch-layer regression (no NEW lesson written — same root cause, same mitigation)
+- TIER_CLASSIFICATION: 1 — lightweight (2 files, ~40L gross / -3L net)
+- LOC delta: -3L net (collapsed duplicate emit logic; refactor produced cleaner code than it replaced)
+- Commit: `b64b251` on `main`. Working tree clean post-commit.
+- Next: Wave 7 — Flow E (LAN-anonymous-admin login per Step 6 spec). Sim shape gap to resolve in Wave 7: prototype needs an "admin session" state (currently no auth/session concept in sim). Pre-Wave-7 recommendation: if dispatch-layer regression persists, consider a fresh Claude Code session to reset inherited baseline context (the 4+ system-reminder banners stacked in this session likely contribute), OR continue with Opus inline + documented R1 deviation pattern.
+
 ### 2026-06-08 — Phase 3.3 Wave 3 — Calling flow walkable (PRODUCT.md §3 Flow A)
 - Agent: CLAUDE_CODE (Opus 4.7 Architect + Sonnet 4.6 Executor, V32 R1; Opus writes restricted to R8 allow-list)
 - Why: V32.6 Phase 3.3 first Core User Flow — wire the Wave 2 sim layer to a walkable Calling experience inheriting MOCKUP.jsx visuals VERBATIM (V32.5 INHERIT-not-REPLACE). Validates the swap-boundary contract end-to-end before remaining 8 flows.
