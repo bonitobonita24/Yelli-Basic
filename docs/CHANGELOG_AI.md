@@ -657,3 +657,11 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Dispatch: Opus-inline R1 deviation continued (seventh wave); V32.1 environment-structural regression unchanged
 - Verification: cd prototype && npx tsc --noEmit → exit 0
 - Next: Phase 3.3 gate-closure (docs/PROTOTYPE.md + /design-review green + client sign-off → Phase 3.5)
+
+## 2026-06-09 — Phase 3.3 gate-closure prep: docs/PROTOTYPE.md drafted
+- Agent: CLAUDE_CODE
+- Why: Phase 3.3 gate-closure mandates a durable behavioural blueprint before Phase 3.5
+- Files added: docs/PROTOTYPE.md (313L)
+- Content: simulation technique (localStorage + in-tab pub/sub), simulated data model (8 tables), §11-canonical audit vocabulary inventory, Flows A–I walkthroughs (all 9 §3 Core User Flows) with states + audit emits per flow, simulated→production swap-boundary table mapping every sim API to its Phase 4 tRPC/Prisma/BullMQ/Valkey binding, out-of-scope list (real WebRTC/SMTP/Web Push/Argon2id/cron/cloud-onboarding all explicitly deferred to Phase 4), verification protocol, gate-closure outstanding items
+- Locked contracts for Phase 4: @/lib/sim barrel is the sole UI data import surface; audit-action vocabulary verbatim; status machines (device/invitation/export job) verbatim; UI MUST NOT import from repo.ts/storage.ts/clock.ts directly
+- Next: /design-review against PA MOCKUP.jsx + finalized tokens; client sign-off → DECISIONS_LOG.md → close Phase 3.3 → Phase 3.5
