@@ -88,6 +88,21 @@ export type Invitation = {
   createdAt: string;
 };
 
+export type ExportJobStatus = 'queued' | 'processing' | 'ready' | 'expired';
+
+export type ExportJob = {
+  id: string;
+  tenantId: string;
+  requestedByUserId: string | null;
+  status: ExportJobStatus;
+  requestedAt: string;
+  readyAt: string | null;
+  expiresAt: string | null;
+  signedUrl: string | null;
+  downloadedAt: string | null;
+  payloadBytes: number | null;
+};
+
 export type AuditLog = {
   id: string;
   tenantId: string | null;
@@ -106,6 +121,7 @@ export const TABLES = {
   invitations: 'invitations',
   auditLog: 'auditLog',
   adminSession: 'adminSession',
+  tenantExports: 'tenantExports',
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];

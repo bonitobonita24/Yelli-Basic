@@ -14,7 +14,7 @@ function TenantTopBar({ go, currentScreen }: TenantTopBarProps) {
   const linkActive = "bg-[#f5f0e0] text-[#0a0a0a]";
   const linkIdle = "text-[#3a3a3a] hover:text-[#0a0a0a]";
   const items: Array<[string, string]> = [
-    ["app", "Directory"], ["admin-members", "Members"], ["admin-invitations", "Invites"], ["admin-audit", "Audit"], ["branding", "Branding"],
+    ["app", "Directory"], ["admin-members", "Members"], ["admin-invitations", "Invites"], ["admin-audit", "Audit"], ["admin-export", "Export"], ["branding", "Branding"],
   ];
   return (
     <>

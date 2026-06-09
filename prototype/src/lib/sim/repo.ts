@@ -12,6 +12,7 @@ import {
   type CallRole,
   type CallSession,
   type Device,
+  type ExportJob,
   type Invitation,
   type Tenant,
   type User,
@@ -509,5 +510,112 @@ export const adminSession = {
         payload: {},
       });
     }
+  },
+};
+
+// ─── Tenant Exports ─────────────────────────────────────────────────────────────
+const EXPORT_TTL_MS = 24 * 60 * 60 * 1000; // 24h signed URL
+const EXPORT_PROCESS_MS = 1500; // sim BullMQ processing delay
+
+function buildExportPayload(tenantId: string): { sizeBytes: number } {
+  const snapshot = {
+    tenant: tenants.byId(tenantId),
+    users: users.list(tenantId),
+    devices: devices.list(tenantId),
+    invitations: invitations.list(tenantId),
+    callSessions: callSessions.list(tenantId),
+    auditLog: auditLog.recent(tenantId, 10000),
+  };
+  return { sizeBytes: JSON.stringify(snapshot).length };
+}
+
+function isExpired(job: ExportJob): boolean {
+  if (!job.expiresAt) return false;
+  return new Date(job.expiresAt).getTime() <= Date.now();
+}
+
+export const tenantExports = {
+  list(tenantId: string): ExportJob[] {
+    const rows = readTable<ExportJob>(TABLES.tenantExports).filter((r) => r.tenantId === tenantId);
+    // Compute expired status lazily on read.
+    const next = rows.map((r) => (r.status === 'ready' && isExpired(r) ? { ...r, status: 'expired' as const } : r));
+    return next.sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+  },
+  byId(id: string): ExportJob | null {
+    const row = readTable<ExportJob>(TABLES.tenantExports).find((r) => r.id === id);
+    if (!row) return null;
+    if (row.status === 'ready' && isExpired(row)) return { ...row, status: 'expired' };
+    return row;
+  },
+  request(input: { tenantId: string; requestedByUserId: string | null }): ExportJob {
+    const id = uuid();
+    const row: ExportJob = {
+      id,
+      tenantId: input.tenantId,
+      requestedByUserId: input.requestedByUserId,
+      status: 'queued',
+      requestedAt: now(),
+      readyAt: null,
+      expiresAt: null,
+      signedUrl: null,
+      downloadedAt: null,
+      payloadBytes: null,
+    };
+    const rows = readTable<ExportJob>(TABLES.tenantExports);
+    writeTable(TABLES.tenantExports, [...rows, row]);
+    auditLog.append({
+      tenantId: input.tenantId,
+      actorUserId: input.requestedByUserId,
+      action: 'tenant.export.requested',
+      payload: { exportId: id },
+    });
+    // Sim BullMQ processing: flip to 'processing' immediately, 'ready' after delay.
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => tenantExports._markProcessing(id), 50);
+      window.setTimeout(() => tenantExports._markReady(id), EXPORT_PROCESS_MS);
+    }
+    return row;
+  },
+  _markProcessing(id: string): void {
+    const rows = readTable<ExportJob>(TABLES.tenantExports);
+    const next = rows.map((r) => (r.id === id && r.status === 'queued' ? { ...r, status: 'processing' as const } : r));
+    writeTable(TABLES.tenantExports, next);
+  },
+  _markReady(id: string): void {
+    const rows = readTable<ExportJob>(TABLES.tenantExports);
+    const target = rows.find((r) => r.id === id);
+    if (!target || target.status === 'ready' || target.status === 'expired') return;
+    const { sizeBytes } = buildExportPayload(target.tenantId);
+    const readyAt = now();
+    const expiresAt = new Date(Date.now() + EXPORT_TTL_MS).toISOString();
+    const signedUrl = `https://exports.yelli.app/sim/${id}.json?expires=${encodeURIComponent(expiresAt)}&sig=stub-${id.slice(0, 8)}`;
+    const next = rows.map((r) =>
+      r.id === id
+        ? { ...r, status: 'ready' as const, readyAt, expiresAt, signedUrl, payloadBytes: sizeBytes }
+        : r,
+    );
+    writeTable(TABLES.tenantExports, next);
+    auditLog.append({
+      tenantId: target.tenantId,
+      actorUserId: target.requestedByUserId,
+      action: 'tenant.export.ready',
+      payload: { exportId: id, payloadBytes: sizeBytes, expiresAt },
+    });
+  },
+  markDownloaded(id: string): ExportJob | null {
+    const rows = readTable<ExportJob>(TABLES.tenantExports);
+    const target = rows.find((r) => r.id === id);
+    if (!target) return null;
+    if (target.status !== 'ready' || isExpired(target)) return tenantExports.byId(id);
+    const downloadedAt = now();
+    const next = rows.map((r) => (r.id === id ? { ...r, downloadedAt } : r));
+    writeTable(TABLES.tenantExports, next);
+    auditLog.append({
+      tenantId: target.tenantId,
+      actorUserId: target.requestedByUserId,
+      action: 'tenant.export.downloaded',
+      payload: { exportId: id },
+    });
+    return next.find((r) => r.id === id) ?? null;
   },
 };

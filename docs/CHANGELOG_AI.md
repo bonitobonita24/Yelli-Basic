@@ -646,3 +646,14 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - dispatch_ratio:      0 sonnet_writes / 8 opus_writes = 0.0 (FAIL — <1.0). NOT Opus drift; dispatch-layer rejection cascade. Documented in lessons.md as a typed 🔴 gotcha so the R9 metric retains signal for genuine future drift events.
 - LOC delta:           ~112L net new across 3 files in prototype/.
 - Commit:              989f893
+
+## 2026-06-09 — Wave 11: Flow I (Tenant Export) walkable — §3 Core User Flows complete (9/9)
+- Agent: CLAUDE_CODE
+- Why: close §3 Core User Flows for Phase 3.3 gate-closure prep
+- Files added: prototype/src/screens/ScreenAdminExport.tsx (~165L)
+- Files modified: prototype/src/lib/sim/types.ts (ExportJob + TABLES.tenantExports), prototype/src/lib/sim/repo.ts (tenantExports API: request/list/byId/markDownloaded + internal _markProcessing/_markReady; ~95L append), prototype/src/lib/sim/index.ts (barrel), prototype/src/app/page.tsx (admin-export route behind adminSession gate), prototype/src/components/TenantTopBar.tsx (Export nav entry)
+- Sim behavior: BullMQ stub state machine queued → processing → ready → expired; 1.5s processing delay (window.setTimeout); 24h signed URL stub (https://exports.yelli.app/sim/<id>.json?expires=<iso>&sig=stub-<short>); payloadBytes computed from JSON.stringify of full tenant snapshot (users + devices + invitations + callSessions + auditLog.recent(10000)); expiry checked lazily on read (no scheduled job needed in sim); markDownloaded refuses on non-ready/expired
+- Audit vocabulary: tenant.export.requested, tenant.export.ready, tenant.export.downloaded (all logged with exportId; ready includes payloadBytes + expiresAt)
+- Dispatch: Opus-inline R1 deviation continued (seventh wave); V32.1 environment-structural regression unchanged
+- Verification: cd prototype && npx tsc --noEmit → exit 0
+- Next: Phase 3.3 gate-closure (docs/PROTOTYPE.md + /design-review green + client sign-off → Phase 3.5)

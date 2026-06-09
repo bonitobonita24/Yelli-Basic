@@ -2,17 +2,10 @@
 [X] Say "start wave 6" when ready
 [X] Say "start wave 7" when ready (Flow E — LAN-anonymous-admin login)
 [X] Say "start wave 8" when ready (Flow F — Invite member by email)
-[X] Say "start wave 9" when ready (Flow G — Manage devices: rename/archive/unarchive/remove + filter pills)
-[ ] Say "start wave 10" when ready (Flow H — Audit View, read-only)
-    Scope (~Tier 1, ~180–240L): NEW `prototype/src/screens/ScreenAdminAudit.tsx` (~150L)
-      reverse-chrono row list from `sim.auditLog.recent(tenantId, 200)`; per-row chips
-      for action / actor (resolve via sim.users.byId or sim.devices.byId; fallback "LAN admin")
-      / relative timestamp; JSON-preview disclosure for `payload`; filter pills by action
-      prefix (`device.*` / `invitation.*` / `lan.*` / `user.*`); search input over action+payload.
-    Wire admin gate identically to Wave 7+8: `'admin-audit'` added to `Screen` union in
-      `prototype/src/app/page.tsx` (+~10L) behind `adminSession.current()`; nav entry in
-      `prototype/src/components/TenantTopBar.tsx` (+~3L). NO sim changes needed (Wave 2B
-      baseline already returns full filtered list).
-    Dispatch: continue Opus-inline R1 deviation (sixth wave). Verify `cd prototype && npx tsc --noEmit` exit 0.
-[ ] Wave 11 (planned) — Flow I Tenant Export (BullMQ sim → 24h signed URL stub). Closes §3 set.
-[ ] Phase 3.3 gate-closure after Wave 11: docs/PROTOTYPE.md + /design-review green + client sign-off → Phase 3.5
+[X] Say "start wave 9" when ready (Flow G — Manage devices)
+[X] Say "start wave 10" when ready (Flow H — Audit View, read-only)
+[X] Say "start wave 11" when ready (Flow I — Tenant Export, BullMQ sim → 24h signed URL stub) — §3 complete (9/9)
+[ ] Phase 3.3 gate-closure now: docs/PROTOTYPE.md + /design-review green + client sign-off → Phase 3.5
+    - Write docs/PROTOTYPE.md (flow walkthroughs + simulated-data model + swap boundary per screen)
+    - Run /design-review against finalized tokens (regression vs PA MOCKUP.jsx); /design-refine flagged only
+    - Capture client sign-off → docs/DECISIONS_LOG.md
