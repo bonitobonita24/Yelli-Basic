@@ -1,43 +1,73 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Phase 3.3 Wave 9 Complete (V32.6.1 canary rebuild, 2026-06-09)
+## Current State — Phase 3.3 §3 Complete (9/9) + PROTOTYPE.md drafted (2026-06-09)
 
-PHASE:        Phase 3.3 — Interactive Prototype & Simulation (Wave 9/N+ complete; Flow G Manage Devices walkable; 7 of 9 §3 Core User Flows walkable: A Calling + B Receive + C Admin-Assigns-Role + D Register-Device + E LAN-Admin-Login + F Invite + G Manage-Devices; audit-emit vocabulary §11-canonical, one new sim emit introduced this wave — singular `device.archive {deviceId}` from new `devices.archiveOne` method, sibling to existing batch `device.archive.batch`).
+PHASE:        Phase 3.3 — Interactive Prototype & Simulation. §3 Core User Flows COMPLETE (9/9 walkable: A Calling-place · B Receive · C Admin-Assigns-Role · D Register-Device · E LAN-Admin-Login · F Invite · G Manage-Devices · H Audit-View · I Tenant-Export). `docs/PROTOTYPE.md` drafted (313L) and committed. Phase 3.3 gate-closure PENDING — two items remain (see NEXT).
 
-LAST_DONE:    Phase 3.3 Wave 9 adds Flow G (PRODUCT.md §3 Flow G — admin manages device lifecycle: rename / single-device archive / unarchive / remove / filter view). Tier 1 (~75L gross / ~75L net across 2 modified — no creations, no deletions). MODIFIED `prototype/src/lib/sim/repo.ts` (+17L append in-module): new `devices.archiveOne(id, adminUserId?)` — single-device manual archive sibling to existing batch `devices.archive(olderThanDays)`; emits §11-canonical singular `device.archive {deviceId}` audit row (distinct from `device.archive.batch` so admin-initiated archives are traceable per actor). Existing `setDisplayName` / `unarchive(id)` / `remove(id)` unchanged — already §11-canonical from Waves 5–6 (rename emits `device.rename {from,to}`, unarchive emits `device.unarchive`, remove emits `device.delete`). MODIFIED `prototype/src/screens/ScreenAdminMembers.tsx` (187L → ~245L, ~+58L net): adds `filter` state `'all' | 'online' | 'archived'`; previously-static filter pills become clickable single-source filter toggles (`pillClass` helper derives active/inactive styles); per-row action set splits by archive state — active devices show `Change role` / `Rename` / `Archive`, archived devices show `Unarchive` / `Remove`; new empty-state card when no devices match the active filter; mobile card layout reflows actions below the identity block; desktop table action column rename `Action` → `Actions`. Rename uses `window.prompt` (trimmed, no-op on empty/unchanged), Archive/Remove use `window.confirm` — prototype-tier UX consistent with Wave 5's name-picker pattern; full Form/Dialog overlays deferred to Phase 4 production scaffold. Count semantics: `All · {active.length}` (active only) + `Archived · {archivedCount}` (archived only). Reuses existing `OverlayCallRoleAssign` for role-change (Flow C surface preserved verbatim — Wave 4B contract honored). `cd prototype && npx tsc --noEmit` exits 0 first try (only 1 typecheck run). DISPATCH-LAYER REGRESSION: standing acceptance per Wave 7 falsification test (1-word `pwd` Sonnet dispatch REJECTED "Prompt is too long" at fresh-session start — environment-structural Sonnet baseline overhead, NOT session-accumulated context). No Sonnet dispatch attempted this wave per prior STATE.md NEXT-field standing recommendation. Fifth consecutive wave R1 deviation. No new lessons.md entry — same root cause + same mitigation as Wave 5's already-logged regression.
+LAST_DONE:
+  - Wave 11 (commit `c91b3b0`) — Flow I Tenant Export walkable. NEW `prototype/src/screens/ScreenAdminExport.tsx` (~165L). Sim additions: `ExportJob` type + `TABLES.tenantExports`; `tenantExports.{request, list, byId, markDownloaded}` plus internal `_markProcessing` / `_markReady` (BullMQ-stub state machine queued → processing → ready → expired, 1.5s sim delay via `window.setTimeout`); 24h signed URL stub `https://exports.yelli.app/sim/<id>.json?expires=<iso>&sig=stub-<short>`; payloadBytes from `JSON.stringify` of tenant snapshot; expiry lazy on read. Audit emits: `tenant.export.requested` / `.ready` / `.downloaded`. Wired behind `adminSession.current()` gate in `page.tsx`; nav entry added to `TenantTopBar`. `cd prototype && npx tsc --noEmit` exit 0.
+  - PROTOTYPE.md (commit `977d322`) — durable behavioural blueprint for Phase 4. Sections: simulation technique (localStorage + in-tab pub/sub) · 8-table data model → Phase 4 stores · §11-canonical audit vocabulary inventory · Flows A–I walkthroughs (states + audit emits per flow) · simulated → production swap-boundary table (every sim API → Phase 4 tRPC/Prisma/BullMQ/Valkey binding) · explicit out-of-scope (WebRTC media · SMTP · Web Push · Argon2id · cron · cloud-tenancy onboarding) · verification protocol · gate-closure outstanding.
+  - Wave 10 (commit `eb0c288`) — Flow H Audit View walkable. NEW `prototype/src/screens/ScreenAdminAudit.tsx` (~135L) backed by `auditLog.recent(tenantId, 200)`; filter pills by action prefix + full-text search; routed behind admin gate; nav entry added.
+  - Standing R1 deviation acceptance continues — V32.1 dispatch-layer regression unchanged across Waves 5–11. No new lessons.md entry (same root cause + same mitigation as Wave 5's already-logged regression).
 
-NEXT:         Wave 10 — Flow H Audit View (PRODUCT.md §3 Flow H + §11 audit emit catalog). Read-only admin-gated screen surfacing `auditLog.list(tenantId)` from the sim repo (already fully populated by Waves 3–9's emit sites). Suggested scope: reverse-chronological row list with per-row chips for action (e.g. `device.archive`, `invitation.create`, `lan.admin.login.success`), actor (`User.email` if `actorUserId` resolves; else `device.displayName` lookup; else `LAN admin`), tenant-relative timestamp, and a JSON-preview disclosure for `payload`. Filter pills by action prefix (`device.*` / `invitation.*` / `lan.*` / `user.*`) and a clear search input. NO new sim methods needed — `auditLog.list(tenantId)` already returns the full filtered list per Wave 2B. Wire admin gate identically to Wave 7 + Wave 8 (single-source `adminSession.current()` check in `page.tsx`); add `'admin-audit'` to nav via `TenantTopBar` (mirrors invitations swap from Wave 8). Estimated Tier 1 (~180-240L: 1 screen ~150L + page.tsx routing +15L + TopBar nav +5L). Remaining flow post-Wave-10: I Tenant Export (BullMQ sim → simulated 24h signed URL — likely needs a small sim addition: `tenantExports` repo or extension of existing module). Dispatch recommendation: continue Opus-inline R1 deviation acceptance (5 consecutive waves now); pursue framework-layer fix (skill auto-load budget) before attempting Sonnet dispatch again. Goal unchanged: all 9 §3 flows walkable + docs/PROTOTYPE.md + /design-review green + client sign-off → Phase 3.3 gate-closure → Phase 3.5.
+NEXT (open FRESH Claude Code session, type: `start design review for phase 3.3 gate closure`):
+  1. **`/design-review`** against PA baseline (`docs/MOCKUP.jsx` + `docs/DESIGN.md` finalized tokens) and the runnable `prototype/`. INHERIT-not-REPLACE contract per V32.5 — designer-skills MUST NOT regenerate DESIGN.md or MOCKUP.jsx. Resolve any flagged components via `/design-refine` (surgical, flagged-only — never sweep). MUST return green before Phase 3.3 can close.
+  2. **Client sign-off** captured in `docs/DECISIONS_LOG.md` (date · scope · deferrals · any divergences).
 
-BLOCKERS:     None for walkability or audit-vocab correctness. User can verify Wave 9 behavior end-to-end: (1) `cd prototype && npm run dev` → http://localhost:4838; (2) nav to admin via TenantTopBar "Members" → ScreenAdminLogin → passphrase `yelli-admin` (Wave 7) → ScreenAdminMembers; (3) click `All` / `Online` / `Archived` filter pills → device list filters in place; All pill shows active count, Archived pill shows archived count; (4) on an active row click `Rename` → `window.prompt` opens with current name → enter new name → row updates; `localStorage.getItem('sim:auditLog')` parsed last entry: `{action:'device.rename', payload:{deviceId, from, to}}`; (5) on an active row click `Archive` → `window.confirm` "Archive '<name>'? They will not appear in the device list." → confirm → row disappears from All view, Archived pill count increments by 1; last audit: `{action:'device.archive', payload:{deviceId}}` (singular — distinct from `device.archive.batch`); (6) click `Archived` pill → archived rows listed with `Archived` status pill + `Unarchive` + `Remove` buttons; click `Unarchive` → row returns to All view with refreshed `lastSeenAt` → audit `{action:'device.unarchive'}`; (7) click `Remove` on an archived row → confirm dialog → row gone permanently from storage → audit `{action:'device.delete'}`; (8) when no devices match the active filter, empty-state card renders ("No archived devices." or "No devices match this filter."). To reset: DevTools → Application → Clear site data → reload.
+Once both items land, Phase 3.3 closes → Phase 3.5 (Execution Plan) begins.
 
-GIT_BRANCH:   main. Working tree clean post-Wave-8 commit `ac1a003`. Wave 9 = pending commit (code + governance bundled). Smart Checkpoint governance writes (this STATE.md + CHANGELOG_AI.md Wave 9 entry PREPENDED + IMPLEMENTATION_MAP.md line-16 status + Wave 9 status bullet + legacy-anchor-section Wave 9 line + walkable count 6→7) all done; next action = single commit.
+Resume contract: STATE.md (this file) + `docs/PROTOTYPE.md` + locked commits (`977d322` PROTOTYPE.md atop `c91b3b0` Wave 11) give the next session everything needed to pick up cleanly. Fresh session preferred so the designer-skills bundle gets a clean inheritance read per V32.5 INHERIT-not-REPLACE.
+
+BLOCKERS:     None for §3 walkability. Phase 3.5 START blocked on the two NEXT items above per Phase 3.3 mandatory gate-closure (phases.md §Phase 3.3).
+
+GIT_BRANCH:   main. Working tree clean. Recent commits:
+  - `977d322` docs(phase-3.3): draft PROTOTYPE.md for gate-closure
+  - `c91b3b0` feat(phase-3.3): wave 11 — flow I (tenant export) walkable; §3 complete (9/9)
+  - `eb0c288` feat(phase-3.3): wave 10 — flow H (audit view) walkable
+  - `cd61a89` chore(phase-3.3): queue wave 10 (Flow H Audit View) in TODO
+  - `640767c` feat(phase-3.3): wave 9 — flow G (manage devices) walkable
+
 PORTS:        base=46838 LOCKED for Yelli main app (Phase 4 onward). Prototype runtime port 4838 unchanged.
 MODELS:
-  planning:   claude-code (Opus 4.7 — Architect ONLY per V32 R1; Wave 9 R1-deviated under standing acceptance per Wave 7 STATE.md NEXT-field recommendation — no Sonnet dispatch attempted, fifth consecutive wave)
-  execution:  claude-sonnet-4-6 (intended; Wave 9 deferred via standing acceptance, no dispatch attempt)
+  planning:   claude-code (Opus 4.7 — Architect ONLY per V32 R1; Waves 10–11 + PROTOTYPE.md all R1-deviated under standing acceptance — V32.1 environment-structural regression unchanged)
+  execution:  claude-sonnet-4-6 (intended; deferred via standing acceptance, no dispatch attempted Waves 10–11)
   governance: gemini-2.5-flash-lite
-LINES_TOUCHED: ~75L gross / ~75L net across 2 modified (prototype only).
-CHECKPOINT_TYPE: full
-FILES_TOUCHED:
-  Wave 9 — Flow G impl (Opus inline — R1 DEVIATION):
-  - prototype/src/lib/sim/repo.ts (MODIFIED +17L — new `devices.archiveOne(id, adminUserId?)` method)
-  - prototype/src/screens/ScreenAdminMembers.tsx (MODIFIED ~+58L net — filter state + per-row actions + empty state)
-  Wave 9 — Governance (Opus allow-list, this checkpoint):
-  - .cline/STATE.md (this entry — Wave 8 entry REPLACED)
-  - docs/CHANGELOG_AI.md (Wave 9 entry PREPENDED above Wave 8 entry)
-  - docs/IMPLEMENTATION_MAP.md (Phase 3.3 Wave 9 status updated; line 16 status + new ✅ Wave 9 bullet + duplicate Wave 9 entry in legacy-doc-anchor section + walkable count 6→7)
-  Wave 9 — Drift review:
-  - .cline/memory/lessons.md (NO new entry — same root cause + same mitigation as Wave 5's already-logged dispatch-layer regression; redundant; standing acceptance noted in CHANGELOG_AI Wave 9 dispatch ledger to preserve operator-visible evidence)
-TIER_CLASSIFICATION: 1 — lightweight (2 files total, ~75L gross / ~75L net; would have been a single Sonnet dispatch had the dispatch layer worked)
-DISPATCH_LEDGER (this session, Wave 9 only):
-  Executor (Opus inline, no Sonnet attempt this wave): Opus 4.7 — SUCCEEDED, R1 DEVIATION DOCUMENTED IN CHANGELOG_AI.md Wave 9 entry + this STATE.md NEXT-field
+
+LINES_TOUCHED: Wave 11 = ~318 insertions / ~16 deletions across 6 files (1 new screen + 4 sim/routing mods + CHANGELOG_AI + TODO). PROTOTYPE.md = 313L new. Wave 10 = ~150L net (1 new screen + routing + nav).
+
+CHECKPOINT_TYPE: full (PROTOTYPE.md is a Phase 3.3 deliverable, not a Wave)
+
+FILES_TOUCHED (since prior STATE.md):
+  Wave 10 (Flow H Audit View — commit `eb0c288`):
+    - prototype/src/screens/ScreenAdminAudit.tsx (NEW ~135L)
+    - prototype/src/app/page.tsx (admin-audit route added)
+    - prototype/src/components/TenantTopBar.tsx (Audit nav entry)
+  Wave 11 (Flow I Tenant Export — commit `c91b3b0`):
+    - prototype/src/screens/ScreenAdminExport.tsx (NEW ~165L)
+    - prototype/src/lib/sim/types.ts (ExportJob + TABLES.tenantExports)
+    - prototype/src/lib/sim/repo.ts (tenantExports API + helpers, ~95L append)
+    - prototype/src/lib/sim/index.ts (barrel export)
+    - prototype/src/app/page.tsx (admin-export route added)
+    - prototype/src/components/TenantTopBar.tsx (Export nav entry)
+  PROTOTYPE.md (commit `977d322`):
+    - docs/PROTOTYPE.md (NEW 313L)
+  Governance:
+    - .cline/STATE.md (this entry — Wave 9 entry replaced)
+    - docs/CHANGELOG_AI.md (Wave 10 + Wave 11 + PROTOTYPE.md entries appended; current as of this checkpoint)
+    - TODO (Wave 11 marked complete; gate-closure items queued)
+
+TIER_CLASSIFICATION: PROTOTYPE.md drafting = 1 lightweight (single doc file write). Waves 10–11 each = 1 lightweight (≤6 files, prototype-only).
+
+DISPATCH_LEDGER (Waves 10–11 + PROTOTYPE.md):
+  All Opus-inline (no Sonnet attempts) per standing R1 deviation acceptance from Wave 7's 1-word `pwd` falsification test.
 dispatch_ratio:
-  sonnet_writes: 0   (no Sonnet Edit/Write — dispatch deliberately skipped per standing acceptance)
-  opus_writes:   ~5  (Wave-9 code: 2 Edit/Write ops; this checkpoint: ~3 governance Edits)
-  ratio:         0 / 5 = 0
+  sonnet_writes: 0
+  opus_writes:   ~11 (Wave 10: ~3 · Wave 11: ~6 · PROTOTYPE.md: ~2)
+  ratio:         0
   target:        ≥ 3.0
   status:        FAIL (<1.0)
-  trigger:       extends prior waves' lessons.md entry on V32.1 dispatch-layer regression (no NEW entry — same root cause + same mitigation; redundant). Standing acceptance per Wave 7's 1-word `pwd` falsification test result.
-  root cause:    NOT Opus drift — same environment-structural Sonnet baseline overhead as Waves 5+6+7+8. Pursue framework-layer fix (skill auto-load budget) before retrying Sonnet path.
-COMMIT_HASH: pending — Wave 9 code + governance to be bundled into a single commit
+  root cause:    Unchanged — V32.1 environment-structural Sonnet baseline overhead. Pursue framework-layer fix (skill auto-load budget) before retrying Sonnet path.
+  drift entry:   NOT created — same root cause + same mitigation as already-logged Wave 5 lessons.md entry; redundant.
+
+COMMIT_HASH: `977d322` (PROTOTYPE.md) atop `c91b3b0` (Wave 11). Both on main.
