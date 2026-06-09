@@ -14,6 +14,8 @@ interface ScreenAdminMembersProps {
   tenantId: string;
 }
 
+type Filter = 'all' | 'online' | 'archived';
+
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 function deviceStatus(d: Device): 'online' | 'idle' | 'offline' | 'archived' {
@@ -60,17 +62,92 @@ function StatusPill({ status }: { status: 'online' | 'idle' | 'offline' | 'archi
 export function ScreenAdminMembers({ go, tenantId }: ScreenAdminMembersProps): JSX.Element {
   const [refreshKey, setRefreshKey] = useState(0);
   const [target, setTarget] = useState<Device | null>(null);
+  const [filter, setFilter] = useState<Filter>('all');
 
   const allDevices = useMemo(() => devices.list(tenantId), [tenantId, refreshKey]);
-  const visible = allDevices.filter((d) => d.archivedAt === null);
-  const onlineCount = visible.filter((d) => {
+  const active = allDevices.filter((d) => d.archivedAt === null);
+  const onlineCount = active.filter((d) => {
     const s = deviceStatus(d);
     return s === 'online' || s === 'idle';
   }).length;
-  const archivedCount = allDevices.length - visible.length;
+  const archivedCount = allDevices.length - active.length;
 
-  const handleSaved = (): void => {
-    setRefreshKey((k) => k + 1);
+  const visible =
+    filter === 'archived'
+      ? allDevices.filter((d) => d.archivedAt !== null)
+      : filter === 'online'
+        ? active.filter((d) => {
+            const s = deviceStatus(d);
+            return s === 'online' || s === 'idle';
+          })
+        : active;
+
+  const refresh = (): void => setRefreshKey((k) => k + 1);
+
+  const handleRename = (d: Device): void => {
+    const next = window.prompt('Rename device', d.displayName);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (trimmed === '' || trimmed === d.displayName) return;
+    devices.setDisplayName(d.id, trimmed);
+    refresh();
+  };
+
+  const handleArchive = (d: Device): void => {
+    if (!window.confirm(`Archive "${d.displayName}"? They will not appear in the device list.`)) return;
+    devices.archiveOne(d.id);
+    refresh();
+  };
+
+  const handleUnarchive = (d: Device): void => {
+    devices.unarchive(d.id);
+    refresh();
+  };
+
+  const handleRemove = (d: Device): void => {
+    if (!window.confirm(`Remove "${d.displayName}" permanently? This cannot be undone.`)) return;
+    devices.remove(d.id);
+    refresh();
+  };
+
+  const pillClass = (key: Filter): string =>
+    `h-9 px-3 rounded-full text-[12px] font-semibold ${
+      filter === key
+        ? 'bg-[#0a0a0a] text-white'
+        : 'bg-white border border-[#e5e5e5] text-[#0a0a0a] hover:border-[#0a0a0a]'
+    }`;
+
+  const renderRowActions = (d: Device): JSX.Element => {
+    if (d.archivedAt !== null) {
+      return (
+        <div className="flex flex-wrap justify-end gap-1.5">
+          <button
+            onClick={() => handleUnarchive(d)}
+            className="h-9 px-3 rounded-[8px] border border-[#e5e5e5] text-[12px] font-semibold text-[#0a0a0a] hover:border-[#0a0a0a]"
+          >Unarchive</button>
+          <button
+            onClick={() => handleRemove(d)}
+            className="h-9 px-3 rounded-[8px] border border-[#e5e5e5] text-[12px] font-semibold text-[#9a3412] hover:border-[#9a3412]"
+          >Remove</button>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-wrap justify-end gap-1.5">
+        <button
+          onClick={() => setTarget(d)}
+          className="h-9 px-3 rounded-[8px] border border-[#e5e5e5] text-[12px] font-semibold text-[#0a0a0a] hover:border-[#0a0a0a]"
+        >Change role</button>
+        <button
+          onClick={() => handleRename(d)}
+          className="h-9 px-3 rounded-[8px] border border-[#e5e5e5] text-[12px] font-semibold text-[#0a0a0a] hover:border-[#0a0a0a]"
+        >Rename</button>
+        <button
+          onClick={() => handleArchive(d)}
+          className="h-9 px-3 rounded-[8px] border border-[#e5e5e5] text-[12px] font-semibold text-[#0a0a0a] hover:border-[#0a0a0a]"
+        >Archive</button>
+      </div>
+    );
   };
 
   return (
@@ -82,7 +159,7 @@ export function ScreenAdminMembers({ go, tenantId }: ScreenAdminMembersProps): J
           <div>
             <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#6a6a6a]">Admin</div>
             <h1 className="mt-1 text-[28px] md:text-[32px] font-semibold tracking-[-0.02em] text-[#0a0a0a]">Members</h1>
-            <div className="mt-1 text-[13px] text-[#6a6a6a]">Manage device call roles</div>
+            <div className="mt-1 text-[13px] text-[#6a6a6a]">Manage devices, roles, and archive state</div>
           </div>
           <div className="text-[13px] text-[#6a6a6a]">
             {allDevices.length} device{allDevices.length === 1 ? '' : 's'} · {onlineCount} online
@@ -91,9 +168,9 @@ export function ScreenAdminMembers({ go, tenantId }: ScreenAdminMembersProps): J
 
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="flex flex-wrap gap-2">
-            <button className="h-9 px-3 rounded-full bg-[#0a0a0a] text-white text-[12px] font-semibold">All · {allDevices.length}</button>
-            <button className="h-9 px-3 rounded-full bg-white border border-[#e5e5e5] text-[#0a0a0a] text-[12px] font-semibold hover:border-[#0a0a0a]">Online · {onlineCount}</button>
-            <button className="h-9 px-3 rounded-full bg-white border border-[#e5e5e5] text-[#0a0a0a] text-[12px] font-semibold hover:border-[#0a0a0a]">Archived · {archivedCount}</button>
+            <button onClick={() => setFilter('all')} className={pillClass('all')}>All · {active.length}</button>
+            <button onClick={() => setFilter('online')} className={pillClass('online')}>Online · {onlineCount}</button>
+            <button onClick={() => setFilter('archived')} className={pillClass('archived')}>Archived · {archivedCount}</button>
           </div>
           <div className="flex-1">
             <input
@@ -104,72 +181,74 @@ export function ScreenAdminMembers({ go, tenantId }: ScreenAdminMembersProps): J
           </div>
         </div>
 
+        {visible.length === 0 && (
+          <div className="rounded-[16px] border border-dashed border-[#e5e5e5] bg-white p-8 text-center text-[13px] text-[#6a6a6a]">
+            {filter === 'archived' ? 'No archived devices.' : 'No devices match this filter.'}
+          </div>
+        )}
+
         {/* Mobile: card list */}
         <ul className="md:hidden space-y-3">
           {visible.map((d) => {
             const status = deviceStatus(d);
             return (
-              <li key={d.id} className="rounded-[16px] border border-[#e5e5e5] bg-white p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#b8a4ed] grid place-items-center text-[12px] font-semibold text-[#0a0a0a] flex-shrink-0">
-                  {initials(d.displayName)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-semibold text-[#0a0a0a] truncate">{d.displayName}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <StatusPill status={status} />
-                    <CallRoleLabel role={d.callRole} />
+              <li key={d.id} className="rounded-[16px] border border-[#e5e5e5] bg-white p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#b8a4ed] grid place-items-center text-[12px] font-semibold text-[#0a0a0a] flex-shrink-0">
+                    {initials(d.displayName)}
                   </div>
-                  <div className="mt-1 text-[12px] text-[#6a6a6a]">{formatLastSeen(d)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-semibold text-[#0a0a0a] truncate">{d.displayName}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <StatusPill status={status} />
+                      <CallRoleLabel role={d.callRole} />
+                    </div>
+                    <div className="mt-1 text-[12px] text-[#6a6a6a]">{formatLastSeen(d)}</div>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setTarget(d)}
-                  className="h-11 px-3 rounded-[8px] border border-[#e5e5e5] text-[12px] font-semibold text-[#0a0a0a] hover:border-[#0a0a0a] flex-shrink-0"
-                >Change role</button>
+                {renderRowActions(d)}
               </li>
             );
           })}
         </ul>
 
         {/* Desktop: table */}
-        <div className="hidden md:block rounded-[16px] border border-[#e5e5e5] bg-white overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-[#faf5e8] border-b border-[#e5e5e5]">
-              <tr>
-                <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Name</th>
-                <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Status</th>
-                <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Call role</th>
-                <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Last seen</th>
-                <th className="px-6 py-3 text-right text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e5e5e5]">
-              {visible.map((d) => {
-                const status = deviceStatus(d);
-                return (
-                  <tr key={d.id}>
-                    <td className="px-6 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[#b8a4ed] grid place-items-center text-[11px] font-semibold text-[#0a0a0a]">
-                          {initials(d.displayName)}
+        {visible.length > 0 && (
+          <div className="hidden md:block rounded-[16px] border border-[#e5e5e5] bg-white overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-[#faf5e8] border-b border-[#e5e5e5]">
+                <tr>
+                  <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Name</th>
+                  <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Status</th>
+                  <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Call role</th>
+                  <th className="px-6 py-3 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Last seen</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold tracking-[0.08em] uppercase text-[#6a6a6a]">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e5e5e5]">
+                {visible.map((d) => {
+                  const status = deviceStatus(d);
+                  return (
+                    <tr key={d.id}>
+                      <td className="px-6 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-[#b8a4ed] grid place-items-center text-[11px] font-semibold text-[#0a0a0a]">
+                            {initials(d.displayName)}
+                          </div>
+                          <div className="text-[14px] font-semibold text-[#0a0a0a]">{d.displayName}</div>
                         </div>
-                        <div className="text-[14px] font-semibold text-[#0a0a0a]">{d.displayName}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-3"><StatusPill status={status} /></td>
-                    <td className="px-6 py-3"><CallRoleLabel role={d.callRole} /></td>
-                    <td className="px-6 py-3 text-[13px] text-[#6a6a6a]">{formatLastSeen(d)}</td>
-                    <td className="px-6 py-3 text-right">
-                      <button
-                        onClick={() => setTarget(d)}
-                        className="h-9 px-3 rounded-[8px] border border-[#e5e5e5] text-[12px] font-semibold text-[#0a0a0a] hover:border-[#0a0a0a]"
-                      >Change role</button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-6 py-3"><StatusPill status={status} /></td>
+                      <td className="px-6 py-3"><CallRoleLabel role={d.callRole} /></td>
+                      <td className="px-6 py-3 text-[13px] text-[#6a6a6a]">{formatLastSeen(d)}</td>
+                      <td className="px-6 py-3 text-right">{renderRowActions(d)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </main>
 
       <AppFooter />
@@ -179,7 +258,7 @@ export function ScreenAdminMembers({ go, tenantId }: ScreenAdminMembersProps): J
         <OverlayCallRoleAssign
           device={target}
           onClose={() => setTarget(null)}
-          onSaved={handleSaved}
+          onSaved={refresh}
         />
       )}
     </div>

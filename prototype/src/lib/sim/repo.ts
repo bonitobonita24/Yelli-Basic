@@ -136,6 +136,22 @@ export const devices = {
     writeTable(TABLES.devices, next);
     return next.find((d) => d.id === id) ?? null;
   },
+  archiveOne(id: string, adminUserId?: string): Device {
+    const rows = readTable<Device>(TABLES.devices);
+    const prior = rows.find((d) => d.id === id);
+    if (!prior) throw new Error(`device ${id} not found`);
+    const t = now();
+    const next = rows.map((d) => (d.id === id ? { ...d, archivedAt: t } : d));
+    writeTable(TABLES.devices, next);
+    const updated = next.find((d) => d.id === id)!;
+    auditLog.append({
+      tenantId: updated.tenantId,
+      actorUserId: adminUserId ?? updated.userId,
+      action: 'device.archive',
+      payload: { deviceId: id },
+    });
+    return updated;
+  },
   archive(olderThanDays: number): number {
     const rows = readTable<Device>(TABLES.devices);
     const cutoff = new Date(now()).getTime() - olderThanDays * 24 * 60 * 60 * 1000;

@@ -2,6 +2,26 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-09 — Phase 3.3 Wave 9 — Flow G Manage Devices walkable (PRODUCT.md §3 Flow G)
+
+- Agent: CLAUDE_CODE (Opus 4.7 — R1 DEVIATION: standing acceptance per Wave 7 STATE.md NEXT-field; fifth consecutive wave Opus-inline; framework-layer skill auto-load budget fix still pending — no Sonnet dispatch attempted this wave).
+- Commit: pending (code + governance bundled).
+- Why: 7th of 9 §3 Core User Flows. Wave 4B's `ScreenAdminMembers` was narrowed to Flow C call-role-assign only; Wave 9 expands the same screen with full device-lifecycle admin: clickable All / Online / Archived filter, per-row Rename, single-device Archive, Unarchive, Remove. Reuses existing `OverlayCallRoleAssign` for role-change (Flow C).
+- Files added: none.
+- Files modified:
+  - `prototype/src/lib/sim/repo.ts` (+17L): new `devices.archiveOne(id, adminUserId?)` — single-device manual archive sibling to existing batch `devices.archive(olderThanDays)`. Emits §11-canonical singular `device.archive` audit row `{deviceId}` (distinct from existing `device.archive.batch` so admin-initiated archives are traceable). Existing `setDisplayName` / `unarchive` / `remove` unchanged (already §11-canonical from Waves 5–6).
+  - `prototype/src/screens/ScreenAdminMembers.tsx` (187L → ~245L; ~+58L net): adds `filter` state `'all' | 'online' | 'archived'`; filter pills become clickable single-source filter toggles; per-row action set splits by archive state — active devices show `Change role` / `Rename` / `Archive`, archived devices show `Unarchive` / `Remove`; empty-state card when no devices match filter; mobile card layout reflows actions below identity block. Rename uses `window.prompt`, Archive/Remove use `window.confirm` — prototype-tier UX consistent with Wave 5's name-picker pattern. Counts on pills reflect active vs total semantics (`All · {active.length}`, `Archived · {archivedCount}`).
+- Files deleted: none.
+- Schema/migrations: none. `Device.archivedAt` field already present (Wave 1 schema).
+- Sim audit emits: new single `device.archive {deviceId}` introduced (singular form, complementing existing `device.archive.batch`). All other emits unchanged. PRODUCT.md §11 enumerates `device.archive` as canonical — Wave 9 finally exercises it from the UI layer.
+- Tier: 1 — lightweight (2 files modified, ~75L gross / ~75L net; would have been a single Sonnet dispatch had the dispatch layer worked).
+- Errors encountered: none (typecheck exit 0 first try).
+- Errors resolved: none.
+- Walkable now: A Calling + B Receive + C Admin-Assigns-Role + D Register-Device + E LAN-Admin-Login + F Invite + G Manage-Devices. **7 of 9** §3 Core User Flows walkable.
+- Verification: (1) `cd prototype && npx tsc --noEmit` exits 0 first try. (2) `cd prototype && npm run dev` → http://localhost:4838 → login as admin (passphrase `yelli-admin` from Wave 7) → nav "Members" → ScreenAdminMembers; (3) click `All / Online / Archived` pills → list filters; (4) on an active row click `Rename` → enter new name → list updates; `auditLog.list()` shows `{action:'device.rename', payload:{deviceId, from, to}}`; (5) click `Archive` on active row → confirm → row disappears from All view, `Archived` pill count increments; `auditLog.list()` shows `{action:'device.archive', payload:{deviceId}}`; (6) click `Archived` pill → archived devices listed; click `Unarchive` → row returns to All view; audit `{action:'device.unarchive'}`; (7) click `Remove` on archived row → confirm → row gone permanently; audit `{action:'device.delete'}`. Filter pills show correct counts at all times.
+- Drift review: NO new `lessons.md` entry — same dispatch-layer regression root cause + same Opus-inline mitigation as Waves 5–8 (already logged); standing acceptance pattern continues without new evidence.
+- Dispatch ratio (Wave 9 session): sonnet_writes=0, opus_writes=~5 (2 code Edit/Write + ~3 governance Edits); ratio 0.0 — FAIL by V32 R9 metric. Standing acceptance per Wave 7 falsification — environment-structural, not session-accumulated.
+
 ### 2026-06-09 — Phase 3.3 Wave 8 — Flow F Invite walkable (PRODUCT.md §3 Flow F)
 
 - Agent: CLAUDE_CODE (Opus 4.7 — R1 DEVIATION: standing acceptance per STATE.md NEXT-field recommendation after Wave 7's fresh-session-reset falsification)
