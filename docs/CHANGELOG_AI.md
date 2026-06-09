@@ -2,6 +2,47 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-09 — Phase 3.3 Wave 7 — Flow E LAN admin login walkable (PRODUCT.md §3 Flow 18)
+
+- Agent: CLAUDE_CODE (Opus 4.7 — R1 DEVIATION: dispatch-layer rejection cascade persisted into fresh session)
+- Commit: `ee4c90c` (code) + this entry's checkpoint commit (governance)
+- Why: §3 Flow 18 (LAN-anonymous-admin sign-in) was the next missing core flow per STATE.md NEXT field. Step 6 lock (Argon2id passphrase + `yelli_admin_session` HttpOnly cookie + 5-step middleware chain) is Phase 4 backend concern — prototype simulates the user-facing flow (passphrase → audit emit → routing gate) without the cryptography, so Phase 4 swap is the persistence + auth-layer substitution while UI behavior already matches the contract.
+- Files (Tier 1, ~145L gross / ~55L net across 5 modified + 1 new):
+  - `prototype/src/lib/sim/types.ts` (+6L): new `AdminSession` type; new `'adminSession'` key in `TABLES` const.
+  - `prototype/src/lib/sim/repo.ts` (+48L append-only at EOF): new `adminSession` module — `current()` returns single-row or null; `login(tenantId, passphrase)` returns discriminated `{ok:true, session} | {ok:false, reason:'wrong-passphrase'}` with §11-canonical audit emit per branch (`lan.admin.login.success`/`lan.admin.login.fail` payload `{}`); `logout()` clears row + emits `lan.admin.logout`. SIM stub passphrase `'yelli-admin'` (plaintext compare) with inline marker comment pointing Phase 4 swap at Argon2id + `Tenant.adminPassphraseHash`. No edits to existing repo code — append-only addition.
+  - `prototype/src/lib/sim/index.ts` (+1L): barrel exports `adminSession`.
+  - `prototype/src/lib/sim/seed.ts` (+1L): LAN-anon seed branch calls `tenants.setAdminPassphrase(tenant.id, 'yelli-admin')` after tenant creation — emits `tenant.admin.passphrase.set` audit row so the §11-canonical first-run-wizard signature is present in sim from boot.
+  - `prototype/src/screens/ScreenAdminLogin.tsx` (NEW, 79L): `'use client'` passphrase form; controlled `<input type="password">`; submit calls `adminSession.login`; on `{ok:true}` routes to `'admin-members'`; on `{ok:false}` sets error to PRODUCT.md §3-verbatim generic string `"Couldn't sign in"` + clears input (no enumeration leak). Reuses `TenantTopBar` + `AppFooter` + `BottomNav` for layout consistency with Wave 4B's `ScreenAdminMembers`. Demo passphrase shown inline (`yelli-admin`) for prototype walkability per Phase 3.3 client-validation goal.
+  - `prototype/src/app/page.tsx` (+10L): `Screen` union gains `'admin-login'`; new gated branch — `if (screen === 'admin-members')` now checks `adminSession.current()` and returns `ScreenAdminLogin` when null; explicit `'admin-login'` branch added for direct routing. Single-source gating point — no per-route gate scattered across `ScreenAdminMembers`.
+- Audit-emit vocabulary (§11-canonical):
+  - `lan.admin.login.success` on correct passphrase — `tenantId`, `payload:{}`
+  - `lan.admin.login.fail` on wrong passphrase — `tenantId`, `payload:{}` (matches §3 line 73 generic "Couldn't sign in" + AuditLog spec verbatim)
+  - `lan.admin.logout` on logout — kept for prototype symmetry; not in §11 enumeration; Phase 4 backend may drop in favor of cookie-expiry-only signal
+  - `tenant.admin.passphrase.set` emitted from sim seed on tenant creation (already existed via `tenants.setAdminPassphrase`; Wave 7 just exercises it)
+- TypeScript: `cd prototype && npx tsc --noEmit` → exit 0 on first run (no errors, no warnings).
+- DISPATCH-LAYER REGRESSION — FRESH-SESSION HYPOTHESIS FALSIFIED:
+  - Wave 6 STATE.md NEXT field recommended testing a fresh Claude Code session for Wave 7 to reset accumulated baseline context inheritance.
+  - Wave 7 opened in a verified fresh session. Two dispatch attempts:
+    1. `Agent(subagent_type:"general-purpose", model:"sonnet")` with ~3K-token wave-impl prompt → REJECTED "Prompt is too long" (agentId `a933df73...`)
+    2. Same agent with the literal 1-word prompt `pwd` as a falsification test → ALSO REJECTED "Prompt is too long" (agentId `a076ca12...`)
+  - Hypothesis FALSIFIED. A 1-word prompt rejection at fresh-session start proves the rejection is NOT session-accumulated context overhead — it is **environment-structural Sonnet baseline inheritance**. The Sonnet subagent's auto-loaded skills + MCP descriptions exceed budget *before* the task prompt is evaluated, independent of session age.
+  - Cumulative session-failure count across Waves 5+6+7: **8 dispatches, 3 subagent_types (general-purpose, Explore, code-simplifier:code-simplifier), 0 successes** at prompt sizes spanning 1 word to ~3K tokens.
+  - Per V32 R4 and prior wave precedent: fell back to Opus inline as **documented R1 deviation**. Same root cause as existing `🔴 V32.1 dispatch-layer regression at small prompt sizes` lessons.md entry — no new entry written (redundant; same diagnosis, same mitigation).
+  - This is the THIRD consecutive wave the R1-deviation pattern has been forced. Tier 1 work justifies Opus inline as bounded cost when dispatch path is structurally unavailable; the deviation is being honestly recorded for audit (not suppressed) so R9 metric retains signal for genuine future Opus-drift events.
+- dispatch_ratio (Wave 7 only):
+  - sonnet_writes: 0 (dispatch-layer-blocked, 2 attempts including 1-word falsification test)
+  - opus_writes: 6 code edits + 3 governance edits (CHANGELOG + IMPLEMENTATION_MAP + STATE.md checkpoint) = 9
+  - ratio: 0 / 9 = 0 — status FAIL (<1.0)
+  - trigger: extends Wave 5+6 lessons.md entry; no new entry (redundant). Root cause confirmed environment-structural by 1-word falsification.
+- Walkability:
+  - `cd prototype && npm run dev` → http://localhost:4838
+  - Top-bar/sidebar **Admin** → routed to admin-members → no active session → login screen shown
+  - Enter wrong passphrase → generic "Couldn't sign in" + `lan.admin.login.fail` audit row
+  - Enter `yelli-admin` → routed to ScreenAdminMembers (Wave 4B Flow C) + `lan.admin.login.success` audit row
+  - Direct nav to `admin-login` works as standalone route too
+- §3 Core User Flows walkable: **5 of 9** (was 4): A Calling + B Receive + C Admin-Assigns-Role + D Register-Device + **E LAN-Admin-Login**
+- Remaining §3 flows (4): F Invite, G Manage Devices full, H Audit View, I Tenant Export
+
 ### 2026-06-09 — Phase 3.3 Wave 6 — Housekeeping: sim audit emits canonical (collapses Wave 4B + Wave 5 double-emit pairs)
 - Agent: CLAUDE_CODE (Opus 4.7 inline — R1 DEVIATION, see Dispatch ledger)
 - Why: STATE.md NEXT-field housekeeping bundle. Two prior waves left audit-emit drift: Wave 4B's `device.role.assign` payload was `{deviceId, role}` instead of §11's `{from, to}`; Wave 5's first-join scenario emitted BOTH a UI-side `device.first_join` and sim's trailing `device.rename` for the same operation. Closing both before Phase 4 backend swap ensures the sim layer's audit shape already matches the production contract — the swap becomes a pure persistence substitution, not a vocabulary migration.
