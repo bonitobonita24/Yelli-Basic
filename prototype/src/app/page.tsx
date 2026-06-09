@@ -6,6 +6,7 @@ import { ScreenActiveCall } from '@/screens/ScreenActiveCall';
 import { ScreenAdminMembers } from '@/screens/ScreenAdminMembers';
 import { ScreenAdminLogin } from '@/screens/ScreenAdminLogin';
 import { ScreenAdminInvitations } from '@/screens/ScreenAdminInvitations';
+import { ScreenAdminAudit } from '@/screens/ScreenAdminAudit';
 import { ScreenJoinByInvite } from '@/screens/ScreenJoinByInvite';
 import { adminSession, seedDefaults, tenants, type CallRole } from '@/lib/sim';
 
@@ -15,6 +16,7 @@ type Screen =
   | 'admin-members'
   | 'admin-login'
   | 'admin-invitations'
+  | 'admin-audit'
   | 'join-invite';
 type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
 
@@ -78,6 +80,13 @@ export default function HomePage(): JSX.Element {
       return <ScreenAdminLogin go={go} tenantId={tenantId} />;
     }
     return <ScreenAdminInvitations go={go} tenantId={tenantId} />;
+  }
+
+  if (screen === 'admin-audit') {
+    if (!adminSession.current()) {
+      return <ScreenAdminLogin go={go} tenantId={tenantId} />;
+    }
+    return <ScreenAdminAudit go={go} tenantId={tenantId} />;
   }
 
   if (screen === 'admin-login') {
