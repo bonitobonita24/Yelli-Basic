@@ -2,6 +2,42 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-09 — Phase 3.3 Wave 8 — Flow F Invite walkable (PRODUCT.md §3 Flow F)
+
+- Agent: CLAUDE_CODE (Opus 4.7 — R1 DEVIATION: standing acceptance per STATE.md NEXT-field recommendation after Wave 7's fresh-session-reset falsification)
+- Commit: `ac1a003` (code) + this entry's checkpoint commit (governance)
+- Why: Continue Phase 3.3 walkable progression. Adds 6th of 9 §3 Core User Flows: a cloud + LAN-account-mode admin can invite a member by email; an invited recipient can accept via the simulated invitation link and become a tenant member.
+- Files added:
+  - `prototype/src/screens/ScreenAdminInvitations.tsx` (~150L) — admin-gated screen: pending/accepted/expired Invitation list, email-input create form (7-day TTL handled by `sim.invitations.create` from Wave 2B), "Open link" deep-routes to ScreenJoinByInvite via new `go('join-invite:<id>')` protocol, "Revoke" calls `sim.invitations.expire`. On-demand `ensureAdminUser(tenantId)` synthesizes a stub admin User when the seed mode is LAN-anonymous (no users seeded) so `invitations.create(tenantId, email, invitedByUserId)` has a valid `invitedByUserId` without changing the global seed mode — preserves Wave 7 admin-login + Wave 5 first-join walkability.
+  - `prototype/src/screens/ScreenJoinByInvite.tsx` (~120L) — 3-phase state machine: `review` → `accepted` | `invalid`. Initial state computed in one useMemo (validates tenant scope, expiry, already-accepted). On accept: provisions the member User via `sim.users.create` if not already present, then `sim.invitations.accept` (sim repo emits §11-canonical `invitation.accept` audit row). PRODUCT.md §3-compatible generic copy on invalid/expired (no enumeration leak).
+- Files modified:
+  - `prototype/src/app/page.tsx` (+33L): Screen union gains `'admin-invitations'` + `'join-invite'`; new `joinInviteId` state; `go()` parses `'join-invite:<id>'` protocol and pre-fills `joinInviteId`; `'admin-invitations'` admin-gated via `adminSession.current()` mirroring Wave 7's single-source routing gate (no per-screen guard spread across screens).
+  - `prototype/src/components/TenantTopBar.tsx` (-1L net): nav `items` swap stub `'members'`/`'orgSettings'` for the real routes `'admin-members'` + new `'admin-invitations'` (matches BottomNav `'admin-members'` key already in place from Wave 4).
+  - `TODO`: append Wave 8 line marked complete.
+- Files deleted: none.
+- Schema/migrations: none. `Invitation` type + `invitations` repo unchanged (Wave 2B baseline already had `create / accept / expire / list / byId`). `User` type + `users.create` unchanged.
+- Sim audit emits: unchanged — `invitation.create {invitationId, email}` and `invitation.accept {invitationId}` already present in Wave 2B baseline. `user.create {userId, email, role}` already present. All §11-canonical; no new audit-action enum values introduced this wave.
+- Tier: 1 — lightweight (4 files total, ~313L gross, ~313L net new — no deletions; would have been a single Sonnet dispatch had the dispatch layer worked).
+- Errors encountered: none (typecheck exit 0 first try).
+- Errors resolved: none.
+- Walkable now: A Calling + B Receive + C Admin-Assigns-Role + D Register-Device + E LAN-Admin-Login + F Invite. **6 of 9** §3 Core User Flows walkable.
+- Verification: (1) `cd prototype && npx tsc --noEmit` exits 0 first try; (2) `cd prototype && npm run dev` → http://localhost:4838 → log in as admin (Wave 7: passphrase `yelli-admin`) → nav "Invites" → enter an email → "Send invite" → list shows `Pending` row → "Open link" → ScreenJoinByInvite shows `review` phase with the invited email → enter a name → "Accept & join" → `accepted` phase confirms; back at Invites the row now shows `Accepted`. `auditLog.list()` last two entries: `{action:'user.create', payload:{email, role:'member'}}` then `{action:'invitation.accept', payload:{invitationId}}`. (3) Revoke on a pending invitation → row flips to `Expired`. (4) Already-accepted or expired link → `invalid` phase ("This invitation is invalid, expired, or has been revoked.").
+
+#### Dispatch ledger (this session, Wave 8)
+
+- Executor (Opus inline): Opus 4.7 — SUCCEEDED, R1 DEVIATION DOCUMENTED HERE
+- No Sonnet dispatch attempted this wave: per STATE.md NEXT-field standing recommendation after Wave 7's 1-word-`pwd` falsification test, fresh-session resets do NOT clear the environment-structural Sonnet baseline-overhead regression; pursuing further Sonnet dispatches at the prototype scope would only burn additional rejection cycles without surfacing new diagnostic signal. Fourth consecutive wave R1 deviation.
+
+#### Dispatch ratio (R9)
+
+- sonnet_writes: 0 (no Sonnet Edit/Write — dispatch attempt deliberately skipped under standing recommendation)
+- opus_writes: ~7 (Wave-8 code: 4 Edit/Write ops on 4 files; this checkpoint: ~3 governance Edits)
+- ratio: 0 / 7 = 0
+- target: ≥ 3.0
+- status: FAIL (<1.0)
+- trigger: extends prior waves' lessons.md entry on V32.1 dispatch-layer regression (no NEW entry — same root cause + same mitigation; redundant)
+- root cause: NOT Opus drift — same as Waves 5+6+7 environment-structural baseline overhead. Pursue framework-layer fix (skill auto-load budget) before retrying Sonnet path.
+
 ### 2026-06-09 — Phase 3.3 Wave 7 — Flow E LAN admin login walkable (PRODUCT.md §3 Flow 18)
 
 - Agent: CLAUDE_CODE (Opus 4.7 — R1 DEVIATION: dispatch-layer rejection cascade persisted into fresh session)
