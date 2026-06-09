@@ -5,9 +5,17 @@ import { ScreenApp } from '@/screens/ScreenApp';
 import { ScreenActiveCall } from '@/screens/ScreenActiveCall';
 import { ScreenAdminMembers } from '@/screens/ScreenAdminMembers';
 import { ScreenAdminLogin } from '@/screens/ScreenAdminLogin';
+import { ScreenAdminInvitations } from '@/screens/ScreenAdminInvitations';
+import { ScreenJoinByInvite } from '@/screens/ScreenJoinByInvite';
 import { adminSession, seedDefaults, tenants, type CallRole } from '@/lib/sim';
 
-type Screen = 'app' | 'call' | 'admin-members' | 'admin-login';
+type Screen =
+  | 'app'
+  | 'call'
+  | 'admin-members'
+  | 'admin-login'
+  | 'admin-invitations'
+  | 'join-invite';
 type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
 
 export default function HomePage(): JSX.Element {
@@ -16,6 +24,7 @@ export default function HomePage(): JSX.Element {
   const [myCallRole, setMyCallRole] = useState<CallRole>('both');
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [joinInviteId, setJoinInviteId] = useState<string | null>(null);
 
   useEffect(() => {
     seedDefaults({ edition: 'lan', lanAccountMode: false });
@@ -34,7 +43,18 @@ export default function HomePage(): JSX.Element {
     );
   }
 
-  const go = (s: string): void => setScreen(s as Screen);
+  const go = (s: string): void => {
+    // Allow `join-invite:<id>` deep-link from the Invitations screen.
+    if (s.startsWith('join-invite:')) {
+      setJoinInviteId(s.slice('join-invite:'.length));
+      setScreen('join-invite');
+      return;
+    }
+    if (s === 'join-invite') {
+      setJoinInviteId(null);
+    }
+    setScreen(s as Screen);
+  };
 
   if (screen === 'call') {
     return (
@@ -53,8 +73,19 @@ export default function HomePage(): JSX.Element {
     return <ScreenAdminMembers go={go} tenantId={tenantId} />;
   }
 
+  if (screen === 'admin-invitations') {
+    if (!adminSession.current()) {
+      return <ScreenAdminLogin go={go} tenantId={tenantId} />;
+    }
+    return <ScreenAdminInvitations go={go} tenantId={tenantId} />;
+  }
+
   if (screen === 'admin-login') {
     return <ScreenAdminLogin go={go} tenantId={tenantId} />;
+  }
+
+  if (screen === 'join-invite') {
+    return <ScreenJoinByInvite go={go} tenantId={tenantId} invitationId={joinInviteId} />;
   }
 
   return (
