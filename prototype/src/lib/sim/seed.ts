@@ -29,6 +29,7 @@ export function seedDefaults(mode: PrototypeMode): void {
 
   if (mode.edition === 'lan' && !mode.lanAccountMode) {
     const tenant = tenants.create({ slug: 'default', displayName: 'Yelli LAN' });
+    tenants.setAdminPassphrase(tenant.id, 'yelli-admin');
     devices.create({
       tenantId: tenant.id,
       displayName: 'Alex (Reception)',

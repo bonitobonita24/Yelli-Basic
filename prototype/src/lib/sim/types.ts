@@ -73,6 +73,11 @@ export type Tenant = {
   createdAt: string;
 };
 
+export type AdminSession = {
+  tenantId: string;
+  issuedAt: string;
+};
+
 export type Invitation = {
   id: string;
   tenantId: string;
@@ -100,6 +105,7 @@ export const TABLES = {
   tenants: 'tenants',
   invitations: 'invitations',
   auditLog: 'auditLog',
+  adminSession: 'adminSession',
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];

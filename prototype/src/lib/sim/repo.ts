@@ -6,6 +6,7 @@ import { now } from './clock';
 import { readTable, writeTable } from './storage';
 import {
   TABLES,
+  type AdminSession,
   type AuditLog,
   type CallEndReason,
   type CallRole,
@@ -445,5 +446,52 @@ export const invitations = {
     const updated = next.find((i) => i.id === id);
     if (!updated) throw new Error(`invitation ${id} not found`);
     return updated;
+  },
+};
+
+// ─── Admin Session (LAN anonymous mode — Flow E) ────────────────────────────────
+// SIM: real impl uses Argon2id hash on Tenant.adminPassphraseHash + HttpOnly
+// `yelli_admin_session` cookie. Prototype uses plaintext compare + sim table row.
+const SIM_ADMIN_PASSPHRASE = 'yelli-admin';
+
+export const adminSession = {
+  current(): AdminSession | null {
+    const rows = readTable<AdminSession>(TABLES.adminSession);
+    return rows[0] ?? null;
+  },
+  login(
+    tenantId: string,
+    passphrase: string,
+  ): { ok: true; session: AdminSession } | { ok: false; reason: 'wrong-passphrase' } {
+    if (passphrase !== SIM_ADMIN_PASSPHRASE) {
+      auditLog.append({
+        tenantId,
+        actorUserId: null,
+        action: 'lan.admin.login.fail',
+        payload: {},
+      });
+      return { ok: false, reason: 'wrong-passphrase' };
+    }
+    const row: AdminSession = { tenantId, issuedAt: now() };
+    writeTable(TABLES.adminSession, [row]);
+    auditLog.append({
+      tenantId,
+      actorUserId: null,
+      action: 'lan.admin.login.success',
+      payload: {},
+    });
+    return { ok: true, session: row };
+  },
+  logout(): void {
+    const current = adminSession.current();
+    writeTable(TABLES.adminSession, []);
+    if (current) {
+      auditLog.append({
+        tenantId: current.tenantId,
+        actorUserId: null,
+        action: 'lan.admin.logout',
+        payload: {},
+      });
+    }
   },
 };

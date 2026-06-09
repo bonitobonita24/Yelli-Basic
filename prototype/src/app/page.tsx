@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { ScreenApp } from '@/screens/ScreenApp';
 import { ScreenActiveCall } from '@/screens/ScreenActiveCall';
 import { ScreenAdminMembers } from '@/screens/ScreenAdminMembers';
-import { seedDefaults, tenants, type CallRole } from '@/lib/sim';
+import { ScreenAdminLogin } from '@/screens/ScreenAdminLogin';
+import { adminSession, seedDefaults, tenants, type CallRole } from '@/lib/sim';
 
-type Screen = 'app' | 'call' | 'admin-members';
+type Screen = 'app' | 'call' | 'admin-members' | 'admin-login';
 type Overlay = 'incomingCall' | 'namePicker' | 'pwa' | 'offline' | null;
 
 export default function HomePage(): JSX.Element {
@@ -46,7 +47,14 @@ export default function HomePage(): JSX.Element {
   }
 
   if (screen === 'admin-members') {
+    if (!adminSession.current()) {
+      return <ScreenAdminLogin go={go} tenantId={tenantId} />;
+    }
     return <ScreenAdminMembers go={go} tenantId={tenantId} />;
+  }
+
+  if (screen === 'admin-login') {
+    return <ScreenAdminLogin go={go} tenantId={tenantId} />;
   }
 
   return (
