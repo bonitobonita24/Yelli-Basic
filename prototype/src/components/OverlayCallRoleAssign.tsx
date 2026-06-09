@@ -37,9 +37,9 @@ function OverlayCallRoleAssign({ device, onClose, onSaved }: OverlayCallRoleAssi
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center px-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="overlay-role-assign-title" className="fixed inset-0 z-50 bg-black/40 grid place-items-center px-4">
       <div className="w-full max-w-md bg-white rounded-[20px] p-6 shadow-xl">
-        <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#6a6a6a]">Set call role</div>
+        <div id="overlay-role-assign-title" className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#6a6a6a]">Set call role</div>
         <div className="mt-1 text-[18px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">{device.displayName}</div>
 
         <div className="mt-5 space-y-2">

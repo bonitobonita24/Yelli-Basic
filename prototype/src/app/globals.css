@@ -11,7 +11,7 @@
  */
 :root {
   /* Surfaces */
-  --color-canvas: #FAF7F2;
+  --color-canvas: #fffaf0;
   --color-surface: #FFFFFF;
   --color-surface-elevated: #FFFDFA;
 
@@ -22,15 +22,15 @@
 
   /* Primary + brand accents */
   --color-primary: #0A0A0A;
-  --color-brand-pink: #FF6FB5;
-  --color-brand-teal: #2EC4B6;
+  --color-brand-pink: #ff4d8b;
+  --color-brand-teal: #1a3a3a;
   --color-brand-lavender: #B8A4E3;
   --color-brand-peach: #FFB084;
-  --color-brand-mint: #A8E6CF;
-  --color-brand-coral: #FF8A80;
+  --color-brand-mint: #a4d4c5;
+  --color-brand-coral: #ff6b5a;
 
   /* Semantic */
-  --color-success: #A8E6CF;
+  --color-success: #22c55e;
   --color-success-strong: #1B8A5A;
   --color-warning: #FFB084;
   --color-warning-strong: #C45A1F;

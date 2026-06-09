@@ -248,3 +248,23 @@ Prototype runtime: Next.js 14 App Router (matches inputs.yml `apps[].framework=n
 Flow scope: all 9 Core User Flows declared in PRODUCT.md §3 MUST be walkable end-to-end in the prototype before Phase 3.3 gate-closure (per the V32.6 hard-gate requirement before Phase 3.5 begins).
 
 Locked at: Phase 3.3 Wave 2 of V32.6.1 canary rebuild (2026-06-08).
+
+---
+
+## LOCKED — Phase 3.3 Gate-Closure Design Decisions (2026-06-09)
+
+**Trigger:** `/design-review` run for Phase 3.3 gate-closure surfaced 1 CRITICAL + 3 MAJOR flags. Refines applied to F1 (token drift) and F4 (a11y attrs). The following decisions resolve the remaining contract gaps (F2, F3) and document a pre-existing font substitution.
+
+**Decision 1 — Token consumption boundary (resolves F2):**
+The `prototype/` directory hardcodes hex literals inline (~250 occurrences) rather than consuming `globals.css` CSS variables or `tokens.ts` exports. This is **accepted for prototype scope only**. Phase 4 Parts 5-6 (production UI scaffold) MUST wire shadcn/ui theme to read `globals.css` CSS variables — no inline hex literals in production component code. `docs/DESIGN.md` is the canonical source; `globals.css` is the runtime mirror; `tokens.ts` is informational only and may be retired in Phase 4 if redundant with the shadcn theme config.
+
+**Decision 2 — Caption typography substitution (resolves F3):**
+`docs/DESIGN.md` defines the `caption` slot as 13px / weight 500. Prototype components use 13px / weight 400 for muted supporting body text (no `font-semibold`). This weight delta is **accepted as a soft variant of the caption slot** rather than introducing a new `caption-soft` slot. Phase 4 may consolidate via a Tailwind `text-caption` utility that defaults to weight 400 and accepts a `font-semibold` modifier when the heavier variant is needed.
+
+**Decision 3 — Display font substitution:**
+`docs/DESIGN.md` specifies `"Plain Black, Inter, sans-serif"` for display slots. Plain Black is a paid commercial typeface — substituting to Inter for all slots per Scenario 33 ("substitute the closest Google Fonts alternative; note substitution in DECISIONS_LOG.md with both names"). This applies to prototype AND Phase 4 production unless a license is procured.
+
+**Decision 4 — Font loading mechanism (Phase 4 follow-up):**
+Prototype uses `@import url('https://fonts.googleapis.com/...Inter...')` in `globals.css`. Phase 4 Parts 5-6 MUST migrate to `next/font/google` for correct Next.js production optimization (FOUT prevention, self-hosting, preload hints). Logged as a Phase 4 prerequisite, not a prototype defect.
+
+Locked at: Phase 3.3 gate-closure design refine (2026-06-09).

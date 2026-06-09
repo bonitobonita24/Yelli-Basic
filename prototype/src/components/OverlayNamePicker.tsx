@@ -19,10 +19,10 @@ export default function OverlayNamePicker(props: Props): JSX.Element {
   const canCancel = !isFirstJoin && typeof onClose === 'function';
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="overlay-name-picker-title" className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-[20px] bg-white shadow-2xl overflow-hidden">
         <div className="p-6 md:p-8">
-          <h3 className="text-[24px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">
+          <h3 id="overlay-name-picker-title" className="text-[24px] font-semibold tracking-[-0.01em] text-[#0a0a0a]">
             What should we call you?
           </h3>
           <p className="mt-2 text-[13px] text-[#6a6a6a]">

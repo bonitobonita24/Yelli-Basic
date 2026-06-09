@@ -68,7 +68,7 @@ export function ScreenActiveCall(props: Props): JSX.Element {
         <div className="flex items-center gap-2 md:gap-3 px-3 py-3 rounded-full bg-black/40 backdrop-blur-lg border border-white/10">
           <button onClick={() => {}} className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/15 hover:bg-white/25 grid place-items-center text-[18px]" title="Mute">🎤</button>
           <button onClick={() => {}} className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/15 hover:bg-white/25 grid place-items-center text-[18px]" title="Camera">📷</button>
-          <button onClick={endCall} className="w-14 h-11 md:w-16 md:h-12 rounded-full bg-[#ef4444] hover:bg-[#b91c1c] grid place-items-center text-[18px]" title="End call">📞</button>
+          <button onClick={endCall} aria-label="End call" className="w-14 h-11 md:w-16 md:h-12 rounded-full bg-[#ef4444] hover:bg-[#b91c1c] grid place-items-center text-[18px]" title="End call">📞</button>
           <button onClick={() => {}} className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/15 hover:bg-white/25 grid place-items-center text-[18px]" title="Speaker">🔊</button>
           <button onClick={() => {}} className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/15 hover:bg-white/25 grid place-items-center text-[18px]" title="Swap PiP">🔄</button>
         </div>

@@ -19,10 +19,10 @@ function initials(name: string): string {
 export default function OverlayIncomingCall(props: Props): JSX.Element {
   const { callerName, callerDeviceName, onAccept, onReject } = props;
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="overlay-incoming-call-title" className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-[20px] bg-white shadow-2xl overflow-hidden">
         <div className="p-6 md:p-8 grid place-items-center text-center">
-          <div className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#6a6a6a]">
+          <div id="overlay-incoming-call-title" className="text-[11px] font-semibold tracking-[0.16em] uppercase text-[#6a6a6a]">
             Incoming call
           </div>
           <div className="mt-4 w-24 h-24 rounded-full bg-[#ffb084] grid place-items-center text-[#0a0a0a] text-[32px] font-semibold">
