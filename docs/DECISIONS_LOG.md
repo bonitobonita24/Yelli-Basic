@@ -268,3 +268,47 @@ The `prototype/` directory hardcodes hex literals inline (~250 occurrences) rath
 Prototype uses `@import url('https://fonts.googleapis.com/...Inter...')` in `globals.css`. Phase 4 Parts 5-6 MUST migrate to `next/font/google` for correct Next.js production optimization (FOUT prevention, self-hosting, preload hints). Logged as a Phase 4 prerequisite, not a prototype defect.
 
 Locked at: Phase 3.3 gate-closure design refine (2026-06-09).
+
+---
+
+## LOCKED — Phase 3.3 Client Sign-Off (2026-06-11)
+
+**Trigger:** Final gate-closure for Phase 3.3 per V32.6 hard-gate requirement (phases.md §Phase 3.3). All technical gates cleared (9/9 §3 flows walkable, `docs/PROTOTYPE.md` drafted, `/design-review` GREEN-AFTER-REFINE at 94/100). This entry records the client sign-off that closes Phase 3.3 and unblocks Phase 3.5.
+
+**Client:** Bonito Bonita (solo project — client and developer are the same person; sign-off is a formal framework gate, not a stakeholder review).
+
+**Verification basis:**
+1. Playwright walkthrough during the design-review session (2026-06-09) verified all 9 flows end-to-end at the data layer — canonical audit emissions confirmed live, sim state machines advance correctly.
+2. Manual in-browser walkthrough (2026-06-10, prototype dev server port 4838) covered Flows A–H interactively. Flow I (tenant export) covered by Playwright pass.
+
+**Per-flow verdict (all 9 §3 Core User Flows):**
+
+| Flow | Title                                | Verdict | Notes                                                       |
+|------|--------------------------------------|---------|-------------------------------------------------------------|
+| A    | Member places a 1-on-1 call          | ✅ PASS | Sim signaling + role propagation + audit emit verified      |
+| B    | Member receives a call               | ✅ PASS | Incoming overlay + accept/decline + endReason machine OK    |
+| C    | Admin assigns call role              | ✅ PASS | Role overlay + `device.role.set {from,to}` audit OK         |
+| D    | Device first-join naming             | ✅ PASS | OverlayNamePicker auto-trigger + `device.first_join` OK     |
+| E    | LAN anonymous admin login            | ✅ PASS (with deferred UX bug — see Deferrals) |
+| F    | Invite member by email               | ✅ PASS | 7-day expiry + `invitation.create` + `user.create` OK       |
+| G    | Manage devices (rename / archive)    | ✅ PASS | Wave 9 `device.archive` split intact; audit pills correct   |
+| H    | Audit log view                       | ✅ PASS | Search + category filter + read-only invariant verified     |
+| I    | Tenant export (full JSON snapshot)   | ✅ PASS | Async queued → processing → ready + 24h signed URL OK       |
+
+**Scope confirmed:** the prototype covers every §3 Core User Flow verbatim. No flows added, removed, or scope-trimmed during Phase 3.3. The simulated→production swap boundary documented in `docs/PROTOTYPE.md` (6 sim namespaces under `prototype/src/lib/sim/index.ts`) is the binding contract Phase 4 will honor.
+
+**Deferrals (logged here for Phase 4 pickup — not blocking sign-off):**
+
+1. **Flow E LAN-admin-login UI gate re-render no-op.** `ScreenAdminLogin.submit()` calls `go('admin-members')`, but when the user arrived via a gated nav click, `screen` state is already `'admin-members'` → React `setState` bails on same-value primitive → no re-render → user appears stuck on login despite successful auth. Data layer is 100% correct (session row written, `lan.admin.login.success` audit emitted, reload bypasses gate). **Phase 4 fix:** wire via tRPC session query + react-query invalidation (structurally different from prototype solution). Do NOT refine in prototype — the production fix shape is different from any prototype patch.
+
+2. **Overlay heading semantics.** 2 overlays (`OverlayIncomingCall`, `OverlayCallRoleAssign`) use eyebrow `<div>` instead of semantic `<h*>` for `aria-labelledby`. Phase 4 should promote to `<h2>` when wiring the production component library.
+
+3. **Font loading mechanism.** Prototype uses CSS `@import` for Inter; Phase 4 Parts 5-6 migrates to `next/font/google` (already locked 2026-06-09 §Decision 4).
+
+4. **Token consumption boundary.** Prototype hardcodes hex literals inline; Phase 4 Parts 5-6 wires shadcn theme to read `globals.css` CSS variables (already locked 2026-06-09 §Decision 1).
+
+**Divergences from PRODUCT.md:** none. All declared §3 flows implemented as specified.
+
+**Sign-off statement:** Phase 3.3 is closed. The interactive prototype + `docs/PROTOTYPE.md` + the 6-namespace swap boundary constitute the binding behavioral blueprint for Phase 4. Phase 3.5 (Execution Plan generation) is unblocked.
+
+Locked at: Phase 3.3 client sign-off — gate-closure complete (2026-06-11).
