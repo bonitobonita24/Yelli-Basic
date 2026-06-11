@@ -665,3 +665,22 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Content: simulation technique (localStorage + in-tab pub/sub), simulated data model (8 tables), §11-canonical audit vocabulary inventory, Flows A–I walkthroughs (all 9 §3 Core User Flows) with states + audit emits per flow, simulated→production swap-boundary table mapping every sim API to its Phase 4 tRPC/Prisma/BullMQ/Valkey binding, out-of-scope list (real WebRTC/SMTP/Web Push/Argon2id/cron/cloud-onboarding all explicitly deferred to Phase 4), verification protocol, gate-closure outstanding items
 - Locked contracts for Phase 4: @/lib/sim barrel is the sole UI data import surface; audit-action vocabulary verbatim; status machines (device/invitation/export job) verbatim; UI MUST NOT import from repo.ts/storage.ts/clock.ts directly
 - Next: /design-review against PA MOCKUP.jsx + finalized tokens; client sign-off → DECISIONS_LOG.md → close Phase 3.3 → Phase 3.5
+
+## 2026-06-11 — Phase 3.5 Execution Plan generated (brownfield-aware, 9 sessions ≤80K each)
+- Agent:               CLAUDE_CODE (Opus 4.7 architect + Sonnet executor for file write)
+- Why:                 Phase 3.3 closed (commit `2a5b1dc`). V32.6 mandates Phase 3.5 produce `.cline/tasks/execution-plan.md` before Phase 4 begins. Plan reconciles brownfield reality (Phase 4 Parts 1–8 already BUILT in May 2026 V31 adoption) with V32.6 intent (prototype→production wiring is the actual Phase 4 work).
+- Files added:         .cline/tasks/execution-plan.md (136L) — 9-session schedule, dependency graph, per-session pre-flight, skill activation schedule, Output Equivalence Guarantee, human hand-off contract.
+- Files modified:      docs/STATE.md (Phase 3.5 checkpoint + dispatch_ratio), docs/CHANGELOG_AI.md (this entry).
+- Complexity profile:  8 domain entities + 3 Auth.js-managed; 8 modules; 9 §3 flows; 6 BullMQ queues; hybrid LAN+Cloud tenancy; WebRTC + WebSocket signaling + Valkey pub/sub; PWA-only (no native mobile). Bucket: MEDIUM (SMALL entity count, but cross-cutting realtime + dual-edition deployment elevate effective complexity).
+- Session schedule:    4.1 Foundation finalization (shadcn init verify + securityVersion wiring); 4.2 Swap A Devices+Auth (fixes Flow E re-render deferral); 4.3 Swap B Calling subsystem (largest, ⚠ AT RISK); 4.4 Swap C Tenancy+Members+Invitations; 4.5 Swap D Audit+Branding; 4.6 BullMQ workers (6 queues); 4.7 PWA + Web Push + offline; 4.8 Design system finalization (3 of 4 Phase 3.3 deferrals); 4.9 Pre-production validation.
+- V32 rule compliance:
+  R1 (Zero Opus Execution):    PASS — execution-plan.md (not on R8 allow-list) dispatched to Sonnet; STATE.md + CHANGELOG_AI.md are R8 allow-list writes.
+  R2 (File-Size Dispatch):     PASS — Sonnet task was single mechanical write (136L target, no analysis).
+  R6 (Scout-Before-Plan):      PASS — 3 parallel Scouts dispatched for PRODUCT.md + DECISIONS_LOG.md + IMPLEMENTATION_MAP.md. PRODUCT.md Scout REJECTED ("Prompt is too long" — documented V32.1 baseline-overhead regression); recovered via `ctx_execute_file` sandbox extraction (raw bytes never entered Opus context). DECISIONS_LOG + IMPLEMENTATION_MAP Scouts succeeded.
+  R7 (Default Parallel Fan-Out): PASS — 3 Scouts in one Opus response.
+  R8 (Opus Write Allow-List):  PASS — only STATE.md + CHANGELOG_AI.md written directly by Opus.
+  R9 (Dispatch Ratio Metric):  sonnet_writes=1 / opus_writes=2 = 0.5 (WARN). Phase 3.5 is intrinsically a single-Sonnet-write phase (one plan file); the metric will rebalance starting at session 4.1.
+- Errors encountered:  PRODUCT.md Scout rejected by V32.1 baseline-overhead regression (env-structural; falsified-as-session-accumulated 2026-06-09 per memory 10788).
+- Errors resolved:     Pivoted to `mcp__plugin_context-mode_context-mode__ctx_execute_file` for PRODUCT.md structural extraction; bytes stayed in sandbox.
+- Hand-off:            Human reviews `.cline/tasks/execution-plan.md`. Next session: fresh Claude Code → "Start Part 4.1".
+- Commit:              [pending — atomic commit after this entry lands]
