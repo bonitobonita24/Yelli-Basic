@@ -1,7 +1,7 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold (swarm/rebuild · S5 complete, 2026-06-12)
+## Current State — Clean-Slate Scaffold (swarm/rebuild · S4b complete → S4 DONE, 2026-06-12)
 
 PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
               on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) + S2 (Part 3:
@@ -9,12 +9,11 @@ PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by 
               packages/jobs) + S4a-1 (Part 5, app FOUNDATION) + **S4a-2 (Part 5, 17 shadcn primitives
               + src/lib/tokens.ts Clay mirror + Vitest token-parity drift guard)** are complete.
 
-              ⚠ S4 IS NOT YET COMPLETE — one sub-session remains. S4 (apps/yelli) was AT_RISK and, on
-              filesystem-grounded re-scope, exceeds the ≤12-file / ≤500-line single-session budget by
-              ~2× even for the approved S4a half. It is split into THREE within-budget sessions:
-              S4a-1 (app foundation — DONE), S4a-2 (17 shadcn primitives + tokens.ts mirror + Vitest
-              token-parity test — DONE this session), S4b (Auth.js v5 + tRPC v11 skeleton + 5 middleware
-              + proxy.ts + env.ts — REMAINING). See NEXT.
+              ✅ S4 IS NOW COMPLETE — all three sub-sessions shipped: S4a-1 (app foundation), S4a-2 (17
+              shadcn primitives + tokens.ts mirror + Vitest token-parity test), and S4b (Auth.js v5
+              Credentials/JWT + tRPC v11 skeleton: 7 routers + 5 middleware + proxy.ts + env.ts + LAN-admin
+              hook + api handlers — DONE this session). The 3-way split kept every sub-session within the
+              ≤12-file / ≤500-line budget (Output Equivalence). W1-W8 are now UNBLOCKED. See NEXT.
 
               ⚠ PLAN CORRECTION (S0): The prior STATE.md falsely claimed "Phase 3.5 COMPLETE · Parts 1–8
               already BUILT in May 2026 V31 adoption — actual remaining work is the prototype→production
@@ -77,10 +76,55 @@ FILESYSTEM REALITY (verified this session):
             .socraticodecontextartifacts.json (gitignored, machine-local). Root package.json gains
             `pnpm.onlyBuiltDependencies = [argon2, esbuild, @prisma/client, prisma]`.
             ⇒ `pnpm lint|test|build` green; `pnpm tools:validate-inputs|check-env|check-product-sync` all ✓.
-  ABSENT:   apps/yelli auth + tRPC + proxy.ts + env.ts (S4b — see NEXT); packages/storage.
-            packages/storage (branding-upload MIME validate.ts — LOCKED PNG/JPEG whitelist) lands later.
+            NEW (S4b): apps/yelli auth + tRPC backend SURFACE (skeletons). 24 files. Auth.js v5
+            (src/server/auth/config.ts — Credentials provider + `session.strategy='jwt'`, NO PrismaAdapter
+            per DL; jwt callback DB-validates User.securityVersion + isSuspended every call → returns null on
+            mismatch [V28 guarantee]; session callback surfaces tenant identity) + lan-admin.ts (yelli_admin_
+            session cookie hook). src/types/next-auth.d.ts (Session/User/JWT augmentation; role=Prisma Role).
+            tRPC v11: src/server/trpc/{trpc.ts (initTRPC+superjson), context.ts (auth()→session), procedures.ts
+            (public + protected = LOCKED 5-step chain), root.ts (AppRouter; `calls` merge key per DL)} +
+            middleware/{auth,tenant-scope[L1+L6],audit[L5],rate-limit,error}.ts + routers/{devices,users,call
+            (callRouter→`calls`),tenants,invitations,audit,brand}.ts (each one `_placeholder` NOT_IMPLEMENTED).
+            src/proxy.ts (Next 16 proxy()/proxyConfig, V25, edge-safe getToken — DL) + api/{trpc/[trpc],
+            auth/[...nextauth]}/route.ts. src/env.ts (Zod + SKIP_ENV_VALIDATION guard). src/lib/trpc/react.ts
+            (createTRPCReact<AppRouter>). Deps +@trpc/{server,client,react-query}@11, @tanstack/react-query@5,
+            next-auth@5.0.0-beta.22, superjson@2, @yelli/db + @yelli/shared. next.config transpilePackages +=
+            @yelli/db,@yelli/shared. ⇒ typecheck ✓; lint ✓ (0/0); test ✓ (2/2); `next build` ✓ (proxy.ts =
+            `ƒ Proxy (Middleware)`; both api routes dynamic). Real procedure bodies land in W1-W8.
+  ABSENT:   packages/storage (branding-upload MIME validate.ts — LOCKED PNG/JPEG whitelist) lands later.
+            Real tRPC procedure bodies + auth authorize() + LAN-admin verify + proxy redirect logic are
+            SKELETONS (NOT_IMPLEMENTED placeholders / TODOs) by design — the W1-W8 wire sessions fill them.
             DEFERRED out of S5 (q-run9-S5-03): .github/workflows/release.yml (semver :vX.Y.Z + floating
             :prod) + deploy/windows/*.ps1 (5 LAN-installer scripts) — restore in a future LAN-Windows session.
+
+LAST_DONE (S4b — Scaffold Part 5 remainder: Auth.js v5 + tRPC v11 skeleton: apps/yelli):
+  - **Auth.js v5** (src/server/auth/config.ts) — Credentials provider + `session.strategy='jwt'`, NO
+    PrismaAdapter (LOCKED). authorize() is an inert skeleton (returns null; TODO accounts-auth wire: resolve
+    tenant by slug + bcrypt.compare at 12 rounds). jwt callback DB-validates User.securityVersion +
+    isSuspended on every call → returns null on mismatch (V28 session-invalidation under stateless JWT);
+    session callback surfaces id/role/tenantId/tenantSlug/securityVersion. lan-admin.ts = yelli_admin_session
+    cookie hook skeleton (TODO argon2 verify). src/types/next-auth.d.ts augments Session/User/JWT (role=Role).
+  - **tRPC v11** — trpc.ts (initTRPC + superjson transformer), context.ts (auth()→session), procedures.ts
+    (publicProcedure = error+rate-limit; protectedProcedure = +auth+tenant-scope+audit = LOCKED 5-step chain),
+    root.ts (AppRouter merge; call procedures under `calls` key per DL). 5 middleware: auth (requireSession),
+    tenant-scope (L1 tenantId + L6 prisma.$extends(tenantGuardExtension)), audit (L5 stub), rate-limit (tier
+    stub), error (envelope stub). 7 routers each with a single `_placeholder` NOT_IMPLEMENTED procedure
+    (keeps protectedProcedure used under noUnusedLocals; W-series replaces).
+  - **proxy.ts** (src/proxy.ts) — Next 16 proxy()/proxyConfig (V25 anti-tenant-switching, DL); edge-safe
+    getToken read (no DB); matcher excludes _next/static/image/favicon/api-auth/files. Redirect logic = TODO.
+  - **env.ts** — Zod schema (AUTH_SECRET/DATABASE_URL/REDIS_URL required; NEXTAUTH_URL + NEXT_PUBLIC_* opt)
+    with SKIP_ENV_VALIDATION build guard. **api handlers** — fetch adapter (/api/trpc) + Auth.js (/api/auth).
+    **client** — src/lib/trpc/react.ts (createTRPCReact<AppRouter>; type-only AppRouter import).
+  - **Deps** — apps/yelli/package.json +@trpc/{server,client,react-query}@^11 + @tanstack/react-query@^5.62
+    + next-auth@5.0.0-beta.22 + superjson@^2.2.1 + @yelli/db + @yelli/shared (workspace). next.config.ts
+    transpilePackages += @yelli/db, @yelli/shared.
+  - **Validation green** — prisma generate ✓; typecheck ✓ (0); lint ✓ (0/0; one stray eslint-disable removed);
+    test ✓ (2/2 token-parity); `next build` ✓ (proxy = `ƒ Proxy (Middleware)`; api routes `ƒ` dynamic; 3
+    static pages). Non-fatal: @trpc peer wants TS≥5.7.2 (catalog 5.5.4 — NOT bumped, passes anyway);
+    next-auth beta.22 peer next^14/15 vs 16 (accepted per DL); Turbopack `export *` warning from the
+    @prisma/client CJS re-export in @yelli/db (S2 — out of scope, build succeeds).
+  - **CHANGELOG_AI.md appended** — full S4b entry (Rule 15). DECISIONS_LOG.md carries pre-existing Brain
+    answer-log appends from the blocked W1 sessions (committed here for hygiene). No NEW decision locked.
 
 LAST_DONE (S5 — Scaffold Part 6: deploy/ + CI):
   - **deploy/compose/** — restored the proven 3-env Compose tree from tag pre-clean-slate-20260607-134026
@@ -231,26 +275,24 @@ LAST_DONE (S0 — Re-baseline + inputs.yml regen):
   - **CHANGELOG_AI.md appended** — clean-slate re-baseline + plan-correction entry (Rule 15 attribution).
 
 NEXT:
-  1. **S4b — Scaffold Part 5 (auth + tRPC skeleton)** — depends on S4a-1 + S4a-2 (both DONE). Auth.js v5 Credentials provider +
-     `session: { strategy: 'jwt' }` (NO PrismaAdapter — DL:172) wiring User.securityVersion + isSuspended
-     in the session() callback; tRPC v11 init + context + root router + 7 router skeletons (devices, users,
-     calls [key MUST be `calls`], tenants, invitations, audit, brand) + 5 middleware (auth, tenant-scope
-     L1+L6, audit L5, rate-limit, error); src/proxy.ts (Next.js 16 proxy()/proxyConfig, V25 anti-tenant-
-     switching — DL:179); src/env.ts (Zod env validation, with SKIP_ENV_VALIDATION build guard); LAN
-     anonymous-admin hook; api route handlers (trpc + auth). AT_RISK — split further if >500L.
-  2. ✅ S5 (deploy + CI) — DONE this session. `prisma generate` wired before typecheck; pnpm
-     onlyBuiltDependencies added. Only S4b remains before the W-series wiring sessions.
-  3. Then W1–W8 wire the validated prototype/ flows to the real backend (swap sim layer for tRPC/Prisma),
+  1. ✅ S4b (auth + tRPC skeleton) — DONE this session. Auth.js v5 Credentials/JWT (no PrismaAdapter, DL);
+     tRPC v11 + 7 routers (`calls` merge key, DL) + 5 middleware (LOCKED 5-step chain) + proxy.ts (V25, DL)
+     + env.ts + LAN-admin hook + api handlers. typecheck/lint/test/build all green; proxy recognized by
+     Next 16 as `ƒ Proxy (Middleware)`. **S4 is now COMPLETE.**
+  2. ✅ S5 (deploy + CI) — DONE. Scaffold Parts 1-8 (minus packages/storage) are on disk.
+  3. **W1 (Wire A — Devices + Auth surface)** — UNBLOCKED. Re-dispatch the W1 worker unchanged: its
+     q-W1-02/03/04 blockers ("absent S4b backend surface") are RESOLVED — the tRPC + Auth.js + proxy
+     surface now exists and builds clean. W1-W8 wire the validated prototype/ flows to the real backend
+     (swap the sim layer for tRPC/Prisma), replacing each router's `_placeholder` with real procedures,
      finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
+     packages/storage (branding MIME whitelist) lands with the branding wire session.
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     S4 is PARTIAL (S4a-1 + S4a-2 done, committed). ONE sub-session remains: S4b (auth + tRPC +
-              proxy.ts + env.ts). S4a-2's shadcn-CLI decision (q-S4-04) is RESOLVED + executed: shadcn@2
-              honored the v3-mode components.json with zero Tailwind-v4 drift. No code-level blockers;
-              the app builds + typechecks + lints + tests clean. S4b must be dispatched as a SEPARATE
-              worker session (≤12 files / ≤500L; split further if >500L); it depends only on S4a-1/S4a-2 +
-              S1–S3, all done.
+BLOCKERS:     None for scaffold. S4 is COMPLETE (S4a-1 + S4a-2 + S4b, all committed). The W1 q-W1-02/03/04
+              blockers ("absent S4b backend surface") are RESOLVED — the tRPC + Auth.js + proxy surface is on
+              disk and builds clean. Re-dispatch W1 unchanged. Skeleton TODOs (real procedure bodies,
+              authorize(), LAN-admin argon2 verify, proxy redirect logic) are the W-series' work, not blockers.
 
 GIT_BRANCH:   swarm/rebuild. S4a-2 adds 1 atomic commit (17 primitives + tokens.ts + parity test + vitest
               config + apps/yelli/package.json + pnpm-lock.yaml + pnpm-workspace.yaml catalog bump + 3
@@ -270,6 +312,34 @@ MODELS:
   planning:   claude-code (Opus — architect)
   execution:  claude-sonnet-4-6 via Claude Code
   governance: gemini-2.5-flash-lite
+
+CHECKPOINT TYPE (S4b): full — apps/yelli auth + tRPC skeleton (Scaffold Part 5 remainder). 24 new src files
+  + apps/yelli/package.json (deps) + apps/yelli/next.config.ts (transpilePackages) + pnpm-lock.yaml + 2
+  governance docs (STATE.md, CHANGELOG_AI.md) + docs/DECISIONS_LOG.md (pre-existing Brain answer-log appends
+  swept in for hygiene) ; 1 atomic commit.
+LINES_TOUCHED (S4b): ~470 authored lines across 24 small skeleton files (7 routers ~10L ea, 5 middleware
+  ~12L ea, trpc/context/procedures/root ~20L ea, auth config ~90L, lan-admin ~25L, next-auth.d.ts ~38L,
+  proxy ~38L, env ~40L, 2 route handlers ~10L ea, client react ~12L) + package.json/next.config edits.
+  Within the ≤500-authored-line budget. Single-executor Opus-inline; no thrash.
+FILES_TOUCHED (S4b):
+  - apps/yelli/src/server/trpc/: trpc.ts, context.ts, procedures.ts, root.ts; middleware/{auth,tenant-scope,
+    audit,rate-limit,error}.ts; routers/{devices,users,call,tenants,invitations,audit,brand}.ts
+  - apps/yelli/src/server/auth/{config,lan-admin}.ts; apps/yelli/src/types/next-auth.d.ts
+  - apps/yelli/src/app/api/trpc/[trpc]/route.ts; apps/yelli/src/app/api/auth/[...nextauth]/route.ts
+  - apps/yelli/src/proxy.ts; apps/yelli/src/env.ts; apps/yelli/src/lib/trpc/react.ts
+  - apps/yelli/package.json, apps/yelli/next.config.ts, pnpm-lock.yaml
+  - docs/STATE.md (this file), docs/CHANGELOG_AI.md (appended), docs/DECISIONS_LOG.md (pre-existing appends)
+TIER_CLASSIFICATION (S4b): Tier 1 — lightweight (~470 authored lines of declarative skeleton wiring;
+  executed headless Opus-inline per the standing V32.1 fallback; typecheck + lint + test + `next build` all
+  green, no thrash). Parent S4 = Tier 3 (heavy) → split S4a-1 / S4a-2 / S4b, all DONE. S4 COMPLETE.
+dispatch_ratio (S4b):
+  sonnet_writes: 0
+  opus_writes: 1
+  ratio: 0.0
+  target: ">= 3.0"
+  status: N/A — single-executor headless swarm worker (`claude -p`); sub-agent dispatch is not available in
+          this harness (standing V32.1 env-structural fallback). The ratio metric does not apply to the
+          swarm-worker execution model; not a discretionary R1 bypass.
 
 CHECKPOINT TYPE (S5): full — deploy/ + CI (Scaffold Part 6). 22 deploy/compose files + start.sh + push.sh
   (restored mirror) + 4 tools/*.mjs (restored) + ci.yml (edited) + docker-publish.yml (restored) +

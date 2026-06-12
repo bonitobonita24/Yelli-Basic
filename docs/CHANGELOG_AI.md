@@ -1051,3 +1051,56 @@ Reference-only. No code from the entries below survives on the filesystem after 
                        dispatch_ratio sonnet_writes=0 / opus_writes=N → FAIL by R9, standing acceptance per Wave 7).
 - Hand-off:            Dispatch S4b (auth+tRPC). Human reviews branch `swarm/rebuild` and pushes; worker never pushes.
 - Commit:              feat(phase-4-S4a2): Scaffold Part 5 (shadcn primitives + token parity) — apps/yelli
+
+## 2026-06-12 — Phase 4 · Session S4b (Scaffold Part 5 remainder — Auth.js v5 + tRPC v11 skeleton)
+- Agent:               CLAUDE_CODE (headless swarm worker, run-15-S4b)
+- Why:                 Final S4 sub-session. S4a (foundation + 17 primitives) left the auth + tRPC backend
+                       surface unbuilt; W1 (Wire A) halted on its absence (DL answer-log q-W1-02/03/04). This
+                       session scaffolds that surface so W1-W8 can wire the validated prototype flows to it.
+- Scope (SKELETONS):   Auth.js v5 Credentials+JWT (no PrismaAdapter, DL); tRPC v11 init + 7 router skeletons
+                       (devices/users/calls/tenants/invitations/audit/brand) + 5 middleware (auth/tenant-scope/
+                       audit/rate-limit/error); V25 proxy.ts; env.ts; LAN-admin hook; api route handlers.
+                       Real procedure logic deferred to the W-series.
+- Files added (24):
+                       apps/yelli/src/server/trpc/: trpc.ts (initTRPC + superjson transformer), context.ts
+                       (auth() → session), procedures.ts (public + protected = LOCKED 5-step chain), root.ts
+                       (AppRouter; `calls` merge key per DL), middleware/{auth,tenant-scope,audit,rate-limit,
+                       error}.ts, routers/{devices,users,call,tenants,invitations,audit,brand}.ts.
+                       apps/yelli/src/server/auth/: config.ts (NextAuth Credentials+JWT; jwt callback DB-validates
+                       User.securityVersion + isSuspended every call → returns null on mismatch, V28 guarantee;
+                       session callback surfaces identity), lan-admin.ts (yelli_admin_session cookie hook).
+                       apps/yelli/src/types/next-auth.d.ts (Session/User/JWT augmentation; role=Prisma Role).
+                       apps/yelli/src/app/api/trpc/[trpc]/route.ts (fetch adapter), api/auth/[...nextauth]/route.ts.
+                       apps/yelli/src/proxy.ts (Next 16 proxy()/proxyConfig, V25, edge-safe getToken — DL).
+                       apps/yelli/src/env.ts (Zod env, SKIP_ENV_VALIDATION build guard).
+                       apps/yelli/src/lib/trpc/react.ts (createTRPCReact<AppRouter> client hook handle).
+- Files modified:      apps/yelli/package.json (+@trpc/{server,client,react-query}@^11, @tanstack/react-query
+                       @^5.62, next-auth@5.0.0-beta.22, superjson@^2.2.1, @yelli/db + @yelli/shared workspace
+                       deps); apps/yelli/next.config.ts (transpilePackages += @yelli/db, @yelli/shared);
+                       pnpm-lock.yaml; docs/STATE.md; docs/CHANGELOG_AI.md (this entry). docs/DECISIONS_LOG.md
+                       carries the pre-existing Brain answer-log appends from the blocked W1 sessions (committed
+                       here for hygiene — stranded uncommitted by those status=blocked runs).
+- Schema/migrations:   none (consumes the S2 schema; no Prisma changes).
+- Decisions honored:   DL Auth.js-without-PrismaAdapter (Credentials+JWT); DL proxy.ts convention; DL `calls`
+                       AppRouter key; DL tRPC 5-step middleware chain; DL Webmaster bcrypt / LAN argon2 split
+                       (authorize + lan-admin TODOs reference the correct algorithms); inputs.yml rate-limiting
+                       tiers documented in the rate-limit middleware. No NEW decision locked.
+- Validation:          prisma generate ✓; typecheck ✓ (0 errors); lint ✓ (0 errors / 0 warnings); test ✓ (2/2,
+                       token-parity); `next build` ✓ — proxy.ts recognized as `ƒ Proxy (Middleware)`, both api
+                       routes `ƒ` dynamic, TypeScript pass, 3 static pages.
+- Errors encountered/resolved: (1) env.ts shipped an unused eslint-disable directive → removed (lint warning
+                       cleared). No other issues; no thrash.
+- Deviations/notes:    (1) Peer warnings only (non-fatal): @trpc/* want TS ≥5.7.2 (catalog 5.5.4) — typecheck
+                       + build pass regardless, so the catalog TS was NOT bumped (avoids a workspace-wide churn);
+                       next-auth beta.22 lists next ^14/^15 (found 16) — accepted per the DL lock, build clean.
+                       (2) Non-fatal Turbopack warning: `export *` from the CommonJS @prisma/client re-export in
+                       packages/db/src/index.ts (S2) — surfaced now because the app first imports @yelli/db; build
+                       succeeds. Left to a packages/db follow-up (out of S4b scope). (3) Routers carry one
+                       `_placeholder` NOT_IMPLEMENTED procedure each to keep the protectedProcedure wiring used
+                       (tsconfig noUnusedLocals); the W-series replaces them with real procedures.
+- Execution note (Rule 15 / V32.1): headless single-executor, inline writes (standing env-structural fallback;
+                       sub-agent dispatch unavailable in `claude -p`; dispatch_ratio metric N/A for the swarm
+                       worker model — not a discretionary R1 bypass).
+- Hand-off:            S4 COMPLETE (S4a-1 + S4a-2 + S4b). Backend surface on disk for W1-W8. Human reviews branch
+                       `swarm/rebuild` and pushes; worker never pushes.
+- Commit:              feat(phase-4-S4b): Scaffold Part 5b — Auth.js v5 + tRPC router skeletons (deferred S4 tail)

@@ -33,8 +33,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Standalone output for the Docker image pipeline (docker.publish: true).
   output: 'standalone',
-  // @yelli/ui ships TypeScript source (no build step) — Next must transpile it.
-  transpilePackages: ['@yelli/ui'],
+  // @yelli/* workspace packages ship TypeScript source (no build step) — Next
+  // must transpile them. @yelli/db is server-only (Prisma); never imported at edge.
+  transpilePackages: ['@yelli/ui', '@yelli/db', '@yelli/shared'],
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   },
