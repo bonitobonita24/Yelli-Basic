@@ -1,12 +1,19 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold (swarm/rebuild · S3 complete, 2026-06-12)
+## Current State — Clean-Slate Scaffold (swarm/rebuild · S4a-1 complete, 2026-06-12)
 
 PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
               on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) + S2 (Part 3:
               packages/db Prisma schema + L2/L5/L6 + migration 0001) + S3 (Part 4: packages/ui +
-              packages/jobs) are complete.
+              packages/jobs) + **S4a-1 (Part 5, app FOUNDATION: apps/yelli Next.js 16 shell + LOCKED
+              design-token plumbing — NO primitives/auth/tRPC yet)** are complete.
+
+              ⚠ S4 IS NOT COMPLETE. S4 (apps/yelli) was AT_RISK and, on filesystem-grounded re-scope,
+              exceeds the ≤12-file / ≤500-line single-session budget by ~2× even for the approved S4a
+              half. It is split into THREE within-budget sessions: S4a-1 (app foundation — DONE this
+              session), S4a-2 (17 shadcn primitives + tokens.ts mirror + Vitest token-parity test),
+              S4b (Auth.js v5 + tRPC v11 skeleton + proxy.ts + env.ts). See NEXT.
 
               ⚠ PLAN CORRECTION (S0): The prior STATE.md falsely claimed "Phase 3.5 COMPLETE · Parts 1–8
               already BUILT in May 2026 V31 adoption — actual remaining work is the prototype→production
@@ -40,10 +47,36 @@ FILESYSTEM REALITY (verified this session):
             ⇒ `pnpm typecheck|lint` run green (4/4 pkgs). Worker bodies + Queue/Worker/cron bootstrap land
               in the BullMQ-wiring session. ExportJob export_jobs table from S2 was KEPT (durable row needed
               for the 1/tenant/24h rate-limit + AuditLog correlation — S2 REVIEW NOTE resolved).
-  ABSENT:   apps/ , packages/storage , tools/.
-            ⇒ `pnpm tools:validate-inputs` not wired yet (tools/ lands in S5). apps/yelli lands in S4.
-              packages/storage (branding-upload MIME validate.ts — LOCKED PNG/JPEG whitelist) NOT in S3 scope
-              (S3 scope = ui + jobs only); lands in a later session.
+            NEW (S4a-1): apps/yelli/ (@yelli/web) — Next.js 16 App Router FOUNDATION only. 12 files:
+            package.json (next ^16, react 19, tailwind ^3.4.10, dev/start on :46848), next.config.ts
+            (6 security headers — Permissions-Policy ALLOWS self camera+mic for WebRTC + standalone +
+            transpilePackages ['@yelli/ui']), tsconfig.json (exactOptionalPropertyTypes:false per DL:176),
+            eslint.config.mjs (re-exports root; direct `eslint`), postcss.config.mjs, tailwind.config.ts
+            (yelliTailwindPreset + shadcn semantic colors), components.json (v3-mode for shadcn CLI),
+            src/styles/tokens.css (LOCKED Clay token source, verbatim from prototype), src/app/globals.css
+            (shadcn vars mapped FROM Clay tokens), src/lib/utils.ts (re-export cn), src/app/layout.tsx +
+            page.tsx (placeholder). ⇒ `next build` ✓ (Next 16.2.9 Turbopack, TS pass, 3 static pages);
+            typecheck/lint/prettier ✓. next-env.d.ts gitignored (auto-generated).
+  ABSENT:   apps/yelli shadcn primitives + auth + tRPC (S4a-2/S4b — see NEXT); packages/storage , tools/.
+            ⇒ `pnpm tools:validate-inputs` not wired yet (tools/ lands in S5).
+              packages/storage (branding-upload MIME validate.ts — LOCKED PNG/JPEG whitelist) lands later.
+
+LAST_DONE (S4a-1 — Scaffold Part 5, app FOUNDATION: apps/yelli Next.js 16 shell + design tokens):
+  - **apps/yelli (@yelli/web)** — Next.js 16 App Router foundation, 12 files, NO primitives/auth/tRPC.
+    Stack locks honored: Next 16.2.9 + React 19; Tailwind v3 (^3.4.10, NOT v4); ESLint 9 flat (direct
+    `eslint`, Next 16 removed `next lint`); tsconfig exactOptionalPropertyTypes:false (DL:176, Radix v1);
+    transpilePackages ['@yelli/ui']; output 'standalone' (Docker). next.config Permissions-Policy ALLOWS
+    self camera+microphone (WebRTC calling app — blocking breaks getUserMedia).
+  - **LOCKED design-token plumbing reproduced (Output Equivalence)** — src/styles/tokens.css = the single
+    Clay token source (DL "Design Tokens"), carried forward VERBATIM from the Phase 3.3 signed-off
+    prototype. globals.css maps shadcn --background/--foreground/--primary/--border/--ring/etc FROM those
+    Clay vars. tailwind.config consumes @yelli/ui `yelliTailwindPreset` (S3) + adds shadcn semantic colors.
+  - **Validation green** — `next build` ✓ (Turbopack, TS pass, 3 static pages); typecheck ✓ (0 errors);
+    lint ✓ (0 problems); prettier --check ✓ on authored app files. next-env.d.ts gitignored.
+  - **CHANGELOG_AI.md appended** — full S4a-1 entry (Rule 15; remainder + shadcn-v3 decision documented).
+  - **Why partial:** S4 is AT_RISK and >2× the per-session budget; per pre-flight rule 3 / memory-governance
+    §1 this session ships only the within-budget foundation. Remainder escalated (status=blocked) →
+    dispatch S4a-2 (primitives) then S4b (auth+tRPC) as separate workers. See NEXT + BLOCKERS.
 
 LAST_DONE (S3 — Scaffold Part 4: packages/ui + packages/jobs):
   - **packages/ui (@yelli/ui)** — shared UI utility layer (NO shadcn primitives — those land with the app S4):
@@ -130,18 +163,35 @@ LAST_DONE (S0 — Re-baseline + inputs.yml regen):
   - **CHANGELOG_AI.md appended** — clean-slate re-baseline + plan-correction entry (Rule 15 attribution).
 
 NEXT:
-  1. **S4 — Scaffold Part 5: apps/yelli** — Next.js 14 (App Router) + `npx shadcn@latest init` (consumes
-     @yelli/ui `cn()` + `yelliTailwindPreset`) + Auth.js v5 Credentials/JWT (wire User.securityVersion into the
-     session() callback) + tRPC skeleton. AT_RISK (largest session) — split by surface if the in-scope file set
-     exceeds the budget. Consumes @yelli/shared (S1) + @yelli/db (S2) + @yelli/ui + @yelli/jobs (S3).
-  2. Then S5 (deploy + CI; wire `prisma generate` before typecheck, add pnpm onlyBuiltDependencies for prisma).
+  1. **S4a-2 — Scaffold Part 5 (shadcn primitives + token-parity)** — generate the 17 LOCKED primitives
+     (button, card, input, label, dialog, badge, avatar, separator, scroll-area, tabs, select, switch,
+     sonner, skeleton, tooltip, dropdown-menu, form — q-S4-02) into apps/yelli/src/components/ui/, +
+     src/lib/tokens.ts (hand-maintained Clay mirror) + a Vitest token-parity test (DL "Design Tokens").
+     The foundation (components.json v3-mode, tailwind.config, globals shadcn vars, @/lib/utils cn) is
+     already wired by S4a-1. ⚠ DECISION FIRST: shadcn CLI is v4.11.0 (Tailwind-v4-first) but the stack is
+     LOCKED Tailwind v3 — components.json is pre-staged in v3 mode (`tailwind.config` path) to steer the
+     CLI; confirm `shadcn add` honors v3 OR pin a v3-compatible CLI OR hand-author the primitives. Keep
+     the session ≤12 files / ≤500L authored (primitives are CLI-generated, not hand-authored line budget).
+  2. **S4b — Scaffold Part 5 (auth + tRPC skeleton)** — depends on S4a-1. Auth.js v5 Credentials provider +
+     `session: { strategy: 'jwt' }` (NO PrismaAdapter — DL:172) wiring User.securityVersion + isSuspended
+     in the session() callback; tRPC v11 init + context + root router + 7 router skeletons (devices, users,
+     calls [key MUST be `calls`], tenants, invitations, audit, brand) + 5 middleware (auth, tenant-scope
+     L1+L6, audit L5, rate-limit, error); src/proxy.ts (Next.js 16 proxy()/proxyConfig, V25 anti-tenant-
+     switching — DL:179); src/env.ts (Zod env validation, with SKIP_ENV_VALIDATION build guard); LAN
+     anonymous-admin hook; api route handlers (trpc + auth). AT_RISK — split further if >500L.
+  3. Then S5 (deploy + CI; wire `prisma generate` before typecheck, add pnpm onlyBuiltDependencies for prisma).
   3. Then W1–W8 wire the validated prototype/ flows to the real backend (swap sim layer for tRPC/Prisma),
      finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     none for S3. S4 unblocked (depends on S1+S2+S3, all complete). The S2 ExportJob REVIEW NOTE is
-              RESOLVED (table kept — see LAST_DONE S3 + CHANGELOG S3). No open review notes carried to S4.
+BLOCKERS:     S4 is PARTIAL (S4a-1 done, committed). The REMAINDER is BLOCKED on budget + one decision:
+              (1) S4a-2 needs a decision before it runs — shadcn CLI v4.11.0 is Tailwind-v4-first vs the
+                  LOCKED Tailwind v3; confirm `shadcn add` honors the v3-mode components.json OR pin a v3
+                  CLI OR hand-author the 17 primitives.
+              (2) S4a-2 + S4b must be dispatched as SEPARATE worker sessions (each ≤12 files / ≤500L);
+                  combined S4 cannot fit one session. S4a-1 must NOT be redone — it is committed.
+              No code-level blockers; foundation builds clean. S4a-2 + S4b both depend only on S4a-1 + S1–S3.
 
 GIT_BRANCH:   swarm/rebuild. S3 adds 1 atomic commit (packages/ui + packages/jobs + root package.json ioredis
               override + pnpm-lock.yaml + docs/STATE.md + docs/CHANGELOG_AI.md). The human reviews and pushes —
@@ -160,6 +210,21 @@ MODELS:
   planning:   claude-code (Opus — architect)
   execution:  claude-sonnet-4-6 via Claude Code
   governance: gemini-2.5-flash-lite
+
+CHECKPOINT TYPE (S4a-1): full — apps/yelli: 12 foundation files created + .gitignore (+next-env.d.ts) +
+  pnpm-lock.yaml + 3 governance docs (STATE.md, CHANGELOG_AI.md, DECISIONS_LOG.md answer-log) ; 1 atomic commit.
+LINES_TOUCHED (S4a-1): ~430 lines authored (7 config files ~210 + tokens.css ~45 + globals.css ~65 +
+  layout/page/utils ~30 + comments). Within the ≤500-line / ≤12-file budget. shadcn primitives + auth +
+  tRPC deliberately NOT in this session (would push to ~30+ files / >1000L — over budget).
+FILES_TOUCHED (S4a-1):
+  - apps/yelli: package.json, next.config.ts, tsconfig.json, eslint.config.mjs, postcss.config.mjs,
+    tailwind.config.ts, components.json, src/styles/tokens.css, src/app/globals.css, src/app/layout.tsx,
+    src/app/page.tsx, src/lib/utils.ts
+  - .gitignore (+next-env.d.ts), pnpm-lock.yaml (+next/react/react-dom/tailwind/postcss/autoprefixer)
+  - docs/STATE.md (this file), docs/CHANGELOG_AI.md (appended), docs/DECISIONS_LOG.md (Brain q-S4 answer log)
+TIER_CLASSIFICATION (S4a-1): Tier 1 — lightweight (~430 authored lines; mostly config + verbatim token
+  carry-forward; executed headless Opus-inline per the standing V32.1 fallback; `next build` + typecheck +
+  lint + prettier all green, no thrash). Parent S4 = Tier 3 (heavy) → split into S4a-1 (done) / S4a-2 / S4b.
 
 CHECKPOINT TYPE: full (S3 scaffold session — packages/ui: 6 files + packages/jobs: 13 files created + root
   package.json modified + 2 governance docs updated; 1 atomic commit)

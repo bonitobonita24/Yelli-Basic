@@ -1,0 +1,43 @@
+/*
+ * Yelli design tokens — the single LOCKED source (DECISIONS_LOG "Design Tokens").
+ * Mirrors docs/DESIGN.md. Carried forward VERBATIM from the Phase 3.3 signed-off
+ * prototype (prototype/src/app/globals.css :root) — Output Equivalence with the
+ * GREEN design-review baseline. globals.css maps the shadcn/ui semantic vars FROM
+ * these; tailwind.config.ts utilities reference these via the @yelli/ui preset.
+ */
+:root {
+  /* Surfaces */
+  --color-canvas: #fffaf0;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #fffdfa;
+
+  /* Text */
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #4a4a4a;
+  --color-text-muted: #8a8a8a;
+
+  /* Primary + brand accents */
+  --color-primary: #0a0a0a;
+  --color-brand-pink: #ff4d8b;
+  --color-brand-teal: #1a3a3a;
+  --color-brand-lavender: #b8a4e3;
+  --color-brand-peach: #ffb084;
+  --color-brand-mint: #a4d4c5;
+  --color-brand-coral: #ff6b5a;
+
+  /* Semantic */
+  --color-success: #22c55e;
+  --color-success-strong: #1b8a5a;
+  --color-warning: #ffb084;
+  --color-warning-strong: #c45a1f;
+  --color-error: #ff8a80;
+  --color-error-strong: #b3261e;
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}

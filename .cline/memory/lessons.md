@@ -4,6 +4,31 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-12 — 🟤 decision S4 (apps/yelli) needs a 3-way split; shadcn CLI v4 vs LOCKED Tailwind v3
+- Type:      🟤 decision
+- Phase:     Phase 4 · Swarm Session S4 (Scaffold Part 5 — apps/yelli)
+- Files:     apps/yelli/* (foundation), docs/STATE.md, docs/CHANGELOG_AI.md, docs/DECISIONS_LOG.md
+- Concepts:  budget-split, shadcn, tailwind-v3, next-16, design-tokens, AT_RISK, output-equivalence, webrtc
+- Narrative: The Brain approved a 2-way S4 split (S4a app shell / S4b auth+tRPC, q-S4-01). On a
+    filesystem-grounded re-scope the verified S4 surface is ~30+ files / >1000 lines — and even the
+    approved S4a HALF overflows once you count the LOCKED token architecture (tokens.css + globals
+    shadcn-mapping + tokens.ts mirror + Vitest parity test, DL "Design Tokens") PLUS 17 CLI primitives.
+    Decision: split S4 THREE ways — S4a-1 (app FOUNDATION, shipped this session, ~430L, builds clean),
+    S4a-2 (17 shadcn primitives + tokens.ts + parity test), S4b (Auth.js v5 + tRPC v11 skeleton + proxy.ts
+    + env.ts). Each ≤12 files / ≤500L. Lesson for future scaffold sessions: re-scope against the FILESYSTEM
+    + LOCKED architecture before trusting an estimate-based split; AT_RISK + >500L ⇒ pre-flight rule 3
+    says ship the within-budget subset and escalate, do not force.
+  • OPEN DECISION for S4a-2: shadcn CLI is v4.11.0 (Tailwind-v4-first) but the stack is LOCKED Tailwind v3
+    (@yelli/ui pins ^3.4.10; preset is v3-style). apps/yelli/components.json is pre-staged in v3 mode
+    (has a `tailwind.config` path) to steer the CLI toward v3 generation — confirm `shadcn add` honors
+    that, OR pin a v3-compatible CLI (`shadcn@2.x`), OR hand-author the 17 primitives. Do NOT let the CLI
+    silently migrate the app to Tailwind v4 (would break the signed-off v3 token plumbing / design-review).
+  • 🔴 sub-gotcha: a PostToolUse validation hook flags the `next.config.ts` `async headers()` CONFIG
+    function as "needs await" — FALSE POSITIVE. That function returns `Promise<header[]>` (no await); the
+    async-only-in-16 change is the SEPARATE `next/headers` REQUEST API. Do not "fix" the config fn.
+  • Note: next.config Permissions-Policy must ALLOW `self` for camera+microphone — Yelli is a WebRTC
+    calling app; the default-deny template value would break getUserMedia in the call screens.
+
 ## 2026-06-08 — 🔴 Sim-layer repo file overshoots V32 R2 500L gate when one file covers all entities
 - Type:      🔴 gotcha
 - Phase:     Phase 3.3 Wave 2B

@@ -924,3 +924,58 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Hand-off:            Next swarm session S4 — apps/yelli (Next.js + shadcn init + Auth.js v5 + tRPC skeleton; AT_RISK).
                        Human reviews branch `swarm/rebuild` and pushes; the worker never pushes.
 - Commit:              feat(phase-4-S3): Scaffold Part 4 — packages/ui + packages/jobs
+
+## 2026-06-12 — Phase 4 · Swarm Session S4a-1: Scaffold Part 5 (app foundation) — apps/yelli
+- Agent:               CLAUDE_CODE (swarm worker, headless `claude -p`; Opus-inline per V32.1 fallback)
+- Why:                 S4 (apps/yelli: Next.js 16 + shadcn + Auth.js v5 + tRPC skeleton) is the largest,
+                       AT_RISK Phase-4 session. Filesystem-grounded re-scope (LOCKED token architecture +
+                       17 shadcn primitives + Auth.js + 7 tRPC routers + 5 middleware + proxy.ts) is ~30+
+                       files / >1000 lines — far over the ≤12-file / ≤500-line single-session budget. The
+                       Brain-approved S4a/S4b split (q-S4-01) is directionally right, but even S4a ALONE
+                       overflows once the token plumbing + tokens.ts mirror + Vitest parity test + 17 CLI
+                       primitives are counted. Per pre-flight rule 3 / memory-governance §1 (AT_RISK + >500L
+                       ⇒ do not force), this session ships ONLY the safe, within-budget app FOUNDATION
+                       (S4a-1) and escalates the remainder (S4a-2 primitives, S4b auth+tRPC).
+- Scope (S4a-1):       apps/yelli Next.js 16 (App Router) app shell + LOCKED Clay design-token plumbing,
+                       reproduced VERBATIM from the Phase 3.3 signed-off prototype (Output Equivalence).
+                       NO shadcn primitives, NO Auth.js, NO tRPC, NO env.ts/proxy.ts (those are S4a-2/S4b).
+- Files added (12):    apps/yelli/{package.json, next.config.ts, tsconfig.json, eslint.config.mjs,
+                       postcss.config.mjs, tailwind.config.ts, components.json}, src/styles/tokens.css,
+                       src/app/{globals.css, layout.tsx, page.tsx}, src/lib/utils.ts.
+- Files modified:      .gitignore (+next-env.d.ts), pnpm-lock.yaml (+next 16.2.9, react/react-dom 19,
+                       tailwindcss 3.4.x, postcss, autoprefixer, @types/react|react-dom 19). docs/DECISIONS_LOG.md
+                       carries the Brain's pre-existing q-S4-01/02 answer log (committed to preserve the trail).
+- Design tokens:       tokens.css = the LOCKED single token source (DECISIONS_LOG "Design Tokens"), Clay
+                       palette carried forward verbatim (canvas #fffaf0, navy primary #0a0a0a, 6 brand
+                       accents, semantics, motion). globals.css maps shadcn --background/--foreground/
+                       --primary/--border/--ring/etc FROM those Clay vars. tailwind.config consumes the
+                       @yelli/ui yelliTailwindPreset (S3) + adds shadcn semantic color names. Output
+                       Equivalence with the GREEN design-review baseline preserved.
+- Stack locks honored: Next.js 16.2.9 + React 19; Tailwind v3 (^3.4.10, NOT v4); ESLint 9 flat — app lints
+                       via direct `eslint` (Next 16 removed `next lint`, DL:209); apps/yelli tsconfig
+                       exactOptionalPropertyTypes:false (DL:176 — Radix v1); transpilePackages:['@yelli/ui']
+                       (source-exported); output:'standalone' (Docker). Font: CSS @import Inter kept verbatim
+                       (next/font = deferred W7). Permissions-Policy ALLOWS self camera+microphone (Yelli is
+                       a WebRTC calling app — blocking would break getUserMedia).
+- Validation:          pnpm install ✓; `next build` ✓ (Next 16.2.9 Turbopack, TS pass, 3 static pages);
+                       pnpm --filter @yelli/web typecheck ✓ (0 errors); lint ✓ (0 problems); prettier
+                       --check ✓ on all authored app files. (Pre-existing repo-wide format drift on
+                       docs/inputs.yml unchanged — not an S4 regression.)
+- Deviations/notes:    (1) Package name @yelli/web (worker discretion; matches @yelli/* scope; dir apps/yelli
+                       per inputs.yml app name "yelli"). (2) next-env.d.ts gitignored (auto-generated). (3)
+                       PostToolUse hook flagged next.config `async headers()` as needing await — FALSE
+                       POSITIVE: it confused the next.config response-header CONFIG fn (returns Promise<array>,
+                       no await) with the next/headers REQUEST API (async-only in 16). Code correct per
+                       context7 v16.1.6 docs.
+- Remainder (BLOCKED): S4 NOT complete. Verified remainder needs TWO further within-budget sessions:
+                       S4a-2 = 17 shadcn primitives (button…form per q-S4-02) + src/lib/tokens.ts mirror +
+                       Vitest token-parity test (DL "Design Tokens"); S4b = Auth.js v5 Credentials/JWT
+                       (User.securityVersion in session callback, no PrismaAdapter per DL:172) + tRPC v11
+                       (7 routers incl. `calls` key + 5 middleware) + src/proxy.ts (V25, DL:179) + src/env.ts.
+                       DECISION NEEDED (S4a-2): shadcn CLI is v4.11.0 (Tailwind-v4-first) but stack is LOCKED
+                       Tailwind v3 — components.json is pre-staged in v3 mode (`tailwind.config` path) to
+                       steer the CLI to v3; confirm `shadcn add` honors v3 OR pin a v3 CLI / hand-author.
+- Execution note (Rule 15 / V32.1): headless single-executor, inline writes (standing env-structural fallback).
+- Hand-off:            Dispatch S4a-2 (primitives) then S4b (auth+tRPC) as separate workers. Human reviews
+                       branch `swarm/rebuild` and pushes; the worker never pushes.
+- Commit:              feat(phase-4-S4a): Scaffold Part 5 (app foundation) — apps/yelli Next.js 16 shell + design tokens

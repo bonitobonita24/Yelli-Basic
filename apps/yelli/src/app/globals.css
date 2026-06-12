@@ -1,0 +1,65 @@
+/* Font + token source must precede Tailwind directives (CSS @import ordering).
+ * Font wiring carried forward verbatim from the Phase 3.3 prototype; migration to
+ * next/font is the deferred W7 task (DECISIONS_LOG Phase 3.3 deferrals). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import '../styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * shadcn/ui semantic tokens — mapped FROM the Clay design tokens in tokens.css
+ * (DECISIONS_LOG "Design Tokens": one source; globals maps shadcn vars FROM it).
+ * shadcn primitives (added in the primitives session) consume these.
+ */
+@layer base {
+  :root {
+    --background: var(--color-canvas);
+    --foreground: var(--color-text-primary);
+    --card: var(--color-surface);
+    --card-foreground: var(--color-text-primary);
+    --popover: var(--color-surface-elevated);
+    --popover-foreground: var(--color-text-primary);
+    --primary: var(--color-primary);
+    --primary-foreground: #ffffff;
+    --secondary: var(--color-surface);
+    --secondary-foreground: var(--color-text-primary);
+    --muted: var(--color-surface);
+    --muted-foreground: var(--color-text-muted);
+    --accent: var(--color-brand-lavender);
+    --accent-foreground: var(--color-text-primary);
+    --destructive: var(--color-error-strong);
+    --destructive-foreground: #ffffff;
+    --border: #e5e5e5;
+    --input: #e5e5e5;
+    --ring: var(--color-primary);
+    --radius: 12px;
+  }
+}
+
+/* Base surface + type — carried forward verbatim from the prototype. */
+@layer base {
+  html,
+  body {
+    background: var(--color-canvas);
+    color: var(--color-text-primary);
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -61,3 +61,6 @@ skills-lock.json
 # ─── Automation Handoff Docs (consumed by framework, not committed) ───
 n8n-handoff.md
 openclaw-handoff.md
+
+# Next.js generated env types (regenerated on build)
+next-env.d.ts
