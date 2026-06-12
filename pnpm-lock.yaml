@@ -221,6 +221,9 @@ importers:
 
   packages/jobs:
     dependencies:
+      '@yelli/db':
+        specifier: workspace:*
+        version: link:../db
       bullmq:
         specifier: ^5.77.7
         version: 5.78.0

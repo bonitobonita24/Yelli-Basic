@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@yelli/db": "workspace:*",
     "bullmq": "^5.77.7",
     "ioredis": "5.10.1"
   },

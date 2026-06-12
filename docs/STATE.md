@@ -1,9 +1,36 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W4 complete → W1b / W2b-2 / W5-W8 NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W5a complete → W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
 
-> **W4 DONE (this session, 2026-06-13).** Wire D — Audit + Branding. The last two `_placeholder`
+> **W5a DONE (this session, 2026-06-13).** BullMQ **device-archive** worker — 1st slice of the
+> Brain-approved W5 split (q-W5-03 [A]: "dispatch W5a first as a clean DB-only session, zero new
+> external deps"). The `packages/jobs/src/workers/device-archive.ts` STUB (S3 `throw NotImplemented`)
+> is replaced with the real daily-03:00-UTC cron processor (Phase 3.3 `sim.repo.archive(olderThanDays)`
+> SWAP BOUNDARY, PROTOTYPE.md Flow G): `device.updateMany` where `{ tenantId, archivedAt: null,
+> lastSeenAt < now-90d }` → set `archivedAt`; iff `count>0`, write ONE **`device.archive.batch`** AuditLog
+> row (Wave-9 mass-cron action, distinct from singular admin `device.archive`) — payload `{ count,
+> olderThanDays: 90 }` VERBATIM from the sim (Audit View fidelity / HARD CONSTRAINT), `actorUserId: null`
+> (system cron), `targetType: 'Device'`, `targetId: null` — atomic in `prisma.$transaction`. Tenant-scoped
+> per security.md cron rule (one job/tenant; every query scoped to `job.data.tenantId` explicitly on the
+> base/unguarded client). Auto-unarchive-on-reconnect stays in the devices-router path (NOT here).
+> • **Only dep added: `@yelli/db` (workspace)** to `packages/jobs/package.json` — an INTERNAL link (not a
+>   new external npm package; "zero new deps" targets external pkgs). No cycle (`@yelli/db` → `@prisma/client`
+>   only). pnpm-lock relinked. • **No new test harness** added to `packages/jobs` — matches the backend-package
+>   convention (W1a–W4 shipped bodies validated by typecheck+lint+build; tests live in `@yelli/web`) + the
+>   q-W5-03 zero-deps constraint. Validation all green: `pnpm install` ✓ (8 projects), prisma generate ✓,
+>   turbo typecheck 7/7, lint 7/7, test (web 2/2), `next build` ✓ (`ƒ Proxy (Middleware)`), prettier ✓.
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback; scope is
+> a single indivisible file ⇒ no fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **W5 is NOT fully complete.** Remaining sub-sessions (Brain-approved, dispatch IN ORDER per q-W5-03 — NOT
+> blockers): **W5-runtime** (BullMQ `Worker` process + repeatable-cron bootstrap + worker entrypoint; infra,
+> no new external deps — processors need a host) → **W5b** tenant-export (+`@aws-sdk/s3-request-presigner` +
+> `putObject`/`getObject`/`presignGet` on `@yelli/storage`) → **W5c** email (+`nodemailer` — SMTP not Resend,
+> q-W5-02) → **W5d** logo-image resize (+`sharp` + root `onlyBuiltDependencies`) → **W5e** backup (pg_dump +
+> env-gated `BACKUP_S3_*`; bucket + worker Dockerfile = Phase 6 infra). **soft-delete-cron** is separately
+> deferred behind a SCHEMA session (q-W5-01: add `User.removedAt` + wire `removeMember`, THEN the 7-day sweep).
+
+> **W4 DONE (2026-06-13).** Wire D — Audit + Branding. The last two `_placeholder`
 > routers (`audit` + `brand`) now carry real bodies, the L5 audit-middleware recorder is live, and the
 > new `@yelli/storage` package + `logo-image` queue trigger land. (This session verified-and-committed a
 > prior in-session W4 draft that was written but never validated/committed — reviewed against scope + the
@@ -467,15 +494,24 @@ NEXT:
   6. ✅ **W4 (Wire D — Audit + Branding)** — DONE this session. `audit` + `brand` routers LIVE; L5
      audit-middleware recorder live; `@yelli/storage` (PNG/JPEG magic-byte whitelist + 2 MiB) + `logo-image`
      queue producer landed. ALL 7 routers now carry real bodies. See the W4 block at the top.
-  7. **W2b-2 / W5-W8** — remaining wire sessions (client `useSignaling` hook, calling/WebRTC UI port,
-     PWA, pre-production validation). Each keeps the §11 audit vocab VERBATIM. The tenant.export worker +
-     logo-image resize worker land with the BullMQ-wiring session; invitation.accept + Auth.js authorize()
-     land with accounts-auth; LAN-admin argon2 verify lands with W6. W8 = 9 §3 flows end-to-end + Phase 5
-     re-run + Visual QA.
+  7. ✅ **W5a (BullMQ device-archive worker)** — DONE this session. The device-archive STUB now carries the
+     real daily-03:00-UTC cron processor (90-day offline sweep + `device.archive.batch` audit). See the W5a
+     block at the top.
+  8. **W5-runtime / W5b-e** — NEXT (Brain-approved W5 split, dispatch IN ORDER per q-W5-03): W5-runtime
+     (BullMQ `Worker` + repeatable-cron bootstrap + entrypoint; processors need a host) → W5b tenant-export
+     (+s3-request-presigner + `@yelli/storage` get/put/presign; 24h signed URL) → W5c email (+nodemailer SMTP,
+     NOT Resend) → W5d logo-image resize (+sharp) → W5e backup (pg_dump + `BACKUP_S3_*`). **soft-delete-cron**
+     is deferred behind a SCHEMA session (q-W5-01: add `User.removedAt` + wire `removeMember`, then the sweep).
+  9. **W2b-2 / W1b / UI-PWA-validation** — remaining wire sessions (client `useSignaling` hook, calling/WebRTC
+     UI port, device+auth UI port, PWA, pre-production validation). Each keeps the §11 audit vocab VERBATIM.
+     invitation.accept + Auth.js authorize() land with accounts-auth; LAN-admin argon2 verify lands with W6.
+     Final = 9 §3 flows end-to-end + Phase 5 re-run + Visual QA.
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     None. W3 (tenancy/members/invitations + V25 proxy) is COMPLETE and committed. Open wire deps:
+BLOCKERS:     None. W5a (device-archive worker) is COMPLETE and committed; the remaining W5 sub-sessions
+              (W5-runtime → W5b–e) + the deferred soft-delete-cron schema session are Brain-APPROVED future
+              runs (q-W5-01/03), NOT blockers. W3 (tenancy/members/invitations + V25 proxy) is COMPLETE and committed. Open wire deps:
               W1b (Wire A UI port — depends on W1a hooks/providers) and W2b-2 (client `useSignaling` hook —
               depends on W2b-1). Remaining skeleton TODOs are the later W-series' work, not blockers: Auth.js
               authorize() + invitation.accept (accounts-auth wire), LAN-admin argon2 verify (W6),
@@ -483,11 +519,14 @@ BLOCKERS:     None. W3 (tenancy/members/invitations + V25 proxy) is COMPLETE and
               non-blocking question), the logo-image resize CONSUMER worker (BullMQ-wiring; W4 fires the
               producer only), and the 30s Valkey freshness cache. (audit + brand routers are now DONE — W4.)
 
-GIT_BRANCH:   swarm/rebuild. W3 adds 1 atomic commit (email-queue producer [new] + invitations router +
-              tenants router + proxy.ts + env.ts + next.config.ts + package.json + pnpm-lock.yaml + 3
-              governance docs). The human reviews and pushes — the worker never pushes.
+GIT_BRANCH:   swarm/rebuild. W5a adds 1 atomic commit (device-archive.ts worker body + packages/jobs/
+              package.json [+@yelli/db workspace dep] + pnpm-lock.yaml + 3 governance docs [STATE.md,
+              CHANGELOG_AI.md, DECISIONS_LOG.md q-W5 answer-log swept in for hygiene]). The human reviews
+              and pushes — the worker never pushes.
               Recent commits:
-  - (this commit) feat(phase-4-W3): Wire C — Tenancy + Members + Invitations
+  - (this commit) feat(phase-4-W5): BullMQ workers (implement the 6 queues) — W5a device-archive slice
+  - `b8c58d9` feat(phase-4-W4): Wire D — Audit + Branding
+  - `9c8d356` feat(phase-4-W3): Wire C — Tenancy + Members + Invitations
   - `8a941bc` feat(phase-4-W2b): Wire B2 — WebSocket signaling server (Next 16 standalone)
   - `c82c16c` feat(phase-4-W2a): Wire B1 — Calling data+realtime (calls router, CallSession, Valkey bus)
   - `87c8fca` feat(phase-4-W1): Wire A — Devices + Auth surface
