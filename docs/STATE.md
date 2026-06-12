@@ -1,7 +1,7 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold (swarm/rebuild · S4a-2 complete, 2026-06-12)
+## Current State — Clean-Slate Scaffold (swarm/rebuild · S5 complete, 2026-06-12)
 
 PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
               on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) + S2 (Part 3:
@@ -66,9 +66,46 @@ FILESYSTEM REALITY (verified this session):
             gains 11 @radix-ui/* + @hookform/resolvers + react-hook-form + sonner + next-themes + zod[catalog]
             + class-variance-authority + lucide-react + vitest; +"test":"vitest run". Catalog zod floored to
             ^3.25.76 (pnpm, @hookform/resolvers@5 peer). ⇒ `next build` + typecheck + lint + `pnpm test` ✓.
-  ABSENT:   apps/yelli auth + tRPC + proxy.ts + env.ts (S4b — see NEXT); packages/storage , tools/.
-            ⇒ `pnpm tools:validate-inputs` not wired yet (tools/ lands in S5).
-              packages/storage (branding-upload MIME validate.ts — LOCKED PNG/JPEG whitelist) lands later.
+            NEW (S5): deploy/ + CI (Scaffold Part 6). 3-env Docker Compose set mirrored from the
+            pre-clean-slate BUILT state (tag pre-clean-slate-20260607-134026): dev (postgres+pgbouncer,
+            valkey, minio, pgadmin, mailhog/infra, app) · stage (same minus mailhog, Docker Hub pull +
+            Traefik) · prod (same + cloudflared sidecar). start.sh + push.sh. NO coturn (q-run9-S5-02 —
+            WebRTC uses external Open Relay TURN). apps/yelli/Dockerfile (3-stage standalone; fixed to
+            @yelli/web + clean-slate package set: shared/db/ui/jobs) + .dockerignore. tools/ (4 governance
+            validators) + 4 root `tools:*` scripts. .github/workflows/ci.yml (governance gates + turbo
+            matrix, `prisma generate` wired before typecheck) + docker-publish.yml. MANIFEST.txt +
+            .socraticodecontextartifacts.json (gitignored, machine-local). Root package.json gains
+            `pnpm.onlyBuiltDependencies = [argon2, esbuild, @prisma/client, prisma]`.
+            ⇒ `pnpm lint|test|build` green; `pnpm tools:validate-inputs|check-env|check-product-sync` all ✓.
+  ABSENT:   apps/yelli auth + tRPC + proxy.ts + env.ts (S4b — see NEXT); packages/storage.
+            packages/storage (branding-upload MIME validate.ts — LOCKED PNG/JPEG whitelist) lands later.
+            DEFERRED out of S5 (q-run9-S5-03): .github/workflows/release.yml (semver :vX.Y.Z + floating
+            :prod) + deploy/windows/*.ps1 (5 LAN-installer scripts) — restore in a future LAN-Windows session.
+
+LAST_DONE (S5 — Scaffold Part 6: deploy/ + CI):
+  - **deploy/compose/** — restored the proven 3-env Compose tree from tag pre-clean-slate-20260607-134026
+    (mirror, per scope). Services per q-run9-S5-02: postgres+pgbouncer (db.yml) · valkey (cache.yml) ·
+    minio (storage.yml) · pgadmin (pgadmin.yml + pgadmin-servers.json) · app (app.yml); dev adds
+    mailhog (infra.yml); prod adds cloudflared sidecar (cloudflared.yml). stage/prod app = Docker Hub
+    pull + Traefik labels (no build:). NO self-hosted coturn (scope-sheet template error; no backing).
+    start.sh (one-project multi-file; dev --build) + push.sh (manual dev→stage→prod promotion).
+  - **apps/yelli/Dockerfile + .dockerignore** — restored + adapted to clean-slate reality: removed the
+    api-client + storage COPY lines (those packages don't exist yet), fixed build filter `@yelli/yelli`
+    → `@yelli/web`. 3-stage standalone (deps→builder→runner; `prisma generate` inside builder).
+  - **tools/** — restored 4 governance validators (validate-inputs, check-env, check-product-sync,
+    hydration-lint) + 4 root `tools:*` scripts. Confirmed converging signals: framework Part 7 bundles
+    tools/ with deploy; in-scope ci.yml governance job depends on them; STATE.md NEXT said "tools/ lands
+    in S5"; tag has them. js-yaml + ajv already in lockfile → dependency-clean. All 3 run ✓ on current config.
+  - **CI** — .github/workflows/ci.yml (governance gates + turbo lint/typecheck/test/build matrix +
+    pnpm audit) with `pnpm --filter @yelli/db run db:generate` wired before the matrix (plan item).
+    docker-publish.yml restored (Docker Hub build & push on main → powerbyteit/yelli).
+  - **Root package.json** — +4 `tools:*` scripts; +`pnpm.onlyBuiltDependencies = [argon2, esbuild,
+    @prisma/client, prisma]` (plan item — exact proven value mirrored from tag). ioredis override kept.
+  - **MANIFEST.txt** (fresh, current scaffold reality) + **.socraticodecontextartifacts.json** (6 artifacts;
+    gitignored machine-local — exists on disk for SocratiCode, intentionally uncommitted).
+  - **Validation green** — frozen install ✓; prisma generate ✓; lint ✓ (5/5); test ✓ (@yelli/web 2/2);
+    build ✓ (static); tools:validate-inputs ✓; tools:check-env ✓; tools:check-product-sync ✓.
+  - **DEFERRED (q-run9-S5-03):** release.yml + deploy/windows/*.ps1 — future LAN-Windows-installer session.
 
 LAST_DONE (S4a-2 — Scaffold Part 5, shadcn primitives + token parity: apps/yelli):
   - **17 shadcn primitives** generated via `npx shadcn@2 add …` (q-S4-04: locked major against the v3-mode
@@ -201,7 +238,8 @@ NEXT:
      L1+L6, audit L5, rate-limit, error); src/proxy.ts (Next.js 16 proxy()/proxyConfig, V25 anti-tenant-
      switching — DL:179); src/env.ts (Zod env validation, with SKIP_ENV_VALIDATION build guard); LAN
      anonymous-admin hook; api route handlers (trpc + auth). AT_RISK — split further if >500L.
-  2. Then S5 (deploy + CI; wire `prisma generate` before typecheck, add pnpm onlyBuiltDependencies for prisma).
+  2. ✅ S5 (deploy + CI) — DONE this session. `prisma generate` wired before typecheck; pnpm
+     onlyBuiltDependencies added. Only S4b remains before the W-series wiring sessions.
   3. Then W1–W8 wire the validated prototype/ flows to the real backend (swap sim layer for tRPC/Prisma),
      finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
@@ -232,6 +270,31 @@ MODELS:
   planning:   claude-code (Opus — architect)
   execution:  claude-sonnet-4-6 via Claude Code
   governance: gemini-2.5-flash-lite
+
+CHECKPOINT TYPE (S5): full — deploy/ + CI (Scaffold Part 6). 22 deploy/compose files + start.sh + push.sh
+  (restored mirror) + 4 tools/*.mjs (restored) + ci.yml (edited) + docker-publish.yml (restored) +
+  apps/yelli/Dockerfile (edited) + .dockerignore (restored) + root package.json (edited) + MANIFEST.txt
+  (new) + .socraticodecontextartifacts.json (new, gitignored) + 3 governance docs (STATE.md,
+  CHANGELOG_AI.md, DECISIONS_LOG.md S5 answer-log) ; 1 atomic commit.
+LINES_TOUCHED (S5): ~30 hand-authored lines (Dockerfile 2 edits, ci.yml +2 lines, package.json +6) +
+  MANIFEST.txt (~80) + .socraticodecontextartifacts.json (~38). Compose tree + tools/ + push/start.sh +
+  docker-publish.yml are restored verbatim from tag (mirror, not counted as authored). Well within budget.
+FILES_TOUCHED (S5): deploy/compose/{dev,stage,prod}/* (22), deploy/compose/start.sh, deploy/compose/push.sh,
+  apps/yelli/Dockerfile, apps/yelli/.dockerignore, tools/{validate-inputs,check-env,check-product-sync,
+  hydration-lint}.mjs, .github/workflows/ci.yml, .github/workflows/docker-publish.yml, package.json,
+  MANIFEST.txt, .socraticodecontextartifacts.json (gitignored), docs/STATE.md, docs/CHANGELOG_AI.md,
+  docs/DECISIONS_LOG.md.
+TIER_CLASSIFICATION (S5): Tier 1 — lightweight (mostly faithful restore + small adaptations; executed
+  headless Opus-inline per the standing V32.1 fallback; lint/test/build + 3 governance validators all
+  green, no thrash).
+dispatch_ratio (S5):
+  sonnet_writes: 0
+  opus_writes: 1
+  ratio: 0.0
+  target: ">= 3.0"
+  status: N/A — single-executor headless swarm worker (`claude -p`); sub-agent dispatch is not available
+          in this harness. Standing V32.1 env-structural fallback (documented in EXECUTION NOTE). Not a
+          discretionary R1 bypass; the ratio metric does not apply to the swarm-worker execution model.
 
 CHECKPOINT TYPE (S4a-2): full — apps/yelli: 17 shadcn primitives (CLI-generated) + 3 authored files
   (tokens.ts, tokens.parity.test.ts, vitest.config.ts) + package.json + pnpm-lock.yaml + pnpm-workspace.yaml

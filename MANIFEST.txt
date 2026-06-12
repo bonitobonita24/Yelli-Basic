@@ -1,0 +1,79 @@
+Yelli — Phase 4 Clean-Slate Scaffold Manifest
+=============================================
+Branch:   swarm/rebuild
+Through:  Session S5 (Scaffold Part 6 — deploy/ + CI)
+App slug: yelli  ·  App package: @yelli/web  ·  Dev app port: 46848
+
+This manifest reflects the clean-slate scaffold-then-wire rebuild (S0–S5).
+The May-2026 V31 scaffold (176 files, commit 396ea09 on scaffold/part-8) was
+removed by the V32.6.1 clean-slate wipe (2026-06-07); these files are the
+faithfully re-built / mirrored equivalents on swarm/rebuild.
+
+-----------------------------------------------------------------------------
+ROOT CONFIG (S1)
+  package.json · pnpm-workspace.yaml · turbo.json · tsconfig.base.json
+  eslint.config.mjs · .prettierrc · .prettierignore · .editorconfig · .nvmrc
+  inputs.yml · inputs.schema.json
+
+packages/shared — @yelli/shared (S1)        9 tracked files
+  enums · entities · audit vocabulary (§11-canonical) · reserved-slugs · Zod validators
+
+packages/db — @yelli/db (S2)                11 tracked files
+  prisma/schema.prisma (8 domain + 3 Auth.js models, 5 enums)
+  prisma/migrations/0001_init (DDL + L2 RLS) · src/audit.ts (L5) ·
+  src/rls.ts (L2) · src/middleware/tenant-guard.ts (L6) · src/index.ts
+
+packages/ui — @yelli/ui (S3)                 6 tracked files
+  cn() · yelliTailwindPreset (Phase 3.3 signed-off design tokens)
+
+packages/jobs — @yelli/jobs (S3)            13 tracked files
+  6 BullMQ queue definitions · ioredis connection factory ·
+  worker guards (_validate) · 6 worker stubs
+
+apps/yelli — @yelli/web (S4a-1 + S4a-2)     24 tracked src files + configs
+  Next.js 16 App Router shell · 6 security headers · Clay design tokens ·
+  17 shadcn primitives · token-parity drift guard (Vitest)
+
+-----------------------------------------------------------------------------
+PART 6 — deploy/ + CI  (THIS SESSION, S5)
+-----------------------------------------------------------------------------
+apps/yelli/Dockerfile                       3-stage standalone image (deps→builder→runner)
+apps/yelli/.dockerignore
+
+deploy/compose/start.sh                     one-project multi-file startup (dev --build; stage/prod pull)
+deploy/compose/push.sh                      manual image promotion (dev→staging→prod)
+
+deploy/compose/dev/                         postgres+pgbouncer · valkey · minio · pgadmin · mailhog(infra) · app
+  docker-compose.db.yml · docker-compose.cache.yml · docker-compose.storage.yml
+  docker-compose.pgadmin.yml · docker-compose.infra.yml · docker-compose.app.yml
+  pgadmin-servers.json
+
+deploy/compose/stage/                       postgres+pgbouncer · valkey · minio · pgadmin · app (Docker Hub pull, Traefik)
+  docker-compose.db.yml · docker-compose.cache.yml · docker-compose.storage.yml
+  docker-compose.pgadmin.yml · docker-compose.app.yml · pgadmin-servers.json
+
+deploy/compose/prod/                        postgres+pgbouncer · valkey · minio · pgadmin · app · cloudflared sidecar
+  docker-compose.db.yml · docker-compose.cache.yml · docker-compose.storage.yml
+  docker-compose.pgadmin.yml · docker-compose.app.yml · docker-compose.cloudflared.yml
+  pgadmin-servers.json
+
+  NOTE: no self-hosted coturn (WebRTC uses external hosted TURN / Open Relay).
+        cloudflared sidecar restored for prod ingress when Traefik docker-provider
+        is broken on host (q-run9-S5-02).
+
+tools/                                       governance validators (run by ci.yml governance job)
+  validate-inputs.mjs · check-env.mjs · check-product-sync.mjs · hydration-lint.mjs
+
+.github/workflows/ci.yml                     governance gates · turbo lint/typecheck/test/build matrix
+                                             (prisma generate wired before typecheck) · pnpm audit
+.github/workflows/docker-publish.yml         Docker Hub build & push on main (powerbyteit/yelli)
+
+MANIFEST.txt                                 (this file)
+.socraticodecontextartifacts.json            SocratiCode context artifacts config
+
+-----------------------------------------------------------------------------
+DEFERRED (not in S5 scope — restore in dedicated future sessions)
+  .github/workflows/release.yml              semver :vX.Y.Z + floating :prod release pipeline
+  deploy/windows/*.ps1                       LAN-edition Windows installer scripts (5)
+  packages/storage · apps/yelli auth + tRPC + proxy.ts + env.ts (S4b)
+  prisma/seed.ts (needs CREDENTIALS + live DB + argon2 native build)

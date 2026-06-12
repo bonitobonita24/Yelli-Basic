@@ -2,6 +2,26 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-12 — Phase 4 Swarm Session S5 — Scaffold Part 6 (deploy/ + CI)
+
+- Agent: CLAUDE_CODE (Opus — R1 DEVIATION: standing acceptance per the headless swarm-worker model; single-executor `claude -p`, sub-agent dispatch unavailable in this harness — documented V32.1 env-structural fallback, not a discretionary bypass).
+- Commit: `feat(phase-4-S5): Scaffold Part 6 — deploy/ + CI` (code + governance bundled).
+- Why: Scaffold the deployment + CI layer for the clean-slate rebuild (framework Part 7+8 content), mirroring the proven structure from the pre-clean-slate BUILT state (tag `pre-clean-slate-20260607-134026`) per scope, adapted to current clean-slate reality (`@yelli/web`; packages shared/db/ui/jobs only).
+- Resolved answers applied: q-run9-S5-02 (bucket A — restore cloudflared sidecar, NO self-hosted coturn; WebRTC uses external Open Relay TURN); q-run9-S5-03 (defer `release.yml` + `deploy/windows/*.ps1` to a future LAN-Windows-installer session).
+- Files added (restored mirror from tag): `deploy/compose/{dev,stage,prod}/docker-compose.*.yml` + `pgadmin-servers.json` (22 files), `deploy/compose/start.sh`, `deploy/compose/push.sh`, `tools/{validate-inputs,check-env,check-product-sync,hydration-lint}.mjs`, `.github/workflows/docker-publish.yml`, `apps/yelli/.dockerignore`, `MANIFEST.txt` (fresh), `.socraticodecontextartifacts.json` (fresh; gitignored — machine-local).
+- Files modified: `apps/yelli/Dockerfile` (removed api-client + storage COPY lines — not scaffolded yet; fixed build filter `@yelli/yelli` → `@yelli/web`); `.github/workflows/ci.yml` (wired `pnpm --filter @yelli/db run db:generate` before the turbo typecheck/build matrix — plan item); `package.json` (+4 `tools:*` scripts; +`pnpm.onlyBuiltDependencies = [argon2, esbuild, @prisma/client, prisma]` — plan item, exact proven value from tag); `docs/STATE.md`; `docs/DECISIONS_LOG.md` (S5 answer-log).
+- Files deleted: none.
+- Compose services (q-run9-S5-02): postgres+pgbouncer · valkey · minio · pgadmin · app (all envs); mailhog/infra (dev only); cloudflared sidecar (prod only). NO coturn (scope-sheet template error — no backing in inputs.yml/.env/CREDENTIALS.md/tag). pgAdmin + MailHog retained: both have full config backing (inputs.yml ports + .env keys + CREDENTIALS.md sections) → part of "mirror the structure."
+- Scope note (tools/): `tools/` is not in the literal S5 scope line but was included — four converging signals: framework Part 7 bundles tools/ with deploy; the in-scope `ci.yml` governance job hard-depends on the `tools:*` scripts; STATE.md NEXT explicitly said "tools/ lands in S5"; the tag contains them. js-yaml + ajv already resolved in the lockfile → dependency-clean restore. All three validators run green on current config.
+- Schema/migrations: none.
+- Tier: 1 — lightweight (mostly faithful restore + ~30 hand-authored lines of adaptation; no thrash).
+- Errors encountered: none. (Dockerfile would have failed `docker build` on the two non-existent package COPYs + wrong app filter — caught pre-build via package-reality check, fixed before validation.)
+- Errors resolved: Dockerfile package-set + filter-name drift vs clean-slate reality (see above).
+- Verification: `pnpm install --frozen-lockfile` ✓ (lockfile unchanged); `pnpm --filter @yelli/db run db:generate` ✓; `pnpm lint` ✓ (5/5); `pnpm test` ✓ (@yelli/web 2/2); `pnpm build` ✓ (static); `pnpm tools:validate-inputs` ✓; `pnpm tools:check-env` ✓; `pnpm tools:check-product-sync` ✓.
+- Drift review: NO new `lessons.md` entry — same single-executor swarm-worker / V32.1 dispatch fallback already logged; no new 🔴 evidence.
+- Dispatch ratio (S5): sonnet_writes=0, opus_writes=1; N/A for the headless swarm-worker model (sub-agent dispatch unavailable). Documented in STATE.md EXECUTION NOTE.
+- Deferred (q-run9-S5-03): `.github/workflows/release.yml` (semver `:vX.Y.Z` + floating `:prod`) + `deploy/windows/*.ps1` (5 LAN-installer scripts) — restorable from the tag in a dedicated future session.
+
 ### 2026-06-09 — Phase 3.3 Wave 9 — Flow G Manage Devices walkable (PRODUCT.md §3 Flow G)
 
 - Agent: CLAUDE_CODE (Opus 4.7 — R1 DEVIATION: standing acceptance per Wave 7 STATE.md NEXT-field; fifth consecutive wave Opus-inline; framework-layer skill auto-load budget fix still pending — no Sonnet dispatch attempted this wave).

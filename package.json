@@ -12,7 +12,11 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yaml,yml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yaml,yml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yaml,yml}\"",
+    "tools:validate-inputs": "node tools/validate-inputs.mjs",
+    "tools:check-env": "node tools/check-env.mjs",
+    "tools:check-product-sync": "node tools/check-product-sync.mjs",
+    "tools:hydration-lint": "node tools/hydration-lint.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
@@ -23,6 +27,7 @@
     "typescript-eslint": "^8.10.0"
   },
   "pnpm": {
+    "onlyBuiltDependencies": ["argon2", "esbuild", "@prisma/client", "prisma"],
     "overrides": {
       "ioredis": "5.10.1"
     }
