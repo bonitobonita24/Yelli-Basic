@@ -1,10 +1,11 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold (swarm/rebuild · S1 complete, 2026-06-12)
+## Current State — Clean-Slate Scaffold (swarm/rebuild · S2 complete, 2026-06-12)
 
 PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
-              on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) are complete.
+              on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) + S2 (Part 3:
+              packages/db Prisma schema + L2/L5/L6 + migration 0001) are complete.
 
               ⚠ PLAN CORRECTION (S0): The prior STATE.md falsely claimed "Phase 3.5 COMPLETE · Parts 1–8
               already BUILT in May 2026 V31 adoption — actual remaining work is the prototype→production
@@ -24,8 +25,37 @@ FILESYSTEM REALITY (verified this session):
             node_modules/ + packages/shared/ (@yelli/shared — types + Zod + reserved-slugs + audit vocab).
             ⇒ `pnpm install|typecheck|lint` now run green. `pnpm build|test` are no-ops until a package
               defines those tasks (shared is source-exported; tests land later).
-  ABSENT:   apps/ , packages/db , packages/ui , packages/jobs , tools/.
+            NEW (S2): packages/db/ (@yelli/db) — Prisma schema (8 domain + 3 Auth.js models, 5 enums),
+            migration 0001_init (DDL + L2 RLS), L5 writeAuditLog, L6 $allOperations tenant-guard, L2
+            withTenant/setTenantContext, base PrismaClient singleton. pnpm-lock.yaml +prisma 5.22.0.
+            ⇒ `prisma generate` (pnpm --filter @yelli/db db:generate) MUST precede typecheck on a fresh clone.
+  ABSENT:   apps/ , packages/ui , packages/jobs , tools/.
             ⇒ `pnpm tools:validate-inputs` not wired yet (tools/ lands in S5). apps/yelli lands in S4.
+
+LAST_DONE (S2 — Scaffold Part 3: packages/db — Prisma schema + L2/L5/L6 + migration 0001):
+  - **packages/db (@yelli/db)** — reproduced the LOCKED Phase-4-Part-3 contract from the wiped scaffold
+    (git `96920d0`), adapted to S1's `@yelli/shared` barrel:
+      • prisma/schema.prisma — 8 domain models (Tenant, User, Device, Invitation, AuditLog, CallSession,
+        WebPushSubscription, ExportJob) + 3 Auth.js (Account, Session, VerificationToken) + 5 enums
+        (Role, CallRole, AuditTargetType, EndReason, ExportJobStatus). 1:1 with @yelli/shared entities.ts.
+      • prisma/migrations/0001_init — migration.sql (full DDL + L2 RLS ENABLE + tenant_isolation policies)
+        + down.sql + migration_lock.toml.
+      • src/audit.ts (L5 writeAuditLog), src/rls.ts (L2 withTenant/setTenantContext), src/middleware/
+        tenant-guard.ts (L6 $allOperations extension; excludes Tenant/AuditLog/Account/Session/
+        VerificationToken), src/index.ts (base unguarded PrismaClient singleton).
+  - **Scope additions / rule-backed deviations** (Output Equivalence preserved, all documented in CHANGELOG):
+      • +User.securityVersion Int @default(0) (LOCKED decision + security.md §AUTH #6 — folded into 0001).
+      • CallSession.endedAt + endReason → nullable to match S1 entities.ts (LOCKED "Part-2 TS is source of
+        truth; fix the schema").
+      • +ExportJob model/enum/table (the wiped scaffold never materialized it; added to satisfy the explicit
+        "8 domain models" scope + entities.ts. REVIEW NOTE: if export state is BullMQ/Valkey-only, S3 may drop
+        the table — additive + isolated.).
+      • entities.ts synced (2 edits: +User.securityVersion, AuditLog.targetId → string|null).
+  - **Validation green** — typecheck ✓ (2/2 pkgs, 0 errors); lint ✓ (2/2, 0 problems); build/test no-op exit 0;
+    prisma validate ✓; prisma generate ✓ (client v5.22.0); prettier --check ✓ on all S2 code files.
+    (Repo-wide format:check fails on 44 PRE-EXISTING files — docs/, inputs.yml, README.md — untouched by S2.)
+  - **CHANGELOG_AI.md appended** — full S2 entry (Rule 15 attribution; deviations + deferrals documented).
+  - **Deferred (not in S2 literal scope):** prisma/seed.ts (needs CREDENTIALS + live DB + argon2 native build).
 
 LAST_DONE (S1 — Scaffold Parts 1–2: root config + packages/shared):
   - **Root monorepo config** — package.json (pnpm@10.33.2, turbo-delegating scripts), pnpm-workspace.yaml
@@ -65,22 +95,25 @@ LAST_DONE (S0 — Re-baseline + inputs.yml regen):
   - **CHANGELOG_AI.md appended** — clean-slate re-baseline + plan-correction entry (Rule 15 attribution).
 
 NEXT:
-  1. **S2 — Scaffold Part 3: packages/db** (Prisma schema — the contract for all wiring; AT_RISK). 8 domain
-     models + 3 Auth.js-managed (Session/VerificationToken/Account) + 4 enums; L2 RLS, L5 AuditLog, L6
-     tenant-guard extension; User.securityVersion; migration 0001. Field shapes derive from PRODUCT.md Data
-     Entities and must align 1:1 with @yelli/shared entities.ts (S1) — same field names + the AUDIT_ACTIONS vocab.
-  2. Then S3 (packages/ui + packages/jobs) → S4 (apps/yelli Next.js + shadcn + Auth.js + tRPC skeleton; AT_RISK)
-     → S5 (deploy + CI).
+  1. **S3 — Scaffold Part 4: packages/ui + packages/jobs** — shadcn/ui shared component layer + BullMQ typed
+     queues/workers (6 queues per LOCKED Jobs + Queues). Consumes @yelli/db (S2) + @yelli/shared (S1).
+     ⚠ If S3 (packages/jobs export worker) determines ExportJob state should be BullMQ/Valkey-only, it may drop
+     the S2 export_jobs table (additive + isolated — see CHANGELOG S2 review note).
+  2. Then S4 (apps/yelli Next.js + shadcn + Auth.js v5 Credentials/JWT + tRPC skeleton; AT_RISK) → S5 (deploy + CI;
+     wire `prisma generate` before typecheck, add pnpm onlyBuiltDependencies for prisma if needed).
   3. Then W1–W8 wire the validated prototype/ flows to the real backend (swap sim layer for tRPC/Prisma),
      finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     none for S1. S2 unblocked (depends only on S1, now complete).
+BLOCKERS:     none for S2. S3 unblocked (depends on S1 + S2, both complete). One non-blocking REVIEW NOTE
+              carried to S3/human: ExportJob persistence (Postgres table vs BullMQ/Valkey-only) — see CHANGELOG S2.
 
-GIT_BRANCH:   swarm/rebuild. S1 adds 1 atomic commit (root config + packages/shared + pnpm-lock.yaml +
-              docs/STATE.md + docs/CHANGELOG_AI.md). The human reviews and pushes — the worker never pushes.
+GIT_BRANCH:   swarm/rebuild. S2 adds 1 atomic commit (packages/db + 0001 migration + entities.ts sync +
+              pnpm-lock.yaml + docs/STATE.md + docs/CHANGELOG_AI.md). The human reviews and pushes — the worker
+              never pushes.
               Recent commits:
+  - `9328eb5` feat(phase-4-S1): Scaffold Parts 1-2 — root config + packages/shared
   - `dddb647` feat(phase-4-S0): Re-baseline + inputs.yml regen (Bootstrap)
   - `552d8ad` chore(phase-3.5): execution plan generated — 9 sessions, brownfield-aware  ← premise corrected by S0
   - `2a5b1dc` chore(phase-3.3): client sign-off + STATE.md gate-closure
@@ -93,15 +126,20 @@ MODELS:
   execution:  claude-sonnet-4-6 via Claude Code
   governance: gemini-2.5-flash-lite
 
-CHECKPOINT TYPE: full (scaffold session — 18 files created + 2 governance docs updated; 1 atomic commit)
-LINES_TOUCHED: ~465 lines of new scaffold (root config + packages/shared) + CHANGELOG_AI.md + this STATE.md
-FILES_TOUCHED (S1):
-  - root: package.json, pnpm-workspace.yaml, turbo.json, tsconfig.base.json, eslint.config.mjs,
-    .prettierrc, .prettierignore, .editorconfig, .nvmrc, pnpm-lock.yaml (generated)
-  - packages/shared: package.json, tsconfig.json, eslint.config.mjs,
-    src/index.ts, src/enums.ts, src/audit.ts, src/entities.ts, src/validators.ts, src/config/reserved-slugs.ts
+CHECKPOINT TYPE: full (S2 scaffold session — packages/db: 11 files created + 1 modified package + 2 governance
+  docs updated; 1 atomic commit)
+LINES_TOUCHED (S2): ~830 lines of new scaffold (schema.prisma ~290, migration.sql ~300, down.sql ~55,
+  src/* ~150, package/tsconfig/eslint ~45) + entities.ts (2-line sync) + CHANGELOG_AI.md + this STATE.md.
+FILES_TOUCHED (S2):
+  - packages/db: package.json, tsconfig.json, eslint.config.mjs,
+    prisma/schema.prisma, prisma/migrations/0001_init/migration.sql, prisma/migrations/0001_init/down.sql,
+    prisma/migrations/migration_lock.toml, src/index.ts, src/audit.ts, src/rls.ts, src/middleware/tenant-guard.ts
+  - packages/shared/src/entities.ts (modified — securityVersion + targetId nullable)
+  - pnpm-lock.yaml (modified — prisma 5.22.0)
   - docs/STATE.md (this file), docs/CHANGELOG_AI.md (appended)
-TIER_CLASSIFICATION: Tier 1 — lightweight (465 lines total, within the 500-line budget; single executor)
+TIER_CLASSIFICATION: Tier 2 — moderate (~830 lines, above the 500-line Sonnet-dispatch gate but executed as a
+  single headless Opus-inline worker per the standing V32.1 fallback; schema+migration are largely declarative/
+  reproduced from the LOCKED scaffold; validated clean with no thrash).
 
 EXECUTION NOTE (Rule 15 / V32.1): This swarm worker runs headless (`claude -p`) as a single executor agent
   and performs its own file writes inline — sub-agent dispatch is not used in this harness. This is the

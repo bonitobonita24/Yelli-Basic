@@ -37,6 +37,9 @@ export interface User {
   displayName: string; // <= 24 chars
   role: UserRole;
   isSuspended: boolean;
+  /** Incremented on role/tenant/status/password change; Auth.js session() callback
+   *  invalidates the session when the JWT-embedded version differs (security.md §AUTH #6). */
+  securityVersion: number;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
@@ -72,7 +75,7 @@ export interface AuditLog {
   actorUserId: string | null; // null for system events (e.g. device.first_join)
   action: AuditAction;
   targetType: AuditTargetType;
-  targetId: string;
+  targetId: string | null; // null for targetless events (LOCKED: AuditLog.targetId nullability)
   payload: Record<string, unknown>; // minimal context, no sensitive data
   createdAt: Date;
 }

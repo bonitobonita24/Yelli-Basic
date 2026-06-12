@@ -774,3 +774,78 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Hand-off:            Next swarm session S2 — packages/db Prisma schema (the contract; AT_RISK). Human reviews
                        branch `swarm/rebuild` and pushes; the worker never pushes.
 - Commit:              feat(phase-4-S1): Scaffold Parts 1-2 — root config + packages/shared
+
+## 2026-06-12 — Phase 4 Swarm Session S2 — Scaffold Part 3: packages/db (Prisma schema + L2/L5/L6 + migration 0001)
+- Agent:               CLAUDE_CODE (swarm worker, headless `claude -p`)
+- Why:                 Establish the Prisma data contract for the clean-slate rebuild — the schema every wire
+                       session (W1–W4) swaps the prototype sim layer onto. Reproduces the LOCKED Phase-4-Part-3
+                       decisions (Output Equivalence) from the wiped scaffold (git `96920d0`), adapting imports to
+                       S1's `@yelli/shared` barrel and applying the explicit S2 scope additions.
+- Files added (db):    packages/db/{package.json,tsconfig.json,eslint.config.mjs} +
+                       prisma/schema.prisma + prisma/migrations/0001_init/{migration.sql,down.sql} +
+                       prisma/migrations/migration_lock.toml +
+                       src/{index.ts,audit.ts,rls.ts,middleware/tenant-guard.ts}.
+                         • schema.prisma — 8 domain models (Tenant, User, Device, Invitation, AuditLog, CallSession,
+                           WebPushSubscription, ExportJob) + 3 Auth.js-managed (Account, Session, VerificationToken)
+                           + 5 Prisma enums (Role, CallRole, AuditTargetType, EndReason, ExportJobStatus). Field
+                           names/shapes align 1:1 with @yelli/shared entities.ts. tenantId NOT NULL on tenant-scoped
+                           models (+ @@index); nullable on AuditLog + WebPushSubscription. cuid() string PKs.
+                         • migration.sql (0001_init) — full DDL + L2 RLS: ENABLE ROW LEVEL SECURITY + tenant_isolation
+                           policies (USING tenant_id = current_setting('app.current_tenant_id', true)) on users,
+                           devices, invitations, call_sessions, export_jobs; permissive (… OR tenant_id IS NULL) on the
+                           two nullable-tenant tables (audit_logs, web_push_subscriptions). down.sql reverses
+                           (policies → RLS disable → tables → enums).
+                         • src/audit.ts — L5 writeAuditLog() helper (immutable AuditLog write; action as String per
+                           the §11-canonical-in-@yelli/shared design; tenantId+targetId nullable).
+                         • src/rls.ts — L2 setTenantContext() + withTenant() (SET LOCAL app.current_tenant_id in a tx).
+                         • src/middleware/tenant-guard.ts — L6 tenantGuardExtension() via Prisma.defineExtension +
+                           `query.$allModels.$allOperations` (LOCKED). Excludes Tenant/AuditLog/Account/Session/
+                           VerificationToken. Super-Admin uses the base unguarded client (no inline if/else).
+                         • src/index.ts — base PrismaClient singleton (dev-HMR-safe) + barrel re-exports.
+                         • ExportJob model + ExportJobStatus enum + export_jobs table/index/FKs/RLS ADDED to reach the
+                           "8 domain models" scope and align 1:1 with @yelli/shared entities.ts ExportJob (status,
+                           signedUrl, expiresAt 24h, downloadedAt, payloadBytes; FK tenant + nullable requestedBy).
+                           Output-Equivalence divergence: the wiped scaffold (`96920d0`) never materialized an
+                           ExportJob table (its tenant.export was BullMQ/queue-tracked; migrations were 0001_init +
+                           0002_user_security_version only). S2 materializes it because (a) the explicit S2 scope says
+                           "8 domain models", (b) entities.ts (S1 contract) defines it as a persistent entity, (c)
+                           AuditTargetType references "ExportJob" (audit rows need a stable target id). Self-contained
+                           + tenant-scoped (L6-guarded automatically; strict RLS). REVIEW NOTE for the human/Brain:
+                           if export-job state is intended to live only in BullMQ/Valkey (not Postgres), drop this
+                           table in S3 (packages/jobs) — it is additive and isolated.
+- Files modified:      packages/shared/src/entities.ts — 2 alignment edits restoring the LOCKED schema↔TS contract:
+                         (1) User.securityVersion: number added (LOCKED: User.securityVersion + security.md §AUTH #6);
+                         (2) AuditLog.targetId widened to `string | null` (LOCKED: AuditLog.targetId nullability —
+                             "nullable in both the schema and the Part-2 TS interface").
+                       pnpm-lock.yaml — +prisma/@prisma/client 5.22.0 (+@types/node) resolved.
+- Schema/migrations:   prisma/migrations/0001_init (init). `prisma validate` ✓; `prisma generate` ✓ (client v5.22.0).
+- Deviations from the wiped scaffold (`96920d0`), all rule-backed (Output Equivalence preserved):
+                         • +User.securityVersion (the old Part-3 deferred it to Part-5; S2 scope folds it into Part-3).
+                         • CallSession.endedAt + endReason → nullable, matching S1 entities.ts (`Date|null`,
+                           `CallEndReason|null`) per the LOCKED rule "Part-2 TS is the source of truth; on a Part-3+
+                           mismatch fix the schema, not the type." (Also semantically correct: a ringing/active call
+                           has no endedAt/endReason yet.)
+                         • Prisma pinned ^5.22.0 (registry now serves 7.x; v7 would break the proven generator output).
+                         • Comment header source-of-truth path updated types/* → entities.ts (S1's consolidated barrel).
+- Scope deferrals (NOT in S2's literal scope — left for a later session):
+                         • prisma/seed.ts (webmaster admin) — needs CREDENTIALS.md + a live DB; argon2 is a native build.
+                           Deferred to the session that wires seeding (keeps S2 install surface minimal + DB-free).
+                         • @yelli/shared NOT added as a db dependency — no S2 src file imports it (the db layer uses
+                           Prisma's own generated AuditTargetType enum). Add when a consumer (W4 seed/audit) needs it.
+- Validation:          pnpm typecheck ✓ (2/2 packages, 0 errors); pnpm lint ✓ (2/2, 0 problems); pnpm build → no-op
+                       exit 0 (db + shared source-exported); pnpm test → no tasks exit 0; prettier --check ✓ on all
+                       S2 code files. (Repo-wide `format:check` fails on 44 PRE-EXISTING files — docs/, inputs.yml,
+                       README.md — untouched by S2; not an S2 regression.)
+- Prerequisite note:   `pnpm install` gates Prisma's build scripts (pnpm onlyBuiltDependencies). `prisma generate`
+                       (`pnpm --filter @yelli/db db:generate`) MUST run before typechecking @yelli/db on a fresh
+                       clone — the generated client lives in node_modules (gitignored). Standard Prisma practice;
+                       CI wiring (S5) should run db:generate before the typecheck step.
+- Errors encountered:  1 (non-blocking) — first `pnpm lint` warned: unused `eslint-disable no-var` directive in
+                       index.ts (root flat config does not enable `no-var`). Removed the directive (plain `var` is
+                       required for the `declare global` augmentation and is not flagged). 0 problems after.
+- Errors resolved:     the above.
+- Execution note (Rule 15 / V32.1): swarm worker ran headless as a single executor and wrote files inline
+                       (sub-agent dispatch not used in this harness — standing V32.1 env-structural fallback).
+- Hand-off:            Next swarm session S3 — packages/ui + packages/jobs. Human reviews branch `swarm/rebuild`
+                       and pushes; the worker never pushes.
+- Commit:              feat(phase-4-S2): Scaffold Part 3 — packages/db (Prisma schema + migration)
