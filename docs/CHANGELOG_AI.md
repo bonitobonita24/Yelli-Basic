@@ -730,3 +730,47 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Hand-off:            Next swarm session S1 — scaffold Parts 1–2 (root config + packages/shared). Human
                        reviews this branch (`swarm/rebuild`) and pushes; the worker never pushes.
 - Commit:              feat(phase-4-S0): Re-baseline + inputs.yml regen (Bootstrap)
+
+## 2026-06-12 — Phase 4 swarm S1: Scaffold Parts 1–2 (root config + packages/shared)
+- Agent:               CLAUDE_CODE (swarm worker, headless)
+- Why:                 First scaffold session of the clean-slate Scaffold-then-Wire rebuild. Establishes the
+                       pnpm/turbo monorepo root and the `@yelli/shared` package — the type + validation contract
+                       every downstream session (S2 Prisma, S4 tRPC, W1–W4 wiring) consumes.
+- Files added (root):  package.json (pnpm@10.33.2 workspace root, turbo-delegating scripts), pnpm-workspace.yaml
+                       (apps/* + packages/* globs; pnpm `catalog:` pins — phantom-ui 0.10.1 EXACT, zod, typescript),
+                       turbo.json (turbo 2.x `tasks`: build/lint/typecheck/test), tsconfig.base.json (strict +
+                       noUncheckedIndexedAccess + exactOptionalPropertyTypes, Rule 12), eslint.config.mjs
+                       (ESLint 9 flat config; @typescript-eslint/no-explicit-any: error), .prettierrc,
+                       .prettierignore, .editorconfig, .nvmrc (22).
+- Files added (shared): packages/shared/{package.json,tsconfig.json,eslint.config.mjs} +
+                       src/{index.ts,enums.ts,audit.ts,entities.ts,validators.ts,config/reserved-slugs.ts}.
+                         • enums.ts — Edition, CallRole, UserRole, CallEndReason, ExportJobStatus, AuditTargetType
+                           (readonly tuple + union, verbatim from PRODUCT.md Data Entities).
+                         • audit.ts — AUDIT_ACTIONS (§11-canonical, 29 actions) + AuditAction type + isAuditAction().
+                           SOURCE OF TRUTH = docs/PROTOTYPE.md §3 (signed-off Phase 3.3 lock), NOT the illustrative
+                           `etc.`-terminated PRODUCT.md line-204 enum. HARD CONSTRAINT for W4 + W1/W2/W3.
+                         • entities.ts — 8 domain interfaces (Tenant, User, Device, Invitation, AuditLog,
+                           CallSession, WebPushSubscription, ExportJob); Date timestamps (Prisma runtime shape).
+                         • config/reserved-slugs.ts — RESERVED_SLUGS (18, verbatim) + isReservedSlug().
+                         • validators.ts — Zod: tenantSlugSchema (3–30, `^[a-z][a-z0-9-]*[a-z0-9]$`, no `--`,
+                           reserved-check, generic "slug unavailable" per V25), display-name caps (tenant ≤40,
+                           user ≤24, device ≤24), email, browserFingerprint, idempotencyKey (uuid), enum schemas.
+- Files deleted:       none.
+- Schema/migrations:   none (Prisma schema is S2).
+- Validation:          pnpm install ✓ (lockfile generated, 112 pkgs); pnpm typecheck ✓ (tsc --noEmit, 0 errors);
+                       pnpm lint ✓ (eslint, 0 problems); pnpm build → no-op (shared is source-exported, no build
+                       step) exit 0; pnpm test → no tasks (no tests in S1 scope) exit 0; prettier --check ✓ on all
+                       created code files. 465 lines total — within the 500-line dispatch budget.
+- Errors encountered:  1 — self-caught import typo (entities.ts imported AuditTargetType from ./audit.js; it lives
+                       in ./enums.js). Caught by the first `pnpm typecheck` (TS2305) and fixed inline. Trivial
+                       self-correction; no lessons.md entry warranted.
+- Errors resolved:     the above import fix.
+- Audit-vocabulary note: PRODUCT.md line-204 AuditLog enum and PROTOTYPE.md §3 diverge (member.* vs user.*;
+                       tenant.brand.update vs tenant.branding.update; etc.). Resolved in favour of PROTOTYPE.md §3
+                       — the explicitly-labelled "§11-canonical" signed-off contract that "must be preserved
+                       verbatim" in Phase 4. S2/W4 inherit AUDIT_ACTIONS as the single source.
+- Execution note (Rule 15 / V32.1): swarm worker ran headless as a single executor and wrote files inline
+                       (sub-agent dispatch not used in this harness — standing V32.1 env-structural fallback).
+- Hand-off:            Next swarm session S2 — packages/db Prisma schema (the contract; AT_RISK). Human reviews
+                       branch `swarm/rebuild` and pushes; the worker never pushes.
+- Commit:              feat(phase-4-S1): Scaffold Parts 1-2 — root config + packages/shared

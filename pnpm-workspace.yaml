@@ -1,0 +1,15 @@
+# pnpm workspace — Yelli monorepo (Phase 4 scaffold, swarm S1)
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Catalog — single source of truth for shared dependency versions across the
+# monorepo (pnpm catalog). Internal packages reference these as "catalog:".
+catalog:
+  # Loading Library Lock (Bootstrap Step 19 / DECISIONS_LOG "Loading state library — DUAL-PATH").
+  # PATH B custom-component loading. EXACT pin — never caret. Bump only via a Phase 7
+  # Feature Update with a DECISIONS_LOG entry.
+  '@aejkatappaja/phantom-ui': 0.10.1
+  # Shared runtime + tooling pins.
+  zod: ^3.23.8
+  typescript: 5.5.4

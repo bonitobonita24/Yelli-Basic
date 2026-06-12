@@ -1,10 +1,10 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Re-baseline (swarm/rebuild · S0 complete, 2026-06-12)
+## Current State — Clean-Slate Scaffold (swarm/rebuild · S1 complete, 2026-06-12)
 
 PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
-              on branch `swarm/rebuild`). S0 (this re-baseline) is complete.
+              on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) are complete.
 
               ⚠ PLAN CORRECTION (S0): The prior STATE.md falsely claimed "Phase 3.5 COMPLETE · Parts 1–8
               already BUILT in May 2026 V31 adoption — actual remaining work is the prototype→production
@@ -19,9 +19,31 @@ FILESYSTEM REALITY (verified this session):
   PRESENT:  docs/ (PRODUCT.md + 9 governance docs), prototype/ (Phase 3.3 sim layer, 9/9 flows signed off),
             deploy/, mockup-server/, inputs.yml, inputs.schema.json, 4 env files, CREDENTIALS.md,
             .gitignore, .mcp.json, .vscode/mcp.json, .cline/ (memory + tasks), scripts/, CLAUDE.md.
-  ABSENT:   apps/ , packages/ , package.json , pnpm-workspace.yaml , node_modules/ , tools/.
-            ⇒ `pnpm lint|build|test` and `pnpm tools:validate-inputs` cannot run yet — no workspace exists.
-            This is correct for a pre-scaffold re-baseline; those land in scaffold sessions S1–S5.
+            NEW (S1): package.json + pnpm-workspace.yaml (catalog) + turbo.json + tsconfig.base.json +
+            eslint.config.mjs + .prettierrc/.prettierignore/.editorconfig + .nvmrc + pnpm-lock.yaml +
+            node_modules/ + packages/shared/ (@yelli/shared — types + Zod + reserved-slugs + audit vocab).
+            ⇒ `pnpm install|typecheck|lint` now run green. `pnpm build|test` are no-ops until a package
+              defines those tasks (shared is source-exported; tests land later).
+  ABSENT:   apps/ , packages/db , packages/ui , packages/jobs , tools/.
+            ⇒ `pnpm tools:validate-inputs` not wired yet (tools/ lands in S5). apps/yelli lands in S4.
+
+LAST_DONE (S1 — Scaffold Parts 1–2: root config + packages/shared):
+  - **Root monorepo config** — package.json (pnpm@10.33.2, turbo-delegating scripts), pnpm-workspace.yaml
+    (apps/* + packages/* + pnpm `catalog:` — phantom-ui 0.10.1 EXACT [Loading Library Lock], zod, typescript),
+    turbo.json (turbo 2.x `tasks`), tsconfig.base.json (strict + noUncheckedIndexedAccess +
+    exactOptionalPropertyTypes — Rule 12), eslint.config.mjs (ESLint 9 flat; no-explicit-any: error),
+    .prettierrc/.prettierignore/.editorconfig, .nvmrc=22.
+  - **packages/shared (@yelli/shared)** — source-exported type + validation contract for all downstream sessions:
+      • enums.ts (Edition, CallRole, UserRole, CallEndReason, ExportJobStatus, AuditTargetType — tuple+union).
+      • audit.ts — AUDIT_ACTIONS (§11-canonical, 29 actions) verbatim from docs/PROTOTYPE.md §3 (the signed-off
+        lock; NOT PRODUCT.md's illustrative line-204 enum). HARD CONSTRAINT inherited by S2 + W4 + W1/W2/W3.
+      • entities.ts — 8 domain interfaces (Date timestamps = Prisma runtime shape).
+      • config/reserved-slugs.ts — RESERVED_SLUGS (18, verbatim) + isReservedSlug().
+      • validators.ts — Zod (tenantSlug 3–30/regex/no-`--`/reserved → generic "slug unavailable" per V25;
+        display-name caps 40/24/24; email; fingerprint; UUID idempotency key; enum schemas).
+  - **Validation green** — pnpm install ✓; typecheck ✓ (0 errors); lint ✓ (0 problems); build/test no-op exit 0;
+    prettier --check ✓. 465 lines total (within the 500-line dispatch budget). 1 self-caught import typo fixed inline.
+  - **CHANGELOG_AI.md appended** — full S1 entry (Rule 15 attribution; audit-vocabulary divergence resolved).
 
 LAST_DONE (S0 — Re-baseline + inputs.yml regen):
   - **docs/STATE.md rewritten** (this file) — reconciled to the real clean-slate state; corrected the
@@ -43,23 +65,25 @@ LAST_DONE (S0 — Re-baseline + inputs.yml regen):
   - **CHANGELOG_AI.md appended** — clean-slate re-baseline + plan-correction entry (Rule 15 attribution).
 
 NEXT:
-  1. **S1 — Scaffold Parts 1–2** (root monorepo config: pnpm-workspace.yaml, turbo.json, tsconfig.base.json,
-     eslint/prettier, .nvmrc=22; packages/shared: TS types + Zod validators + 18-reserved-slugs + phantom-ui@0.10.1 pin).
-  2. Then S2 (packages/db Prisma schema — the contract; AT_RISK) → S3 (ui+jobs) → S4 (apps/yelli Next.js +
-     shadcn + Auth.js + tRPC skeleton; AT_RISK) → S5 (deploy + CI).
+  1. **S2 — Scaffold Part 3: packages/db** (Prisma schema — the contract for all wiring; AT_RISK). 8 domain
+     models + 3 Auth.js-managed (Session/VerificationToken/Account) + 4 enums; L2 RLS, L5 AuditLog, L6
+     tenant-guard extension; User.securityVersion; migration 0001. Field shapes derive from PRODUCT.md Data
+     Entities and must align 1:1 with @yelli/shared entities.ts (S1) — same field names + the AUDIT_ACTIONS vocab.
+  2. Then S3 (packages/ui + packages/jobs) → S4 (apps/yelli Next.js + shadcn + Auth.js + tRPC skeleton; AT_RISK)
+     → S5 (deploy + CI).
   3. Then W1–W8 wire the validated prototype/ flows to the real backend (swap sim layer for tRPC/Prisma),
      finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     none for S0. S1 unblocked. (S1 depends only on S0, now complete.)
+BLOCKERS:     none for S1. S2 unblocked (depends only on S1, now complete).
 
-GIT_BRANCH:   swarm/rebuild. This session adds 1 atomic commit (inputs.yml + docs/STATE.md + docs/CHANGELOG_AI.md).
-              The human reviews and pushes — the worker never pushes.
-              Recent commits (pre-S0):
-  - `552d8ad` chore(phase-3.5): execution plan generated — 9 sessions, brownfield-aware  ← premise now corrected
+GIT_BRANCH:   swarm/rebuild. S1 adds 1 atomic commit (root config + packages/shared + pnpm-lock.yaml +
+              docs/STATE.md + docs/CHANGELOG_AI.md). The human reviews and pushes — the worker never pushes.
+              Recent commits:
+  - `dddb647` feat(phase-4-S0): Re-baseline + inputs.yml regen (Bootstrap)
+  - `552d8ad` chore(phase-3.5): execution plan generated — 9 sessions, brownfield-aware  ← premise corrected by S0
   - `2a5b1dc` chore(phase-3.3): client sign-off + STATE.md gate-closure
-  - `51ebf48` chore(ci): move react-doctor workflow to repo root + pin action SHAs
 
 PORTS:        Phase 4 app dev port = 46848 (inputs.yml ports.dev.app). prototype/ dev server on 4838
               (Phase 3.3 validated baseline, retained for Phase 4 spot-checks).
@@ -69,13 +93,15 @@ MODELS:
   execution:  claude-sonnet-4-6 via Claude Code
   governance: gemini-2.5-flash-lite
 
-CHECKPOINT TYPE: full (1 file regenerated + 1 governance file appended + this STATE.md rewrite; 1 atomic commit)
-LINES_TOUCHED: ~165 lines inputs.yml (regenerated) + CHANGELOG_AI.md (appended) + this STATE.md rewrite
-FILES_TOUCHED:
-  - inputs.yml (regenerated — faithful to PRODUCT.md; schema-valid)
-  - docs/STATE.md (this file)
-  - docs/CHANGELOG_AI.md (appended)
-TIER_CLASSIFICATION: Tier 1 — lightweight (3 files; mechanical re-baseline; no scaffold)
+CHECKPOINT TYPE: full (scaffold session — 18 files created + 2 governance docs updated; 1 atomic commit)
+LINES_TOUCHED: ~465 lines of new scaffold (root config + packages/shared) + CHANGELOG_AI.md + this STATE.md
+FILES_TOUCHED (S1):
+  - root: package.json, pnpm-workspace.yaml, turbo.json, tsconfig.base.json, eslint.config.mjs,
+    .prettierrc, .prettierignore, .editorconfig, .nvmrc, pnpm-lock.yaml (generated)
+  - packages/shared: package.json, tsconfig.json, eslint.config.mjs,
+    src/index.ts, src/enums.ts, src/audit.ts, src/entities.ts, src/validators.ts, src/config/reserved-slugs.ts
+  - docs/STATE.md (this file), docs/CHANGELOG_AI.md (appended)
+TIER_CLASSIFICATION: Tier 1 — lightweight (465 lines total, within the 500-line budget; single executor)
 
 EXECUTION NOTE (Rule 15 / V32.1): This swarm worker runs headless (`claude -p`) as a single executor agent
   and performs its own file writes inline — sub-agent dispatch is not used in this harness. This is the
