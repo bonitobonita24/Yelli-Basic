@@ -1,9 +1,42 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W2b-1 complete → W2b-2 NEXT, 2026-06-12)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W3 complete → W1b / W2b-2 / W4-W8 NEXT, 2026-06-13)
 
-> **W2b-1 DONE (this session, 2026-06-12).** Wire B2 — standalone WebSocket signaling SERVER + deploy.
+> **W3 DONE (this session, 2026-06-13).** Wire C — Tenancy + Members + Invitations. The `tenants` +
+> `invitations` routers replace their S4b `_placeholder`s with real procedures, and the V25 proxy
+> subdomain cross-check is filled in.
+> • **invitations** (`list`/`create`/`revoke`/`resend`, admin-gated): create+resend mint a single-use
+>   token (randomBytes→base64url), store ONLY its SHA-256 hash on `Invitation.tokenHash` (@unique), and
+>   enqueue the RAW token to the `email` BullMQ queue post-commit via the NEW
+>   `apps/yelli/src/server/jobs/email-queue.ts` producer (lazy singleton, best-effort, no-op without
+>   REDIS_URL — the "invitation email queue trigger"; the SMTP worker stays a stub). `revoke` = immediate
+>   expire (keeps the row for admin history). §11 audit verbatim (invitation.create/revoke/resend).
+> • **tenants** (`get` + member admin `promote`/`demote`/`suspend`/`unsuspend`/`transferAdmin`): last-admin
+>   guard (CONFLICT) on demote/suspend of the sole effective admin; transferAdmin = atomic promote+demote tx
+>   (DL Step 6). Every role/status change bumps `User.securityVersion` (V28) AND fires
+>   `publishSessionInvalidate` (the W2a bus call-site that W2a DEFERRED to "the W3 user routers" — now
+>   landed; 30s SLO). §11 audit verbatim (user.role.promote/demote, user.suspend; un-suspend emits none —
+>   W1a precedent). tenantId stripped from member rows (security.md #13).
+> • **proxy.ts** — V25: parse the leftmost host label against `APP_BASE_DOMAIN`; bypass apex / reserved
+>   (`isReservedSlug`) / non-Cloud hosts; redirect to the user's own tenant host on `token.tenantSlug`
+>   mismatch. LAN (EDITION≠cloud or no base) disables the subdomain router (DL Step 1). +`EDITION` +
+>   `APP_BASE_DOMAIN` (optional) to env.ts; proxy reads them off process.env (edge-light). +`@yelli/jobs`
+>   dep + `bullmq` (serverExternalPackages) + transpilePackages.
+> • **AUDIT VOCAB resolution:** used the LOCKED `@yelli/shared` AUDIT_ACTIONS verbatim (`user.role.*` /
+>   `user.suspend`), NOT DECISIONS_LOG line-42's illustrative `member.role.*` / `lan.tenant.export` — the
+>   `audit.ts` header marks the signed-off PROTOTYPE.md §3 list authoritative over PRODUCT.md's illustrative
+>   enum. DEFERRED (documented, non-blocking): `invitation.accept` → accounts-auth; `tenant.export.*` →
+>   BullMQ-wiring/storage session; `removeMember` (hard User delete) → needs a schema decision (no
+>   soft-delete column; FK `Invitation.invitedByUserId` NOT NULL + AuditLog-immutability) — non-blocking
+>   question raised; suspend is the MVP deactivation path.
+> Validation all green: typecheck 7/7, lint 7/7, test (web 2/2), `next build` ✓ (proxy = `ƒ Proxy
+> (Middleware)`), root turbo typecheck+lint+test 14/14. Only the pre-existing non-fatal @prisma/client
+> `export *` Turbopack warning (S2). **Dispatch note (Rule 15): authored Opus-inline — standing V32.1
+> env-structural swarm fallback; R1 deviation accepted per the standing pattern.** **W1b (Wire A UI port)
+> and W2b-2 (client `useSignaling` hook) remain the open wire deps; W4-W8 follow.**
+
+> **W2b-1 DONE (2026-06-12).** Wire B2 — standalone WebSocket signaling SERVER + deploy.
 > Per the resolved split (q-W2b-02), W2b was divided into **W2b-1 (server + deploy, this session)** and
 > **W2b-2 (client `useSignaling` transport hook, NEXT — depends on this commit)**; the calling-UI port is
 > a later, separate session (q-W2b-03). New workspace package **`apps/signaling`** (`@yelli/signaling`):
@@ -390,29 +423,35 @@ NEXT:
      #1 re-render fix via the real session), OverlayNamePicker (Flow D), ScreenAdminMembers devices-list
      (Flow G), OverlayCallRoleAssign (Flow C), TenantTopBar/Pill/BottomNav + app-shell routes. Split
      W1b-1/W1b-2 only if pre-flight measures >12 files / >500L. W1b depends on this W1a commit.
-  5. **W2–W8** — remaining wire sessions (tenancy-members, calling/WebRTC, invitations, branding+storage,
-     audit, PWA, pre-production validation). W4/W1/W2/W3 keep the §11 audit vocab VERBATIM. packages/storage
-     (branding MIME whitelist) lands with the branding wire session. W8 = 9 §3 flows end-to-end + Phase 5
+  5. ✅ **W3 (Wire C — Tenancy + Members + Invitations + V25 proxy)** — DONE this session. tenants +
+     invitations routers LIVE; proxy V25 subdomain cross-check filled; invitation email queue trigger +
+     W2a session-kill call-sites landed. See the W3 block at the top.
+  6. **W2b-2 / W4-W8** — remaining wire sessions (client `useSignaling` hook, calling/WebRTC UI port,
+     branding+storage, audit view, PWA, pre-production validation). Each keeps the §11 audit vocab VERBATIM.
+     packages/storage (branding MIME whitelist) + the tenant.export worker land with the branding /
+     BullMQ-wiring sessions; invitation.accept lands with accounts-auth. W8 = 9 §3 flows end-to-end + Phase 5
      re-run + Visual QA.
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     None. W1a (Wire A backend + providers) is COMPLETE and committed; W1b (UI port) is unblocked —
-              dispatch it next (it depends on the W1a tRPC hooks + mounted providers). Remaining skeleton
-              TODOs are the later W-series' work, not blockers: Auth.js authorize() (accounts-auth wire),
-              LAN-admin argon2 verify (W6), proxy redirect logic, the 5 still-`_placeholder` routers
-              (call/tenants/invitations/audit/brand → W2–W7), and the 30s Valkey freshness cache.
+BLOCKERS:     None. W3 (tenancy/members/invitations + V25 proxy) is COMPLETE and committed. Open wire deps:
+              W1b (Wire A UI port — depends on W1a hooks/providers) and W2b-2 (client `useSignaling` hook —
+              depends on W2b-1). Remaining skeleton TODOs are the later W-series' work, not blockers: Auth.js
+              authorize() + invitation.accept (accounts-auth wire), LAN-admin argon2 verify (W6), the 2
+              still-`_placeholder` routers (audit + brand → W5/W7), tenant.export.* + removeMember
+              (BullMQ-wiring / schema decision — see the W3 deferrals + the non-blocking question), and the
+              30s Valkey freshness cache.
 
-GIT_BRANCH:   swarm/rebuild. S4a-2 adds 1 atomic commit (17 primitives + tokens.ts + parity test + vitest
-              config + apps/yelli/package.json + pnpm-lock.yaml + pnpm-workspace.yaml catalog bump + 3
+GIT_BRANCH:   swarm/rebuild. W3 adds 1 atomic commit (email-queue producer [new] + invitations router +
+              tenants router + proxy.ts + env.ts + next.config.ts + package.json + pnpm-lock.yaml + 3
               governance docs). The human reviews and pushes — the worker never pushes.
               Recent commits:
-  - `1eb2ae4` feat(phase-4-S4a): Scaffold Part 5 (app foundation) — apps/yelli Next.js 16 shell + design tokens
-  - `c3b818c` feat(phase-4-S3): Scaffold Part 4 — packages/ui + packages/jobs
-  - `5e0b58c` feat(phase-4-S2): Scaffold Part 3 — packages/db (Prisma schema + migration)
-  - `9328eb5` feat(phase-4-S1): Scaffold Parts 1-2 — root config + packages/shared
-  - `dddb647` feat(phase-4-S0): Re-baseline + inputs.yml regen (Bootstrap)
-  - `2a5b1dc` chore(phase-3.3): client sign-off + STATE.md gate-closure
+  - (this commit) feat(phase-4-W3): Wire C — Tenancy + Members + Invitations
+  - `8a941bc` feat(phase-4-W2b): Wire B2 — WebSocket signaling server (Next 16 standalone)
+  - `c82c16c` feat(phase-4-W2a): Wire B1 — Calling data+realtime (calls router, CallSession, Valkey bus)
+  - `87c8fca` feat(phase-4-W1): Wire A — Devices + Auth surface
+  - `b06e958` feat(phase-4-S4b): Scaffold Part 5b — Auth.js v5 + tRPC router skeletons (deferred S4 tail)
+  - `04215f7` feat(phase-4-S5): Scaffold Part 6 — deploy/ + CI
 
 PORTS:        Phase 4 app dev port = 46848 (inputs.yml ports.dev.app). prototype/ dev server on 4838
               (Phase 3.3 validated baseline, retained for Phase 4 spot-checks).

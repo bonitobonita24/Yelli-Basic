@@ -12,6 +12,14 @@ const schema = z.object({
   REDIS_URL: z.string().url(),
   // Auth.js v5 derives the URL from the request when trustHost is set; optional.
   NEXTAUTH_URL: z.string().url().optional(),
+  // Deployment edition (DECISIONS [Step 1]). LAN = single implicit tenant, subdomain
+  // router disabled; Cloud = multi-tenant `<slug>.${APP_BASE_DOMAIN}` routing. The
+  // proxy reads these off process.env directly (edge-light); declared here so the
+  // Node server validates/documents them.
+  EDITION: z.enum(['lan', 'cloud']).default('lan'),
+  // Cloud registrable base domain (e.g. `yelli.app`) — required for V25 subdomain
+  // slug resolution when EDITION=cloud; ignored on LAN.
+  APP_BASE_DOMAIN: z.string().optional(),
   // Public (client-exposed) — optional until the relevant features are wired.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY: z.string().optional(),

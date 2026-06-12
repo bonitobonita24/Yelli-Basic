@@ -126,12 +126,18 @@ importers:
       '@yelli/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@yelli/jobs':
+        specifier: workspace:*
+        version: link:../../packages/jobs
       '@yelli/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@yelli/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      bullmq:
+        specifier: ^5.77.7
+        version: 5.78.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

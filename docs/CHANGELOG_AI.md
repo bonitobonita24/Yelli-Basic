@@ -2,6 +2,29 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session W3 — Wire C (Tenancy + Members + Invitations)
+
+- Agent: CLAUDE_CODE (Opus — R1 DEVIATION: authored Opus-inline. The V32.1 swarm subagent-dispatch regression is environment-structural; standing accepted fallback, not a discretionary bypass.)
+- Commit: `feat(phase-4-W3): Wire C — Tenancy + Members + Invitations` (code + governance bundled).
+- Why: Replace the `tenants` + `invitations` `_placeholder`s with real procedures; fill the V25 proxy subdomain→tenant cross-check; land the invitation email queue trigger + the W2a session-kill call-sites that were explicitly deferred to "the W3 user routers".
+- Files added:
+  - `apps/yelli/src/server/jobs/email-queue.ts` — BullMQ email PRODUCER (lazy singleton Queue over `@yelli/jobs` `QUEUE_NAMES.email`; `enqueueInvitationEmail`). Best-effort + build/test-safe (no-op without `REDIS_URL`), mirroring `realtime/bus.ts`. The CONSUMER (SMTP worker) stays a stub (BullMQ-wiring session) — W3 fires the trigger only.
+- Files modified:
+  - `apps/yelli/src/server/trpc/routers/invitations.ts` — real `list`/`create`/`revoke`/`resend` (admin-gated). `create`+`resend` mint a single-use token (`randomBytes`→base64url), store ONLY its SHA-256 hash on `Invitation.tokenHash` (@unique), and enqueue the RAW token to the email queue post-commit. `revoke` = immediate expire (keeps the row for the admin history). §11 audit VERBATIM (`invitation.create`/`revoke`/`resend`). `accept` DEFERRED (accounts-auth — needs bcrypt + User provisioning; the router doc said so).
+  - `apps/yelli/src/server/trpc/routers/tenants.ts` — `get` (caller's tenant profile) + member admin: `promoteMember`/`demoteMember`/`suspendMember`/`unsuspendMember`/`transferAdmin`. LAST-ADMIN GUARD (CONFLICT) on demote/suspend of the sole effective admin; `transferAdmin` = atomic promote+demote tx (DL Step 6). Every role/status change bumps `User.securityVersion` (V28) AND fires `publishSessionInvalidate` (W2a bus, 30s SLO) — the deferred W3 call-site. §11 audit VERBATIM (`user.role.promote`/`demote`, `user.suspend`; un-suspend emits none — W1a precedent). tenantId stripped from member rows (security.md #13).
+  - `apps/yelli/src/proxy.ts` — V25 subdomain→slug resolution: parse the leftmost label against `APP_BASE_DOMAIN`, bypass apex / reserved (`isReservedSlug`) / non-Cloud hosts, and redirect to the user's own tenant host when `token.tenantSlug !== URL slug`. LAN (EDITION≠cloud or no base) disables the subdomain router (DL Step 1). Edge-light: reads `EDITION`/`APP_BASE_DOMAIN` off `process.env`; `@yelli/shared` is barrel-pure (zod-only — verified edge-safe).
+  - `apps/yelli/src/env.ts` — +`EDITION` (enum lan|cloud, default lan) + `APP_BASE_DOMAIN` (optional) — server-side validation/doc of the new Cloud-routing env (proxy reads process.env directly).
+  - `apps/yelli/next.config.ts` — `transpilePackages` += `@yelli/jobs`; `serverExternalPackages: ['bullmq']` (dynamic-require lib kept external from the bundle).
+  - `apps/yelli/package.json` — +`@yelli/jobs` (workspace) + `bullmq` ^5.77.7 (direct, traceable). `pnpm-lock.yaml` updated.
+- Schema/migrations: none (consumes the S2 schema; no Prisma changes).
+- Decisions honored: §11 audit vocabulary VERBATIM from `@yelli/shared` (the LOCKED PROTOTYPE.md §3 contract — NOT DECISIONS_LOG line-42's illustrative `member.*`/`lan.tenant.export`, which the `audit.ts` header marks superseded by the signed-off list); last-admin guard + transfer-admin atomicity (DL Step 6); V25 cross-check (DL Step 1/6 + Next 16 proxy convention); `session.invalidate` ≤30s SLO (DL Step 6 / security.md REALTIME). No NEW decision locked.
+- Validation: `pnpm install` ✓; `prisma generate` ✓; typecheck ✓ (0); lint ✓ (0/0); test ✓ (web 2/2); `next build` ✓ (proxy = `ƒ Proxy (Middleware)`); root turbo typecheck+lint+test ✓ (14/14). Pre-existing non-fatal `@prisma/client` `export *` Turbopack warning (S2) only.
+- Errors encountered/resolved: (1) `SessionInvalidateEvent` requires `at` (ISO ts) — added via a local `invalidate()` helper. (2) the L6-extended `$transaction` tx type is NOT assignable to `Prisma.TransactionClient`, so a tx-typed helper fails typecheck — inlined the last-admin guard instead (devices.ts pattern). 🔴 lessons.md.
+- Deferred (documented, non-blocking): `invitation.accept` → accounts-auth wire; `tenant.export.*` → BullMQ-wiring/storage session (queue-worker concern — orphaning a queued row without its worker would be worse than deferring); `removeMember` (hard User delete) → needs a schema decision (no soft-delete column; FK `Invitation.invitedByUserId` NOT NULL + AuditLog-immutability collision) — surfaced as a non-blocking question; suspend is the MVP deactivation path.
+- Execution note (Rule 15 / V32.1): headless single-executor, inline writes (standing env-structural fallback; sub-agent dispatch unavailable in `claude -p`; dispatch_ratio metric N/A for the swarm-worker model — not a discretionary R1 bypass).
+- Hand-off: `tenants` + `invitations` routers LIVE; `audit` + `brand` routers remain `_placeholder` (W5/W7). Human reviews branch `swarm/rebuild` and pushes; worker never pushes.
+- Commit: `feat(phase-4-W3): Wire C — Tenancy + Members + Invitations`
+
 ### 2026-06-12 — Phase 4 Swarm Session W2b-1 — Wire B2 (WebSocket signaling server + deploy)
 
 - Agent: CLAUDE_CODE (Opus — R1 DEVIATION: authored Opus-inline. The V32.1 swarm subagent-dispatch regression is environment-structural (Sonnet baseline-overhead; see lessons.md / memory 2026-06-09) — parallel Sonnet fan-out is unreliable in this headless `claude -p` worker. Standing accepted fallback, not a discretionary bypass.)

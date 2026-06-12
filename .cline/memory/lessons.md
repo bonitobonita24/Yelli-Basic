@@ -545,3 +545,20 @@
     "Current State" header before asserting brownfield vs greenfield. A stale STATE.md "COMPLETE" claim
     is not proof a directory exists. Fix applied in S0: STATE.md reconciled to real clean-slate state,
     inputs.yml regenerated faithfully from PRODUCT.md, brownfield premise retired.
+
+## 2026-06-13 — 🔴 gotcha L6-extended Prisma `$transaction` tx is NOT assignable to `Prisma.TransactionClient`
+- Type:      🔴 gotcha
+- Phase:     Phase 4 (swarm W3 — tenancy/members)
+- Files:     apps/yelli/src/server/trpc/routers/tenants.ts
+- Concepts:  prisma, $extends, tenant-guard, $transaction, TransactionClient, helper-extraction, typecheck, realtime-bus
+- Narrative: `ctx.db = prisma.$extends(tenantGuardExtension(tenantId))` (the L6 tenant-guard). Its
+    `$transaction(async (tx) => …)` callback hands you a tx whose type is the EXTENDED client's tx —
+    which is NOT assignable to the base `Prisma.TransactionClient`. So a shared helper typed
+    `(tx: Prisma.TransactionClient, …)` fails tsc with "DynamicClientExtensionThis<…> is not assignable
+    to TransactionClient" the moment the real tx is passed in. FIX: inline tx-using logic inside the
+    resolver (the devices.ts pattern) so the tx keeps its inferred extended type — do NOT annotate a
+    cross-resolver tx helper with the base type. (Helpers that DON'T touch the tx are fine.) Same session,
+    same file: `publishSessionInvalidate`'s event is `Omit<SessionInvalidateEvent,'kind'>` which requires
+    `at: string` (ISO ts) — the bus event types in `@yelli/shared/realtime.ts` are the source of truth;
+    build the full shape (a tiny local `invalidate(tenantId,userId,securityVersion)` wrapper that stamps
+    `at` keeps the 5 call-sites clean).
