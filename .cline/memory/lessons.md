@@ -4,6 +4,24 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-12 — 🔴 gotcha @yelli/shared `.js` import specifiers break the Next/Turbopack build
+- Type:      🔴 gotcha
+- Phase:     Phase 4 · Swarm Session W1a (Wire A — first barrel consumer)
+- Files:     packages/shared/src/{index,entities,validators}.ts, apps/yelli/next.config.ts (transpilePackages)
+- Concepts:  turbopack, next-build, moduleResolution-bundler, .js-specifiers, @yelli/shared, barrel, monorepo, source-exported-ts
+- Narrative: `@yelli/shared` is source-exported TS (no build step) and was authored with explicit `.js`
+    ESM import specifiers (`export * from './audit.js'`). `tsc` accepts this under the repo-wide
+    `moduleResolution: Bundler`, AND it never broke earlier because nothing pulled the shared BARREL
+    into the Next build graph until W1a's routers imported from `@yelli/shared`. `next build` (Turbopack)
+    then failed with `Module not found: Can't resolve './audit.js'` for all 5 barrel re-exports — Turbopack
+    looks for a literal `audit.js` and does NOT map `.js`→`.ts`. `@yelli/db` never hit this because its
+    internal imports are EXTENSIONLESS (`export * from './audit'`). FIX: strip the `.js` extensions in
+    `@yelli/shared` (index + entities + validators, 10 specifiers) to match the proven db pattern;
+    `tsc` still passes under Bundler resolution. RULE for future source-exported workspace packages: use
+    EXTENSIONLESS internal imports (the repo is `moduleResolution: Bundler`, not nodenext), and add the
+    package to `transpilePackages` — `.js` specifiers are a latent Turbopack landmine that only detonates
+    when the barrel first enters the app build graph.
+
 ## 2026-06-12 — 🟤 decision S4 (apps/yelli) needs a 3-way split; shadcn CLI v4 vs LOCKED Tailwind v3
 - Type:      🟤 decision
 - Phase:     Phase 4 · Swarm Session S4 (Scaffold Part 5 — apps/yelli)

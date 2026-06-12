@@ -4,8 +4,8 @@
 // routers (S4 + W1-W4), and any client form. Source-exported (no build step) —
 // the Next.js app transpiles this package directly.
 
-export * from './enums.js';
-export * from './audit.js';
-export * from './entities.js';
-export * from './config/reserved-slugs.js';
-export * from './validators.js';
+export * from './enums';
+export * from './audit';
+export * from './entities';
+export * from './config/reserved-slugs';
+export * from './validators';

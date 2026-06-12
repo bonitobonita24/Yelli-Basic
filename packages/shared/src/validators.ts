@@ -14,9 +14,9 @@ import {
   type Edition,
   type ExportJobStatus,
   type UserRole,
-} from './enums.js';
-import { AUDIT_ACTIONS, type AuditAction } from './audit.js';
-import { isReservedSlug } from './config/reserved-slugs.js';
+} from './enums';
+import { AUDIT_ACTIONS, type AuditAction } from './audit';
+import { isReservedSlug } from './config/reserved-slugs';
 
 // ── Enum schemas ────────────────────────────────────────────────────────────
 export const editionSchema = z.enum([...EDITIONS] as [Edition, ...Edition[]]);

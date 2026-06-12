@@ -12,8 +12,8 @@ import type {
   CallRole,
   ExportJobStatus,
   UserRole,
-} from './enums.js';
-import type { AuditAction } from './audit.js';
+} from './enums';
+import type { AuditAction } from './audit';
 
 /** Tenant — one per Cloud org; one implicit `slug="default"` row in LAN mode. */
 export interface Tenant {

@@ -1,7 +1,18 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold (swarm/rebuild · S4b complete → S4 DONE, 2026-06-12)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W1a complete → W1b NEXT, 2026-06-12)
+
+> **W1a DONE (this session, 2026-06-12).** Wire A backend HALF (per the resolved q-W1-05 split): the
+> `devices` router (10 real Prisma-backed procedures, L1+L6 tenant-guard + L5 inline AuditLog + RBAC
+> admin-gating + §11-canonical audit vocab VERBATIM) and the `users` ownership router (`me` / `list` /
+> self-`setDisplayName`) now replace their S4b `_placeholder`s; the client provider stack
+> (`apps/yelli/src/lib/providers.tsx` — SessionProvider seeded with the server-resolved session +
+> tRPC `httpBatchLink`/superjson + react-query) is mounted from the now-async `layout.tsx`. One build
+> fix landed in scope: `@yelli/shared`'s `.js` import specifiers were stripped to extensionless so the
+> barrel resolves under Turbopack (see lessons.md 🔴). Validation all green (typecheck/lint/test/build,
+> 5/5 turbo). **W1b (device + auth UI port) is the next session and depends on this commit.**
+
 
 PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
               on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) + S2 (Part 3:
@@ -96,6 +107,57 @@ FILESYSTEM REALITY (verified this session):
             SKELETONS (NOT_IMPLEMENTED placeholders / TODOs) by design — the W1-W8 wire sessions fill them.
             DEFERRED out of S5 (q-run9-S5-03): .github/workflows/release.yml (semver :vX.Y.Z + floating
             :prod) + deploy/windows/*.ps1 (5 LAN-installer scripts) — restore in a future LAN-Windows session.
+
+LAST_DONE (W1a — Wire A: Devices + Auth surface backend + provider plumbing: apps/yelli):
+  - **devices router** (apps/yelli/src/server/trpc/routers/devices.ts) — replaced the `_placeholder` with
+    10 real procedures wiring the Phase 3.3 `sim.devices` SWAP BOUNDARY: list, listOnline (5-min presence),
+    byId, register (Flow D; displayName optional→'' for auto-join+first_join, callRole default `receiver`
+    overriding schema default `both`), setDisplayName (first_join vs rename branch — mirrors sim exactly),
+    setRole (Flow C, admin-only), touch (heartbeat, no audit), archive (Flow G, admin), unarchive (admin),
+    delete (admin). Cron `device.archive.batch` deliberately NOT a router procedure (packages/jobs path).
+    Each mutation writes ONE L5 AuditLog row INLINE on the L6-guarded tx (`tx.auditLog.create`) — §11
+    vocab VERBATIM (device.create/first_join/rename/role.assign/archive/unarchive/delete) + sim payload
+    shapes (Audit View fidelity). tenantId stripped from every client row via `DEVICE_SELECT` (security.md #13).
+  - **users router** (routers/users.ts) — `me` (self profile), `list` (tenant member directory for
+    ScreenAdminMembers), `setDisplayName` (self-rename, ownership-bound to ctx.user.id). `USER_SELECT`
+    strips passwordHash + securityVersion + tenantId (security.md #4/#13). No §11 action for user
+    display-name change ⇒ no audit emitted (locked-vocab fidelity; sim's off-spec `user.unsuspend` NOT
+    reproduced). Admin member mutations (suspend/promote/demote) deferred to W2 (tenancy-members).
+  - **Provider plumbing** — apps/yelli/src/lib/providers.tsx (NEW, 'use client'): SessionProvider (seeded
+    with server `auth()` session) + trpc.Provider over httpBatchLink({ transformer: superjson }) +
+    QueryClientProvider. layout.tsx → async server component: `await auth()` → `<Providers session>`;
+    route `/` now `ƒ Dynamic` (shell reads session — expected).
+  - **Security hardening (automated review, 2 HIGH closed):** register binds device owner + audit actor to
+    ctx.user.id (no client `userId` — closes ownership/actor spoofing); setDisplayName gates owner-or-admin
+    (closes cross-member rename IDOR) + audit actor = ctx.user.id. setRole/archive/unarchive/delete were
+    already admin-gated with ctx.user.id actor.
+  - **In-scope build fix** — packages/shared/src/{index,entities,validators}.ts: stripped 10 `.js` import
+    specifiers → extensionless (W1a is the first code to pull the @yelli/shared barrel into the Next build
+    graph; Turbopack can't map `.js`→`.ts` under `moduleResolution: Bundler`; @yelli/db extensionless pattern
+    is the proven fix). `tsc` still green. Logged as 🔴 lessons.md.
+  - **Errors resolved (2 in-code + 1 build):** `omit` arg absent on L6-extended delegates → switched to
+    reusable `select` consts; L6-extended interactive-tx not assignable to writeAuditLog's param → inlined
+    `tx.auditLog.create` on the guarded tx (AuditLog guard-excluded, explicit tenantId, atomic);
+    🔴 Turbopack `.js` barrel resolution (above).
+  - **Validation green** — prisma generate ✓; web typecheck ✓ (0); web lint ✓ (0); web build ✓
+    (ƒ Proxy Middleware; `/` + api routes dynamic; non-fatal pre-existing @prisma CJS `export *` warning);
+    root turbo typecheck ✓ (5/5), lint ✓ (5/5), test ✓ (@yelli/web 2/2).
+  - **CHANGELOG_AI.md appended** — full W1a entry (Rule 15). DECISIONS_LOG.md carries the pre-existing
+    Brain q-W1-05 split answer-log append (swept in for hygiene). No NEW decision locked.
+
+CHECKPOINT TYPE (W1a): full — 4 apps/yelli files (devices router, users router, providers.tsx [new],
+  layout.tsx) + 3 shared build-fix files + 3 governance docs (STATE.md, CHANGELOG_AI.md, lessons.md) +
+  DECISIONS_LOG.md (pre-existing Brain append) ; 1 atomic commit.
+LINES_TOUCHED (W1a): ~300 authored (devices ~230, users ~50, providers ~45, layout +6, shared -10 `.js`).
+  Within the ≤500-authored-line budget. Single-executor Opus-inline; no thrash.
+TIER_CLASSIFICATION (W1a): Tier 1 — lightweight. Parent W1 = Tier 3 → split W1a (done) / W1b (next).
+dispatch_ratio (W1a):
+  sonnet_writes: 0
+  opus_writes: 1
+  ratio: 0.0
+  target: ">= 3.0"
+  status: N/A — headless swarm worker (`claude -p`); sub-agent dispatch unavailable (standing V32.1
+          env-structural fallback). Ratio metric does not apply to the swarm-worker execution model.
 
 LAST_DONE (S4b — Scaffold Part 5 remainder: Auth.js v5 + tRPC v11 skeleton: apps/yelli):
   - **Auth.js v5** (src/server/auth/config.ts) — Credentials provider + `session.strategy='jwt'`, NO
@@ -280,19 +342,26 @@ NEXT:
      + env.ts + LAN-admin hook + api handlers. typecheck/lint/test/build all green; proxy recognized by
      Next 16 as `ƒ Proxy (Middleware)`. **S4 is now COMPLETE.**
   2. ✅ S5 (deploy + CI) — DONE. Scaffold Parts 1-8 (minus packages/storage) are on disk.
-  3. **W1 (Wire A — Devices + Auth surface)** — UNBLOCKED. Re-dispatch the W1 worker unchanged: its
-     q-W1-02/03/04 blockers ("absent S4b backend surface") are RESOLVED — the tRPC + Auth.js + proxy
-     surface now exists and builds clean. W1-W8 wire the validated prototype/ flows to the real backend
-     (swap the sim layer for tRPC/Prisma), replacing each router's `_placeholder` with real procedures,
-     finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
-     packages/storage (branding MIME whitelist) lands with the branding wire session.
+  3. ✅ **W1a (Wire A backend + providers)** — DONE this session. Real `devices` (10 procs) + `users`
+     (3 ownership procs) routers replace their `_placeholder`s; provider stack mounted from layout.
+     Validation all green. See the W1a LAST_DONE block above.
+  4. **W1b (Wire A UI port)** — NEXT. Dispatch the W1b worker: port the validated prototype device +
+     auth UI onto the W1a tRPC hooks + mounted providers — ScreenAdminLogin (Flow E + Phase 3.3 deferral
+     #1 re-render fix via the real session), OverlayNamePicker (Flow D), ScreenAdminMembers devices-list
+     (Flow G), OverlayCallRoleAssign (Flow C), TenantTopBar/Pill/BottomNav + app-shell routes. Split
+     W1b-1/W1b-2 only if pre-flight measures >12 files / >500L. W1b depends on this W1a commit.
+  5. **W2–W8** — remaining wire sessions (tenancy-members, calling/WebRTC, invitations, branding+storage,
+     audit, PWA, pre-production validation). W4/W1/W2/W3 keep the §11 audit vocab VERBATIM. packages/storage
+     (branding MIME whitelist) lands with the branding wire session. W8 = 9 §3 flows end-to-end + Phase 5
+     re-run + Visual QA.
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     None for scaffold. S4 is COMPLETE (S4a-1 + S4a-2 + S4b, all committed). The W1 q-W1-02/03/04
-              blockers ("absent S4b backend surface") are RESOLVED — the tRPC + Auth.js + proxy surface is on
-              disk and builds clean. Re-dispatch W1 unchanged. Skeleton TODOs (real procedure bodies,
-              authorize(), LAN-admin argon2 verify, proxy redirect logic) are the W-series' work, not blockers.
+BLOCKERS:     None. W1a (Wire A backend + providers) is COMPLETE and committed; W1b (UI port) is unblocked —
+              dispatch it next (it depends on the W1a tRPC hooks + mounted providers). Remaining skeleton
+              TODOs are the later W-series' work, not blockers: Auth.js authorize() (accounts-auth wire),
+              LAN-admin argon2 verify (W6), proxy redirect logic, the 5 still-`_placeholder` routers
+              (call/tenants/invitations/audit/brand → W2–W7), and the 30s Valkey freshness cache.
 
 GIT_BRANCH:   swarm/rebuild. S4a-2 adds 1 atomic commit (17 primitives + tokens.ts + parity test + vitest
               config + apps/yelli/package.json + pnpm-lock.yaml + pnpm-workspace.yaml catalog bump + 3
