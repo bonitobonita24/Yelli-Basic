@@ -1,6 +1,23 @@
 import { Redis } from 'ioredis';
 
-import type { CallRole } from '@yelli/shared';
+import {
+  BUS_CHANNELS,
+  type BusEvent,
+  type CallSignalEvent,
+  type RoleChangeEvent,
+  type SessionInvalidateEvent,
+} from '@yelli/shared';
+
+// Re-export the realtime contract so existing importers of this module
+// (`@/server/realtime/bus`) keep their import paths. The definitions now live
+// in @yelli/shared (W2b) — the single source of truth shared with apps/signaling.
+export {
+  BUS_CHANNELS,
+  type BusEvent,
+  type CallSignalEvent,
+  type RoleChangeEvent,
+  type SessionInvalidateEvent,
+};
 
 /**
  * Valkey (MIT Redis fork) pub/sub bus — the cross-instance realtime data plane.
@@ -27,42 +44,6 @@ import type { CallRole } from '@yelli/shared';
  * the W2b signaler subscribes to (`createBusSubscriber`), independent of whichever
  * WS topology W2b chooses.
  */
-
-/** Tenant-scoped channel names — every event is isolated to its tenant. */
-export const BUS_CHANNELS = {
-  callSignal: (tenantId: string): string => `yelli:tenant:${tenantId}:call-signal`,
-  roleChange: (tenantId: string): string => `yelli:tenant:${tenantId}:role-change`,
-  sessionInvalidate: (tenantId: string): string => `yelli:tenant:${tenantId}:session-invalidate`,
-} as const;
-
-/** Call lifecycle signal — produced by the `calls` router, consumed by the W2b WS server. */
-export type CallSignalEvent = {
-  kind: 'call-signal';
-  sessionId: string;
-  phase: 'start' | 'connect' | 'end';
-  callerDeviceId: string;
-  calleeDeviceId: string;
-  at: string;
-};
-
-/** Device call-role change — producer is `devices.setRole` (W1a; wired in a follow-up). */
-export type RoleChangeEvent = {
-  kind: 'role-change';
-  deviceId: string;
-  from: CallRole;
-  to: CallRole;
-  at: string;
-};
-
-/** Session-kill — producer is user role/suspend changes (W3 user routers, still placeholders). */
-export type SessionInvalidateEvent = {
-  kind: 'session-invalidate';
-  userId: string;
-  securityVersion: number;
-  at: string;
-};
-
-export type BusEvent = CallSignalEvent | RoleChangeEvent | SessionInvalidateEvent;
 
 /** LOCKED 30s session-kill SLO (Step 6 — hybrid pull+push). */
 const SESSION_INVALIDATE_TTL_SEC = 30;

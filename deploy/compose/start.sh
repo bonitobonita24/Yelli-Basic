@@ -41,9 +41,11 @@ FILES=()
 if [ "$ENV" = "dev" ]; then
   [ -f "$BASE/docker-compose.infra.yml" ] && FILES+=("-f" "$BASE/docker-compose.infra.yml")
 fi
-# 6. App — always last
+# 6. App
 [ -f "$BASE/docker-compose.app.yml" ]     && FILES+=("-f" "$BASE/docker-compose.app.yml")
-# 7. Cloudflared sidecar — prod only (optional)
+# 7. Signaling WS server (W2b) — after app
+[ -f "$BASE/docker-compose.signaling.yml" ] && FILES+=("-f" "$BASE/docker-compose.signaling.yml")
+# 8. Cloudflared sidecar — prod only (optional)
 if [ "$ENV" = "prod" ]; then
   [ -f "$BASE/docker-compose.cloudflared.yml" ] && FILES+=("-f" "$BASE/docker-compose.cloudflared.yml")
 fi

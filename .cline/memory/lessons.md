@@ -4,6 +4,40 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-12 — 🔴 gotcha `/_pwbt/*` App Router routes need the `%5F` folder escape (Next treats `_`-folders as private)
+- Type:      🔴 gotcha
+- Phase:     Phase 4 · Swarm Session W2b-1 (Wire B2 — signaling server + /_pwbt/health)
+- Files:     apps/yelli/src/app/%5Fpwbt/health/route.ts
+- Concepts:  next-16, app-router, private-folder, _pwbt, route-discovery, health-endpoint, turbopack
+- Narrative: The LOCKED uptime + reserved-slug surface is `/_pwbt/...` (DECISIONS L88/L54). Next.js
+    EXCLUDES any folder whose name starts with `_` from routing (private folders) — so a literal
+    `app/_pwbt/health/route.ts` would NOT create `/_pwbt/health` (no route, 404). The fix: name the folder
+    `%5Fpwbt` (URL-encoded underscore). Turbopack normalizes `%5F`→`_` during route discovery, so the disk
+    folder is `apps/yelli/src/app/%5Fpwbt/health/` and the served path is `/_pwbt/health` (confirmed in the
+    `pnpm build` route table: `├ ƒ /_pwbt/health`). Verified via Context7 (vercel/next.js route-discovery).
+    Any FUTURE `/_pwbt/*` route (import endpoint, status page, etc.) MUST use the same `%5F` escape.
+
+## 2026-06-12 — 🟤 decision Signaling reuses the bus contract via @yelli/shared; WS auth = Auth.js JWT decode
+- Type:      🟤 decision
+- Phase:     Phase 4 · Swarm Session W2b-1 (Wire B2)
+- Files:     packages/shared/src/realtime.ts, apps/yelli/src/server/realtime/bus.ts, apps/signaling/src/auth.ts, apps/signaling/src/authorizer.ts
+- Concepts:  signaling, websocket, bus-contract, single-source-of-truth, auth-handshake, @auth/core, role-guard, defense-in-depth
+- Narrative: `BUS_CHANNELS` + bus event types + the new WS wire protocol were promoted from bus.ts into
+    `@yelli/shared/realtime.ts` (single source of truth; bus.ts re-exports, public API unchanged) so the
+    standalone `@yelli/signaling` server and the Next app bind to ONE tenant-channel definition — no drift
+    on a tenant-isolation surface. WS handshake auth decodes the LOCKED Auth.js v5 jwt session token with
+    `@auth/core/jwt` + shared AUTH_SECRET (both cookie-name salts), fail-closed. KEY nuance: that JWT carries
+    User.role (admin|member), NOT Device.callRole — so the call-initiation `forbidden_by_role` guard is NOT
+    re-derived here; it is delegated to `CallAuthorizer`, which only permits relay for sessions the
+    AUTHORITATIVE W2a `calls.start` already authorized + published on the bus. An automated security review
+    flagged (HIGH) the device-impersonation gap pre-surfaced as q-W2b-04; mitigated in-scope by making
+    `PeerRegistry.add` REFUSE to displace a deviceId held by a DIFFERENT same-tenant user (closes the
+    live-socket-hijack vector) — full deviceId↔user binding still needs JWT device-claims or a DB lookup
+    (rejected stateless topology), so the residual (pre-claiming an OFFLINE device id) stays q-W2b-04. Build nuance:
+    bundle the signaling server with esbuild as CJS (`--format=cjs`, externalize only ws's optional native
+    bufferutil/utf-8-validate) → self-contained, zero runtime node_modules; pin its esbuild to `^0.27` to
+    satisfy vitest's vite@8 peer (a `^0.24` pin caused an unmet-peer warning).
+
 ## 2026-06-12 — 🔴 gotcha Calls are NOT AuditLog'd — PROTOTYPE.md §3 prose conflicts with the locked sim + schema
 - Type:      🔴 gotcha
 - Phase:     Phase 4 · Swarm Session W2a (Wire B1 — Calling data+realtime)

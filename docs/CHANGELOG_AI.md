@@ -2,6 +2,34 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-12 — Phase 4 Swarm Session W2b-1 — Wire B2 (WebSocket signaling server + deploy)
+
+- Agent: CLAUDE_CODE (Opus — R1 DEVIATION: authored Opus-inline. The V32.1 swarm subagent-dispatch regression is environment-structural (Sonnet baseline-overhead; see lessons.md / memory 2026-06-09) — parallel Sonnet fan-out is unreliable in this headless `claude -p` worker. Standing accepted fallback, not a discretionary bypass.)
+- Commit: `feat(phase-4-W2b): Wire B2 — WebSocket signaling server (Next 16 standalone)` (code + governance bundled).
+- Why: Host the WebRTC signaling layer the W2a bus was built for. Resolved answers: q-W2b-01 (topology = own `apps/signaling` container, Traefik `PathPrefix(/ws)`, reuses `@yelli/shared` + the W2a bus), q-W2b-02 (split W2b → **W2b-1 server+deploy (this session)** + **W2b-2 client hook (next)**), q-W2b-03 (W2b-2 delivers the `useSignaling` transport hook only; calling-UI port is later).
+- Files added:
+  - `packages/shared/src/realtime.ts` — single source of truth promoted from bus.ts: `BUS_CHANNELS` + `tenantIdFromChannel` + the bus event types, PLUS the NEW WebSocket wire protocol (zod-validated `hello`/`signal`/`ping` client frames; `ServerMessage` union incl. `error{forbidden_by_role|…}`), `canInitiateCall(CallRole)`, and the `SIGNALING_HEARTBEAT_KEY` health contract.
+  - `apps/signaling/` — new `@yelli/signaling` workspace package: `src/server.ts` (ws server: 10s handshake-auth gate, per-tenant relay, bus-authorized call-guard, `session-invalidate` force-close, heartbeat, graceful shutdown), `src/auth.ts` (Auth.js v5 JWE decode via `@auth/core/jwt`, both cookie-name salts), `src/registry.ts` (tenant-partitioned `PeerRegistry`), `src/authorizer.ts` (`CallAuthorizer` — bus-driven defense-in-depth relay guard), `src/heartbeat.ts`, `src/env.ts`, `src/index.ts` (entrypoint), `src/authorizer.test.ts` (6 tests), `package.json` (esbuild CJS bundle), `tsconfig.json`, `Dockerfile` (3-stage; self-contained 657KB bundle, zero runtime node_modules).
+  - `deploy/compose/{dev,stage,prod}/docker-compose.signaling.yml` — dev builds + maps host port `${SIGNALING_PORT}`→:3001; stage/prod pull the `yelli-signaling` image and add the Traefik `PathPrefix(/ws)` router at priority 100 (above the app's Host() router), proxy network, no host port.
+  - `apps/yelli/src/app/%5Fpwbt/health/route.ts` — `GET /_pwbt/health` → `{ok,db,valkey,signaling}` 200/503 (DECISIONS L88); `signaling` driven by the Valkey heartbeat key; `%5F` folder escape so Next 16 routes the `_pwbt` segment (verified in build output).
+- Files modified:
+  - `apps/yelli/src/server/realtime/bus.ts` — now imports `BUS_CHANNELS` + event types from `@yelli/shared` and re-exports them (public API unchanged; `call.ts` importers unaffected). Removed the local duplicate definitions + the now-unused `CallRole` import.
+  - `packages/shared/src/index.ts` — barrel now `export * from './realtime'`.
+  - `apps/yelli/Dockerfile` — added `COPY apps/signaling/package.json` so the web image's frozen-lockfile install resolves the expanded workspace importer graph.
+  - `inputs.yml` — `apps[]` gains `signaling` (node/service); `ports.dev.signaling: 46850` (base+12).
+  - `deploy/compose/start.sh` — signaling compose added to the FILES list (after app, before cloudflared).
+  - `.env.example` (committed) + `.env.dev`/`.env.staging`/`.env.prod` (gitignored, local) — `SIGNALING_PORT` + `SIGNALING_HEARTBEAT_TTL_SEC` (+ `SIGNALING_IMAGE_TAG` for stage/prod).
+  - `pnpm-lock.yaml` — `+ws ^8.18.0`, `@types/ws`, `esbuild ^0.27` (aligned to vitest's vite@8 peer), `@auth/core 0.35.3` (already in the tree) into `@yelli/signaling`.
+- Files deleted: none.
+- Security layers applied: WS handshake authenticated against the LOCKED Auth.js v5 jwt session (shared AUTH_SECRET) — fail-closed; channels + registry are tenant-partitioned (L1 at the transport layer); WebRTC relay gated by `CallAuthorizer` on the AUTHORITATIVE bus `call-signal` start (the W2a router already enforced the Device.callRole guard) → unauthorized `offer` ⇒ `forbidden_by_role` (defense in depth, DECISIONS L36); `session-invalidate` bus events force-close the user's live sockets (security.md REALTIME #3); `maxPayload` cap; signaling server is signaling-only (no media).
+- Post-review hardening (automated security review, 1 HIGH — Device Impersonation / IDOR, the exact gap pre-surfaced as q-W2b-04): `PeerRegistry.add` now REFUSES to displace a deviceId already held by a DIFFERENT user in the tenant (returns `{ok:false,'device-in-use'}`); the server rejects that handshake (`unauthorized` + close) instead of last-writer-wins. This closes the acute vector (an authenticated same-tenant peer kicking + impersonating another user's LIVE device socket) WITHOUT violating the Brain-locked stateless/DB-free topology. Added `src/registry.test.ts` (4 tests: cross-user refusal, same-user reconnect, tenant partitioning, forUser/size/cleanup).
+- NON-BLOCKING (q-W2b-04, residual): full deviceId↔authenticated-user binding at handshake still requires either deviceId claims in the Auth.js JWT (apps/yelli auth surface, out of W2b-1 scope) or a DB lookup in the signaler (rejected by the q-W2b-01 stateless topology) — tied to the unbuilt device-session model. Residual after the hardening: pre-claiming an OFFLINE device's id. Confirm the JWT-decode handshake (incl. salt) + the device-binding path before W2b-2 wires a LIVE client; `src/auth.ts` + `registry.add` are isolated for a clean swap.
+- Schema/migrations: none.
+- Tier: 2 — moderate (1 shared contract + 1 new package [10 src files incl. 2 tests] + 3 compose + 1 health route + Dockerfile/config edits; ~700 authored lines across ~19 files; no thrash).
+- Verification: `pnpm install` ✓; `pnpm typecheck` ✓ 6/6; `pnpm lint` ✓ 6/6; `pnpm build` ✓ 2/2 (`/_pwbt/health` routes; signaling esbuild bundle 642.7KB); `pnpm test` ✓ 12/12 (signaling 10 + web 2).
+- Drift review: dispatch_ratio sonnet=0/opus=1 → N/A for the headless swarm-worker model (V32.1 env-structural fallback; logged in lessons.md).
+- NEXT: **W2b-2** — the client `useSignaling` transport hook (typed to `@yelli/shared` wire protocol, connect/reconnect/disconnect lifecycle, auth handshake using the W1b session, smoke harness). Then a later session ports the calling UI screens onto the hook.
+
 ### 2026-06-12 — Phase 4 Swarm Session W2a — Wire B1 (Calling data + realtime: calls router, CallSession, Valkey bus)
 
 - Agent: CLAUDE_CODE (Opus — R1 DEVIATION: standing acceptance per the headless swarm-worker model; single-executor `claude -p`, sub-agent dispatch unavailable in this harness — documented V32.1 env-structural fallback, not a discretionary bypass).

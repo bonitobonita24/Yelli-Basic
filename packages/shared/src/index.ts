@@ -9,3 +9,4 @@ export * from './audit';
 export * from './entities';
 export * from './config/reserved-slugs';
 export * from './validators';
+export * from './realtime';

@@ -19,6 +19,9 @@ apps:
   - name: "yelli"
     framework: "next"
     type: "web"
+  - name: "signaling"
+    framework: "node"
+    type: "service"   # standalone WebSocket signaling server (W2b); Traefik PathPrefix(/ws)
 
 # Domain models (8). Auth.js v5 owns Session, VerificationToken, Account separately (schema-managed).
 entities:
@@ -71,6 +74,7 @@ ports:
     pgadmin: 46845
     app: 46848
     worker: 46849
+    signaling: 46850
     prisma_studio: 46858
 
 jobs:

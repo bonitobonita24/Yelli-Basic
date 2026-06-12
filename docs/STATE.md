@@ -1,9 +1,35 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W2a complete → W2b NEXT, 2026-06-12)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W2b-1 complete → W2b-2 NEXT, 2026-06-12)
 
-> **W2a DONE (this session, 2026-06-12).** Wire B1 — calling DATA + REALTIME-fan-out plane. The `calls`
+> **W2b-1 DONE (this session, 2026-06-12).** Wire B2 — standalone WebSocket signaling SERVER + deploy.
+> Per the resolved split (q-W2b-02), W2b was divided into **W2b-1 (server + deploy, this session)** and
+> **W2b-2 (client `useSignaling` transport hook, NEXT — depends on this commit)**; the calling-UI port is
+> a later, separate session (q-W2b-03). New workspace package **`apps/signaling`** (`@yelli/signaling`):
+> a `ws` server (`src/server.ts`) — handshake auth, per-tenant `PeerRegistry`, WebRTC SDP/ICE relay with a
+> bus-driven defense-in-depth call-guard (`CallAuthorizer`, emits `forbidden_by_role` on unauthorized
+> `offer`), Valkey bus subscription for cross-instance call-signal fan-out + `session-invalidate`
+> force-close (security.md REALTIME #3), and a short-TTL Valkey heartbeat. Topology (q-W2b-01): **own
+> container, Traefik `PathPrefix(/ws)` higher-priority router on `${APP_DOMAIN}`** (dev/stage/prod compose
+> added), built as a self-contained esbuild CJS bundle (zero runtime node_modules). The bus contract +
+> NEW signaling wire-protocol (zod-validated) were **promoted to `@yelli/shared` (`realtime.ts`)** as the
+> single source of truth; `apps/yelli/src/server/realtime/bus.ts` now re-imports + re-exports them (public
+> API unchanged). `GET /_pwbt/health` route added (`{ok,db,valkey,signaling}` — signaling field driven by
+> the heartbeat; `%5F` folder escape so Next routes `_pwbt`). WS handshake auth verifies the Auth.js v5
+> session JWT via `@auth/core/jwt` (LOCKED jwt strategy + shared AUTH_SECRET) — **surfaced NON-BLOCKING
+> q-W2b-04**: it carries User.role not Device.callRole (call-role guard delegated to the authoritative bus
+> `start`), and deviceId↔user binding is a follow-up tied to the unbuilt device-session model. Validation
+> all green: typecheck 6/6, lint 6/6, build 2/2 (`/_pwbt/health` routes; signaling bundle 642.7KB), test 12/12
+> (signaling 10 + web 2). **Post-review hardening:** an automated security review flagged (HIGH) the
+> device-impersonation gap pre-surfaced as q-W2b-04 → mitigated in-scope by making `PeerRegistry.add` refuse
+> to displace a deviceId held by a DIFFERENT same-tenant user (closes the live-hijack vector; full
+> deviceId↔user binding remains q-W2b-04, residual = pre-claiming an offline device id).
+> **Dispatch note (Rule 15): authored Opus-inline — the V32.1 swarm subagent-dispatch
+> regression (environment-structural; see memory) makes parallel Sonnet fan-out unreliable here; R1
+> deviation accepted per the standing pattern.** **W2b-2 (client useSignaling hook) is the next session.**
+
+> **W2a DONE (2026-06-12).** Wire B1 — calling DATA + REALTIME-fan-out plane. The `calls`
 > router (merge key `calls`, LOCKED) replaces its S4b `_placeholder` with the real CallSession lifecycle
 > (Phase 3.3 `sim.callSessions` SWAP BOUNDARY, PROTOTYPE.md §3 Flow A/B): `list` / `byId` / `start`
 > (role-snapshot + server-side role-guard auto-reject → `endReason: forbidden-by-role`) / `connect` /

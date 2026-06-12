@@ -1,0 +1,28 @@
+{
+  "name": "@yelli/signaling",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.cjs",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/server.cjs --external:bufferutil --external:utf-8-validate",
+    "start": "node dist/server.cjs",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@auth/core": "0.35.3",
+    "@yelli/shared": "workspace:*",
+    "ioredis": "5.10.1",
+    "ws": "^8.18.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.13",
+    "esbuild": "^0.27.0",
+    "typescript": "catalog:",
+    "vitest": "^4.1.8"
+  }
+}

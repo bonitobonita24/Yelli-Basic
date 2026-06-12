@@ -14,7 +14,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 # Clean-slate package set (S1–S4): shared, db, ui, jobs + the web app.
 # (api-client / storage are not scaffolded yet — add their COPY lines when they land.)
+# apps/signaling (W2b) is part of the workspace too — its package.json must be
+# present so `pnpm install --frozen-lockfile` resolves the full importer graph.
 COPY apps/yelli/package.json apps/yelli/package.json
+COPY apps/signaling/package.json apps/signaling/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/jobs/package.json packages/jobs/package.json

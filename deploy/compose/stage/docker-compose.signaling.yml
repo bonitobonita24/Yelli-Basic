@@ -1,0 +1,46 @@
+# Signaling WS server — staging. Pulls a pre-built image from Docker Hub (NO build).
+# Routed by Traefik at PathPrefix(`/ws`) on ${APP_DOMAIN} with HIGHER priority than
+# the app's Host() router, so /ws/* reaches this container and everything else the app.
+# Traefik proxies the WebSocket upgrade transparently — no extra config needed.
+networks:
+  app_network:
+    name: ${COMPOSE_PROJECT_NAME}_network
+    external: true
+  proxy:
+    name: ${TRAEFIK_NETWORK:-proxy}
+    external: true
+
+services:
+  signaling:
+    # ⚠ NO build: key — staging pulls from Docker Hub only.
+    image: ${DOCKERHUB_USERNAME}/yelli-signaling:${SIGNALING_IMAGE_TAG:-staging-latest}
+    container_name: ${COMPOSE_PROJECT_NAME}_signaling
+    hostname: ${COMPOSE_PROJECT_NAME}_signaling
+    env_file: ../../../.env.staging
+    environment:
+      NODE_ENV: production
+      SIGNALING_PORT: "3001"
+      REDIS_URL: ${REDIS_URL_INTERNAL}
+    networks: [app_network, proxy]
+    depends_on:
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(3001,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.priority=100"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.tls.certresolver=letsEncrypt"
+      - "traefik.http.services.${COMPOSE_PROJECT_NAME}_signaling.loadbalancer.server.port=3001"
