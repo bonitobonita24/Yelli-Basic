@@ -10,36 +10,42 @@ domains:
 
 tenancy:
   mode: "multi"
-  notes: "Cloud edition multi-tenant; LAN edition runs single-tenant from same codebase"
+  notes: "Hybrid LAN + Cloud from one codebase. Cloud edition is multi-tenant via subdomain
+    routing (<slug>.yelli.app; tenantId on every entity; V25 cross-check). LAN edition runs
+    single-tenant (single implicit tenant row, slug=default) from the same codebase. Feature
+    parity between editions is non-negotiable."
 
 apps:
   - name: "yelli"
     framework: "next"
     type: "web"
 
+# Domain models (8). Auth.js v5 owns Session, VerificationToken, Account separately (schema-managed).
 entities:
-  - Device
-  - CallSession
-  - User
   - Tenant
+  - User
+  - Device
+  - Invitation
   - AuditLog
-  - BrandAsset
-  - CallSnapshot
-  - SessionInvalidation
+  - CallSession
+  - WebPushSubscription
+  - ExportJob          # referenced by AuditLog.targetType + tenant.export.* flow; field shape lands in Part 3 (S2)
 
 modules:
   - calling
-  - identity
-  - admin
+  - directory
+  - device-identity
+  - accounts-auth
+  - tenancy-members
+  - branding
+  - admin-console
   - pwa
-  - device-registry
-  - tenant-management
 
 roles:
-  - device-user
-  - member
-  - tenant-admin
-  - powerbyte-super-admin
+  - device-user            # LAN anonymous mode only
+  - member                 # Cloud + LAN account mode
+  - tenant-admin           # inherits member
+  - powerbyte-super-admin  # Cloud only; /_pwbt/
 
 tech_stack:
   frontend: "Next.js 16 App Router"
@@ -70,9 +76,14 @@ ports:
 jobs:
   enabled: true
   provider: "bullmq"
+  # 6 queues — grounded in DECISIONS_LOG.md "LOCKED: Jobs + Queues" (Step 5) + "LOCKED: Database Backup" (Step 7)
   queues:
-    - "device-archive"
-    - "tenant-export"
+    - "device-archive"     # cron daily 03:00 UTC; 90-day offline auto-archive + unarchive-on-reconnect
+    - "tenant-export"      # JSON bundle -> S3/MinIO -> signed 24h URL email; rate-limited 1/tenant/24h
+    - "soft-delete-cron"   # 7-day soft-delete -> hard-delete sweep
+    - "backup"             # cron daily 02:00 UTC; pg_dump custom -> S3 30d / Glacier IR 7d
+    - "email"              # invitation / verify / reset transactional email
+    - "logo-image"         # tenant branding logo resize + format
 
 storage:
   enabled: true
@@ -136,14 +147,15 @@ security:
     prod:
       - "https://yelli.app"
       - "https://*.yelli.app"
+  # Audit action prefixes — grounded in PRODUCT.md AuditLog.action enum (Data Entities)
   audit_events:
+    - "member.*"
     - "device.*"
-    - "call.*"
-    - "user.*"
     - "tenant.*"
-    - "admin.*"
-    - "role-change"
-    - "password-reset"
+    - "auth.*"
+    - "superadmin.*"
+    - "lan.*"
+    - "pwa.*"
   rate_limiting:
     auth_per_minute_per_ip: 10
     api_per_minute_per_user: 100

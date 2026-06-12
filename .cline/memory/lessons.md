@@ -430,3 +430,22 @@
   - memory-governance.md §4 R9 "Dispatch Ratio Metric"
   - Wave 4D drift entry (different cause: governance-doc batching inflated ratio
     in a session where Sonnet executor DID work fine)
+
+## 2026-06-12 — 🔴 STATE.md drifted ahead of filesystem reality after a clean-slate wipe
+- Type:      🔴 gotcha
+- Phase:     Phase 4 (swarm S0 re-baseline)
+- Files:     docs/STATE.md, .cline/tasks/execution-plan.md, inputs.yml
+- Concepts:  clean-slate, brownfield, state-drift, IMPLEMENTATION_MAP-authoritative, phase-position
+- Narrative: The Phase 3.5 execution plan + docs/STATE.md both claimed "Phase 4 Parts 1–8 already BUILT;
+    only prototype→production wiring remains (brownfield)." FALSE. The V32.6.1 clean-slate wipe
+    (2026-06-07, commit 0a94f48) had already removed apps/ and packages/ from the filesystem; the
+    scaffold survives only in git history on scaffold/part-3. A downstream Phase 4 session (run-1-4.1)
+    correctly halted (status=blocked) when its pre-flight found no apps/yelli to finalize.
+    Root cause: a plan was authored from STATE.md narrative instead of re-checking the filesystem +
+    IMPLEMENTATION_MAP.md (which DID say "clean-slate. No apps/, packages/"). Rule 24 says STATE.md is
+    authoritative for *phase position* and governance docs for *content* — but neither overrides the
+    FILESYSTEM for "does this scaffold physically exist." Lesson: after any clean-slate / nuke-rebuild
+    event, every plan-generating session MUST verify `ls apps packages` + read IMPLEMENTATION_MAP's
+    "Current State" header before asserting brownfield vs greenfield. A stale STATE.md "COMPLETE" claim
+    is not proof a directory exists. Fix applied in S0: STATE.md reconciled to real clean-slate state,
+    inputs.yml regenerated faithfully from PRODUCT.md, brownfield premise retired.

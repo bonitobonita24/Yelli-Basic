@@ -683,4 +683,50 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Errors encountered:  PRODUCT.md Scout rejected by V32.1 baseline-overhead regression (env-structural; falsified-as-session-accumulated 2026-06-09 per memory 10788).
 - Errors resolved:     Pivoted to `mcp__plugin_context-mode_context-mode__ctx_execute_file` for PRODUCT.md structural extraction; bytes stayed in sandbox.
 - Hand-off:            Human reviews `.cline/tasks/execution-plan.md`. Next session: fresh Claude Code → "Start Part 4.1".
-- Commit:              [pending — atomic commit after this entry lands]
+- Commit:              `552d8ad` chore(phase-3.5): execution plan generated — 9 sessions, brownfield-aware
+
+## 2026-06-12 — Clean-Slate Re-baseline + inputs.yml regen (swarm S0, Bootstrap)
+- Agent:               CLAUDE_CODE (swarm worker, headless `claude -p`)
+- Why:                 The Phase 3.5 execution plan (commit `552d8ad`) and the prior docs/STATE.md both
+                       asserted a FALSE premise — "Phase 4 Parts 1–8 already BUILT; only prototype→production
+                       wiring remains (brownfield)." That premise is invalid: the V32.6.1 clean-slate wipe
+                       (2026-06-07, commit `0a94f48`) removed `apps/` and `packages/` from the filesystem.
+                       IMPLEMENTATION_MAP.md is authoritative — "Filesystem: clean-slate. No apps/, packages/."
+                       Session 4.1 (run-1-4.1) correctly halted (status=blocked, q-4.1-01) on this contradiction.
+                       S0 re-baselines the governance state to reality so Phase 4 proceeds as a scaffold-then-wire
+                       rebuild (swarm plan S0→S5 scaffold, W1–W8 wire) rather than wiring a non-existent scaffold.
+- Plan correction:     The brownfield assumption is retired. The old `.cline/tasks/execution-plan.md` (136L) is
+                       SUPERSEDED (retained for reference). Authoritative Phase 4 plan = swarm S0→S5→W1–W8.
+- Files modified:      inputs.yml (regenerated from docs/PRODUCT.md), docs/STATE.md (rewritten to real state),
+                       docs/CHANGELOG_AI.md (this entry).
+- Files added:         none.
+- Files deleted:       none.
+- inputs.yml changes (faithful to docs/PRODUCT.md Data Entities + Modules + DECISIONS_LOG locked decisions):
+    • entities — removed fabricated `BrandAsset / CallSnapshot / SessionInvalidation` (absent from PRODUCT.md);
+      now the 8 PRODUCT.md domain models: Tenant, User, Device, Invitation, AuditLog, CallSession,
+      WebPushSubscription, ExportJob. (Auth.js v5 owns Session/VerificationToken/Account separately.)
+    • modules — 6 → 8 faithful: calling, directory, device-identity, accounts-auth, tenancy-members,
+      branding, admin-console, pwa.
+    • jobs.queues — 2 → 6: device-archive, tenant-export, soft-delete-cron, backup, email, logo-image
+      (grounded in DECISIONS_LOG "LOCKED: Jobs + Queues" Step 5 + "LOCKED: Database Backup" Step 7).
+    • tenancy.notes — clarified hybrid LAN + Cloud one-codebase model (Cloud multi-tenant via subdomain;
+      LAN single implicit tenant).
+    • security.audit_events — aligned to PRODUCT.md AuditLog action prefixes
+      (member.* / device.* / tenant.* / auth.* / superadmin.* / lan.* / pwa.*).
+    • All schema-required sections preserved; no schema change needed (PWA captured in modules; no new
+      top-level keys, so inputs.schema.json `additionalProperties:false` stays satisfied).
+- Validation:          inputs.yml parses as YAML and is VALID against inputs.schema.json (jsonschema check in
+                       sandbox — PASS). `pnpm lint|build|test` and `pnpm tools:validate-inputs` are n/a this
+                       session: no package.json / pnpm-workspace.yaml / node_modules / tools/ exist yet
+                       (pre-scaffold re-baseline; those land in scaffold sessions S1–S5).
+- Phase 0 skeleton:    Verified intact — governance docs present; .gitignore comprehensive; MCP wiring
+                       (.mcp.json + .vscode/mcp.json: socraticode + context7 + shadcn) present and correct.
+                       No repair required.
+- Errors encountered:  none.
+- Errors resolved:     Plan/state drift (false brownfield premise) corrected — the root cause of the 4.1 block.
+- Execution note (Rule 15 / V32.1): This swarm worker runs headless as a single executor agent and writes
+                       files inline (sub-agent dispatch is not used in this harness). This is the standing
+                       V32.1 Opus-inline fallback pattern (env-structural), not a discretionary R1 bypass.
+- Hand-off:            Next swarm session S1 — scaffold Parts 1–2 (root config + packages/shared). Human
+                       reviews this branch (`swarm/rebuild`) and pushes; the worker never pushes.
+- Commit:              feat(phase-4-S0): Re-baseline + inputs.yml regen (Bootstrap)

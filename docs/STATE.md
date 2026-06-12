@@ -1,95 +1,89 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Phase 3.5 COMPLETE · Phase 4 ready for human approval (2026-06-11)
+## Current State — Clean-Slate Re-baseline (swarm/rebuild · S0 complete, 2026-06-12)
 
-PHASE:        Phase 3.5 — **COMPLETE**. Execution Plan generated at `.cline/tasks/execution-plan.md` (136L).
-              9 sessions scheduled, each ≤80K SAFE context budget. Brownfield-aware (Phase 4 Parts 1–8
+PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
+              on branch `swarm/rebuild`). S0 (this re-baseline) is complete.
+
+              ⚠ PLAN CORRECTION (S0): The prior STATE.md falsely claimed "Phase 3.5 COMPLETE · Parts 1–8
               already BUILT in May 2026 V31 adoption — actual remaining work is the prototype→production
-              wiring V32.6 was designed to gate).
+              wiring." That premise was INVALID. The V32.6.1 clean-slate wipe (2026-06-07, commit `0a94f48`)
+              removed `apps/` and `packages/` from the filesystem. They do NOT exist on `swarm/rebuild`
+              or `main` (the old scaffold survives only in git history on `scaffold/part-3`).
+              IMPLEMENTATION_MAP.md is authoritative: "Filesystem: clean-slate. No apps/, packages/."
+              The Phase 3.5 execution plan (`.cline/tasks/execution-plan.md`) was written against the
+              false brownfield assumption and is therefore SUPERSEDED by the swarm scaffold-then-wire plan.
 
-              **Next phase: Phase 4 — begins with session 4.1 in a fresh Claude Code session after human
-              reviews the plan.**
+FILESYSTEM REALITY (verified this session):
+  PRESENT:  docs/ (PRODUCT.md + 9 governance docs), prototype/ (Phase 3.3 sim layer, 9/9 flows signed off),
+            deploy/, mockup-server/, inputs.yml, inputs.schema.json, 4 env files, CREDENTIALS.md,
+            .gitignore, .mcp.json, .vscode/mcp.json, .cline/ (memory + tasks), scripts/, CLAUDE.md.
+  ABSENT:   apps/ , packages/ , package.json , pnpm-workspace.yaml , node_modules/ , tools/.
+            ⇒ `pnpm lint|build|test` and `pnpm tools:validate-inputs` cannot run yet — no workspace exists.
+            This is correct for a pre-scaffold re-baseline; those land in scaffold sessions S1–S5.
 
-LAST_DONE:
-  - **Phase 3.5 Execution Plan (this session)** — generated `.cline/tasks/execution-plan.md`:
-      Complexity Profile (8 entities + 3 Auth.js; 8 modules; 9 §3 flows; 6 BullMQ queues; hybrid LAN+Cloud;
-      WebRTC+WebSocket+Valkey pub/sub; PWA-only — bucket MEDIUM).
-      Brownfield BUILT State (Parts 1–8 scaffolded; 4 Phase 3.3 deferrals open).
-      9-session schedule with dependency graph: 4.1 Foundation → 4.2 Swap-Devices+Auth → 4.3 Swap-Calling
-      (⚠ AT RISK) → 4.4 Swap-Tenancy+Members → 4.5 Swap-Audit+Branding → 4.6 BullMQ-workers →
-      4.7 PWA+Web-Push → 4.8 Design-finalization → 4.9 Pre-production-validation.
-      Per-session pre-flight (Smart Hydration + wc -l + Opus-inline R1 deviation fallback documented).
-      Skill activation schedule + Output Equivalence Guarantee + human hand-off contract.
-  - **CHANGELOG_AI.md appended** — Phase 3.5 entry with full V32 rule-compliance audit
-    (R1/R2/R6/R7/R8/R9 results documented; PRODUCT.md Scout rejection + ctx_execute_file recovery noted).
-  - **3 Scout dispatches (R6/R7)** — parallel fan-out for PRODUCT.md + DECISIONS_LOG.md + IMPLEMENTATION_MAP.md.
-    PRODUCT.md Scout REJECTED by V32.1 baseline-overhead regression; pivoted to `ctx_execute_file` sandbox
-    extraction (raw bytes never entered Opus context — derived complexity profile only).
+LAST_DONE (S0 — Re-baseline + inputs.yml regen):
+  - **docs/STATE.md rewritten** (this file) — reconciled to the real clean-slate state; corrected the
+    false Phase 3.5 brownfield-complete claim per authoritative IMPLEMENTATION_MAP.md.
+  - **inputs.yml regenerated** from docs/PRODUCT.md — drift corrected and validated against inputs.schema.json:
+      • entities: replaced fabricated `BrandAsset / CallSnapshot / SessionInvalidation` (not in PRODUCT.md)
+        with the 8 PRODUCT.md domain models — Tenant, User, Device, Invitation, AuditLog, CallSession,
+        WebPushSubscription, ExportJob (Auth.js owns Session/VerificationToken/Account separately).
+      • modules: 6 → 8 faithful (calling, directory, device-identity, accounts-auth, tenancy-members,
+        branding, admin-console, pwa).
+      • jobs.queues: 2 → 6 (device-archive, tenant-export, soft-delete-cron, backup, email, logo-image) —
+        grounded in DECISIONS_LOG.md "LOCKED: Jobs + Queues" (Step 5) + "LOCKED: Database Backup" (Step 7).
+      • tenancy.notes: clarified hybrid LAN+Cloud one-codebase model.
+      • security.audit_events: aligned to the PRODUCT.md AuditLog action prefixes
+        (member.* / device.* / tenant.* / auth.* / superadmin.* / lan.* / pwa.*).
+      • inputs.yml VALID against inputs.schema.json (jsonschema check passed in sandbox).
+  - **Phase 0 skeleton verified intact** — governance docs, .gitignore (comprehensive), and MCP wiring
+    (.mcp.json + .vscode/mcp.json: socraticode + context7 + shadcn) all present and correct. No repair needed.
+  - **CHANGELOG_AI.md appended** — clean-slate re-baseline + plan-correction entry (Rule 15 attribution).
 
 NEXT:
-  1. **Human reviews `.cline/tasks/execution-plan.md`** (136L) and confirms the 9-session schedule.
-     Options: "Start Part 4.1" (accept and begin) | "Split [session] further" | "Combine [A] and [B]"
-     | "Show me [session] details".
-  2. After approval → **open a FRESH Claude Code session** (Rule 24 fresh-context discipline) and say
-     "Start Part 4.1" — Session 4.1 (Foundation finalization: shadcn init verify + Auth.js
-     securityVersion wiring) begins.
-  3. Each Phase 4 session ends with a STOP; human opens the next session fresh. After 4.9 ships and
-     `phase-4-complete` tag is pushed → Phase 5 re-run + Phase 6 production wiring.
+  1. **S1 — Scaffold Parts 1–2** (root monorepo config: pnpm-workspace.yaml, turbo.json, tsconfig.base.json,
+     eslint/prettier, .nvmrc=22; packages/shared: TS types + Zod validators + 18-reserved-slugs + phantom-ui@0.10.1 pin).
+  2. Then S2 (packages/db Prisma schema — the contract; AT_RISK) → S3 (ui+jobs) → S4 (apps/yelli Next.js +
+     shadcn + Auth.js + tRPC skeleton; AT_RISK) → S5 (deploy + CI).
+  3. Then W1–W8 wire the validated prototype/ flows to the real backend (swap sim layer for tRPC/Prisma),
+     finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
+  Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
+  and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     none. Phase 3.5 hard gate cleared. Phase 4 unblocked pending human plan approval.
+BLOCKERS:     none for S0. S1 unblocked. (S1 depends only on S0, now complete.)
 
-GIT_BRANCH:   main. This session adds 1 atomic commit (execution-plan.md + CHANGELOG_AI.md + STATE.md).
-              Recent commits:
-  - `[this session]` chore(phase-3.5): execution plan generated — 9 sessions, brownfield-aware
+GIT_BRANCH:   swarm/rebuild. This session adds 1 atomic commit (inputs.yml + docs/STATE.md + docs/CHANGELOG_AI.md).
+              The human reviews and pushes — the worker never pushes.
+              Recent commits (pre-S0):
+  - `552d8ad` chore(phase-3.5): execution plan generated — 9 sessions, brownfield-aware  ← premise now corrected
   - `2a5b1dc` chore(phase-3.3): client sign-off + STATE.md gate-closure
   - `51ebf48` chore(ci): move react-doctor workflow to repo root + pin action SHAs
-  - `0b4f83e` chore: install react-doctor diagnostic skill in prototype
-  - `402ef71` chore(phase-3.3): STATE.md checkpoint — design-review GREEN, sign-off pending
 
-PORTS:        prototype dev server on 4838 (Phase 3.3 validated baseline retained for Phase 4 spot-checks).
-              Phase 4 Session 4.9 validates against `localhost:46848` (apps/yelli dev port from inputs.yml).
+PORTS:        Phase 4 app dev port = 46848 (inputs.yml ports.dev.app). prototype/ dev server on 4838
+              (Phase 3.3 validated baseline, retained for Phase 4 spot-checks).
 
 MODELS:
-  planning:   claude-code (Opus 4.7 — architect-only per V32 R1)
-  execution:  claude-sonnet-4-6 via Claude Code (V32.1 baseline-overhead regression remains — Opus-inline
-              fallback acceptable per standing pattern)
+  planning:   claude-code (Opus — architect)
+  execution:  claude-sonnet-4-6 via Claude Code
   governance: gemini-2.5-flash-lite
 
-CHECKPOINT TYPE: full (1 file created + 2 governance files rewritten + 1 atomic commit this session)
-LINES_TOUCHED: ~136 lines .cline/tasks/execution-plan.md (new) + ~32 lines CHANGELOG_AI.md (appended)
-               + this STATE.md rewrite
+CHECKPOINT TYPE: full (1 file regenerated + 1 governance file appended + this STATE.md rewrite; 1 atomic commit)
+LINES_TOUCHED: ~165 lines inputs.yml (regenerated) + CHANGELOG_AI.md (appended) + this STATE.md rewrite
 FILES_TOUCHED:
-  - .cline/tasks/execution-plan.md (NEW — Sonnet dispatch)
-  - docs/CHANGELOG_AI.md (appended — R8 Opus allow-list)
-  - docs/STATE.md (this file — R8 Opus allow-list)
-TIER_CLASSIFICATION: Tier 1 — lightweight (3 files total, single mechanical Sonnet dispatch + 2 R8 Opus writes)
-dispatch_ratio:
-  sonnet_writes: 1     # .cline/tasks/execution-plan.md (NOT on R8 allow-list — mandatory dispatch)
-  opus_writes: 2       # docs/CHANGELOG_AI.md + docs/STATE.md (both R8 allow-list)
-  ratio: 0.5
-  target: ≥ 3.0
-  status: WARN — Phase 3.5 is intrinsically a 1-Sonnet-write phase (one plan file). Metric rebalances
-                  starting at session 4.1 (each Phase 4 session has multiple Sonnet code writes vs
-                  fewer Opus governance writes — target 3.0+ achievable per session).
+  - inputs.yml (regenerated — faithful to PRODUCT.md; schema-valid)
+  - docs/STATE.md (this file)
+  - docs/CHANGELOG_AI.md (appended)
+TIER_CLASSIFICATION: Tier 1 — lightweight (3 files; mechanical re-baseline; no scaffold)
 
-V32 RULE COMPLIANCE THIS SESSION:
-  R1 (Zero Opus Execution):    PASS — execution-plan.md (not on R8 allow-list) dispatched to Sonnet; only
-                                STATE.md + CHANGELOG_AI.md written directly by Opus.
-  R2 (File-Size Dispatch):     PASS — Sonnet task: single 136L mechanical write, no analysis (≪500L).
-  R6 (Scout-Before-Plan):      PASS — 3 parallel Scouts for PRODUCT.md + DECISIONS_LOG.md +
-                                IMPLEMENTATION_MAP.md. PRODUCT.md Scout REJECTED by V32.1 baseline-overhead
-                                regression; recovered via ctx_execute_file sandbox extraction (raw bytes
-                                never entered Opus context — only derived complexity profile).
-  R7 (Default Parallel Fan-Out): PASS — 3 Scouts in single Opus response.
-  R8 (Opus Write Allow-List):  PASS — only STATE.md + CHANGELOG_AI.md written directly by Opus.
-  R9 (Dispatch Ratio Metric):  WARN @ 0.5 (intrinsic to Phase 3.5 shape — single plan file).
+EXECUTION NOTE (Rule 15 / V32.1): This swarm worker runs headless (`claude -p`) as a single executor agent
+  and performs its own file writes inline — sub-agent dispatch is not used in this harness. This is the
+  standing V32.1 Opus-inline fallback pattern (documented; env-structural, not a discretionary R1 bypass).
 
-KNOWN STANDING ISSUES (carried into Phase 4):
-  - V32.1 dispatch-layer regression (env-structural; falsified-as-session-accumulated 2026-06-09 per
-    memory 10788). Sonnet subagents reject small prompts due to ~30-50K skill auto-load baseline.
-    Standing fallback: Opus-inline R1 deviation when dispatch repeatedly fails. Each Phase 4 session
-    pre-flight should attempt Sonnet dispatch first; document deviation in CHANGELOG_AI.md per Rule 15
-    if fallback required.
-  - 4 Phase 3.3 deferrals carry into Phase 4: (1) Flow E re-render no-op fix in session 4.2;
-    (2-4) overlay heading semantics + next/font/google migration + hex→CSS-var wiring in session 4.8.
+KNOWN STANDING ISSUES (carried into the scaffold/wire sessions):
+  - V32.1 dispatch-layer regression (env-structural). Standing fallback: inline writes by the worker.
+  - 4 Phase 3.3 deferrals carry into the wire sessions: (1) Flow E LAN-admin-login re-render no-op (W1);
+    (2-4) overlay heading semantics + next/font/google migration + hex→CSS-var wiring (W7).
+  - Old `.cline/tasks/execution-plan.md` (136L) reflects the superseded brownfield premise — retained
+    for reference only; the swarm S0→S5→W1–W8 plan is authoritative for Phase 4.
