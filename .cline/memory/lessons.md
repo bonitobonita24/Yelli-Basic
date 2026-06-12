@@ -4,6 +4,25 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-12 — 🔴 gotcha Calls are NOT AuditLog'd — PROTOTYPE.md §3 prose conflicts with the locked sim + schema
+- Type:      🔴 gotcha
+- Phase:     Phase 4 · Swarm Session W2a (Wire B1 — Calling data+realtime)
+- Files:     apps/yelli/src/server/trpc/routers/call.ts, packages/db/prisma/schema.prisma (AuditTargetType), packages/shared/src/audit.ts, docs/PROTOTYPE.md §3
+- Concepts:  call-session, audit-vocabulary, AuditTargetType, call.start, swap-boundary, §11-reconciliation, doc-drift
+- Narrative: PROTOTYPE.md §3 Flow A/B prose says "Audit: call.start" / "call.connected or call.end", and
+    packages/shared/audit.ts STILL lists `call.start/connected/end` in AUDIT_ACTIONS. But THREE locked
+    artifacts agree calls are NOT audit-logged: (1) the Phase 3.3 sim (`prototype/.../repo.ts` callSessions)
+    explicitly comments "Calls are NOT audit-logged — they live in CallSession entity (PRODUCT.md §11)";
+    (2) the Prisma `AuditTargetType` enum has NO `CallSession` value (User/Tenant/Invitation/Device/ExportJob
+    only) — so a `call.*` row literally cannot be written with a correct targetType; (3) memory obs 10471
+    "Wave 4 §11 reconciliation removed off-spec call.* emissions". W2a therefore ports the sim faithfully:
+    CallSession rows ARE the call record; NO AuditLog rows for calls. The PROTOTYPE.md "Audit: call.*" prose
+    is stale (pre-Wave-4) and the `call.*` vocab entries are reserved-but-unemitted. RESOLUTION FOR A HUMAN
+    (non-blocking, surfaced in run-19-W2a result): either (a) amend PROTOTYPE.md §3 to drop the call audit
+    prose + drop `call.*` from AUDIT_ACTIONS, OR (b) if call audit IS wanted, add `CallSession` to
+    AuditTargetType + a migration + wire inline `tx.auditLog.create` in call.ts. Do NOT silently emit `call.*`
+    with targetType:'Device' — that is semantically wrong and the sim does not do it.
+
 ## 2026-06-12 — 🔴 gotcha @yelli/shared `.js` import specifiers break the Next/Turbopack build
 - Type:      🔴 gotcha
 - Phase:     Phase 4 · Swarm Session W1a (Wire A — first barrel consumer)

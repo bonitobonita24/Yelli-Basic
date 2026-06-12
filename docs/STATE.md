@@ -1,9 +1,23 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W1a complete → W1b NEXT, 2026-06-12)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W2a complete → W2b NEXT, 2026-06-12)
 
-> **W1a DONE (this session, 2026-06-12).** Wire A backend HALF (per the resolved q-W1-05 split): the
+> **W2a DONE (this session, 2026-06-12).** Wire B1 — calling DATA + REALTIME-fan-out plane. The `calls`
+> router (merge key `calls`, LOCKED) replaces its S4b `_placeholder` with the real CallSession lifecycle
+> (Phase 3.3 `sim.callSessions` SWAP BOUNDARY, PROTOTYPE.md §3 Flow A/B): `list` / `byId` / `start`
+> (role-snapshot + server-side role-guard auto-reject → `endReason: forbidden-by-role`) / `connect` /
+> `end` (durationSec, idempotent). A new `apps/yelli/src/server/realtime/bus.ts` adds the Valkey (ioredis
+> 5.10.1) pub/sub bus: tenant-scoped channels + best-effort publishers + **hybrid push+pull session-kill at
+> the LOCKED 30s SLO** + `createBusSubscriber()` for W2b. `call-signal` producers are LIVE in the router;
+> `publishRoleChange`/`publishSessionInvalidate` are ready API whose call-sites (devices.setRole = W1a's
+> file; W3 user routers = placeholders) are deferred to keep W2a self-contained. **DECISION (🔴 lessons):
+> calls are NOT AuditLog'd — recorded in the CallSession entity (PRODUCT.md §11); sim + schema
+> (no `CallSession` AuditTargetType) + Wave-4 reconciliation all agree; PROTOTYPE.md §3 audit prose is
+> stale → surfaced as NON-blocking q-W2a-01.** Validation all green (typecheck/lint/build, test 2/2).
+> **W2b (WebSocket signaling server, subscribes to the bus) is the next session and depends on this commit.**
+
+> **W1a DONE (2026-06-12).** Wire A backend HALF (per the resolved q-W1-05 split): the
 > `devices` router (10 real Prisma-backed procedures, L1+L6 tenant-guard + L5 inline AuditLog + RBAC
 > admin-gating + §11-canonical audit vocab VERBATIM) and the `users` ownership router (`me` / `list` /
 > self-`setDisplayName`) now replace their S4b `_placeholder`s; the client provider stack
