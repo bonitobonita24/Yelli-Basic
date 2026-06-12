@@ -979,3 +979,55 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Hand-off:            Dispatch S4a-2 (primitives) then S4b (auth+tRPC) as separate workers. Human reviews
                        branch `swarm/rebuild` and pushes; the worker never pushes.
 - Commit:              feat(phase-4-S4a): Scaffold Part 5 (app foundation) — apps/yelli Next.js 16 shell + design tokens
+
+## 2026-06-12 — Phase 4 · Swarm Session S4a-2: Scaffold Part 5 (shadcn primitives + token parity) — apps/yelli
+- Agent:               CLAUDE_CODE (swarm worker, headless `claude -p`; Opus-inline per V32.1 fallback)
+- Why:                 Second of the three within-budget S4 sub-sessions (S4a-1 done @ 1eb2ae4; S4b = auth+tRPC
+                       still pending). Generates the 17 LOCKED shadcn primitives the production screens use, plus
+                       a hand-maintained TS mirror of the Clay tokens and a Vitest drift guard — completing the
+                       UI primitive + design-token surface so S4b can wire auth/tRPC against real components.
+- Scope (S4a-2):       17 shadcn/ui primitives (q-S4-02) into apps/yelli/src/components/ui/ + src/lib/tokens.ts
+                       (Clay mirror) + src/lib/tokens.parity.test.ts (Vitest) + vitest.config.ts. NO auth, NO
+                       tRPC, NO proxy.ts/env.ts (S4b).
+- Files added (21):    apps/yelli/src/components/ui/{button, card, input, label, dialog, badge, avatar,
+                       separator, scroll-area, tabs, select, switch, sonner, skeleton, tooltip, dropdown-menu,
+                       form}.tsx (17, CLI-generated via shadcn@2, then Prettier-normalized to repo style),
+                       src/lib/tokens.ts (hand-maintained Clay mirror), src/lib/tokens.parity.test.ts,
+                       vitest.config.ts.
+- Files modified:      apps/yelli/package.json (+17 deps: 11 @radix-ui/* + @hookform/resolvers + react-hook-form
+                       + sonner + next-themes + zod[catalog] from the CLI; +class-variance-authority ^0.7.1 and
+                       lucide-react ^1.17.0 added manually — primitives import them but the S4a-1 manual init
+                       had no primitives so they were never installed; +vitest devDep; +"test":"vitest run"
+                       script). pnpm-lock.yaml. pnpm-workspace.yaml (catalog zod ^3.23.8 → ^3.25.76 — pnpm floor
+                       raise forced by @hookform/resolvers@5 peer zod≥3.24; caret-range bump within zod 3.x, the
+                       resolved version was already 3.25.76, @yelli/shared re-typechecked clean). docs/STATE.md,
+                       docs/CHANGELOG_AI.md, docs/DECISIONS_LOG.md (Brain q-S4-03/q-S4-04 answer log).
+- shadcn CLI decision: q-S4-04 [A] — used `npx shadcn@2 add …` (locked major) against the pre-staged v3-mode
+                       components.json. shadcn@latest (4.x, Tailwind-v4-first) was REJECTED to protect the Phase
+                       3.3 GREEN v3 token plumbing; hand-authoring REJECTED per ui-rules.md (shadcn is the only
+                       permitted primitive source). POST-ADD DRIFT GATE PASSED: tailwind.config.ts + globals.css
+                       byte-identical pre/post add; tailwindcss stayed ^3.4.10; no @tailwindcss/postcss or any v4
+                       package introduced.
+- Token parity:        src/lib/tokens.ts is a verbatim TS mirror of the LOCKED src/styles/tokens.css :root (25
+                       Clay tokens, keyed by exact `--name`). tokens.parity.test.ts parses the CSS :root block
+                       and asserts an exact sorted-key match against the TS object — any drift in either file
+                       fails the test (DL "Design Tokens": one source of truth, drift-guarded). 2/2 tests pass.
+- Validation:          pnpm install ✓ (incl. --frozen-lockfile catalog↔lock consistency ✓); root `pnpm test`
+                       (turbo) ✓ — @yelli/web 2/2, siblings no-op; pnpm --filter @yelli/web typecheck ✓ (0);
+                       lint ✓ (0); `next build` ✓ (Next 16.2.9 Turbopack, TS pass, 3 static pages); @yelli/shared
+                       typecheck ✓ under bumped zod; prettier --check ✓ on all 17 primitives + 3 authored files
+                       + package.json.
+- Deviations/notes:    (1) class-variance-authority + lucide-react added manually (see Files modified) — required
+                       direct deps the CLI omitted. (2) lucide-react ^1.17.0 is a post-cutoff major; its named
+                       icon imports type-resolve clean. (3) 17 generated primitives Prettier-normalized to the
+                       repo .prettierrc (singleQuote) — cosmetic, no behavior change; keeps format:check clean.
+                       (4) catalog zod floor bump (see Files modified) — benign, required, Output Equivalence
+                       preserved.
+- Remainder (BLOCKED): S4 still NOT complete. S4b (Auth.js v5 Credentials/JWT + User.securityVersion session
+                       callback, no PrismaAdapter per DL:172; tRPC v11 — 7 routers incl. `calls` key + 5
+                       middleware; src/proxy.ts V25 per DL:179; src/env.ts) is the final S4 sub-session —
+                       dispatch as a separate dependent worker. AT_RISK; split further if >500L.
+- Execution note (Rule 15 / V32.1): headless single-executor, inline writes (standing env-structural fallback;
+                       dispatch_ratio sonnet_writes=0 / opus_writes=N → FAIL by R9, standing acceptance per Wave 7).
+- Hand-off:            Dispatch S4b (auth+tRPC). Human reviews branch `swarm/rebuild` and pushes; worker never pushes.
+- Commit:              feat(phase-4-S4a2): Scaffold Part 5 (shadcn primitives + token parity) — apps/yelli
