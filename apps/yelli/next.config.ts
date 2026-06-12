@@ -36,10 +36,12 @@ const nextConfig: NextConfig = {
   // @yelli/* workspace packages ship TypeScript source (no build step) — Next
   // must transpile them. @yelli/db is server-only (Prisma); never imported at edge.
   // @yelli/jobs (W3) is the BullMQ producer surface for the invitation email trigger.
-  transpilePackages: ['@yelli/ui', '@yelli/db', '@yelli/shared', '@yelli/jobs'],
+  // @yelli/storage (W4) is the S3/MinIO branding-upload surface.
+  transpilePackages: ['@yelli/ui', '@yelli/db', '@yelli/shared', '@yelli/jobs', '@yelli/storage'],
   // bullmq does dynamic requires (Lua command scripts, cron-parser) that the bundler
-  // can't statically trace — keep it external and require it at runtime (Node server).
-  serverExternalPackages: ['bullmq'],
+  // can't statically trace; @aws-sdk/client-s3 is a heavy server-only SDK. Keep both
+  // external and require them at runtime (Node server).
+  serverExternalPackages: ['bullmq', '@aws-sdk/client-s3'],
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   },

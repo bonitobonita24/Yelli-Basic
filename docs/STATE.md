@@ -1,9 +1,47 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W3 complete → W1b / W2b-2 / W4-W8 NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W4 complete → W1b / W2b-2 / W5-W8 NEXT, 2026-06-13)
 
-> **W3 DONE (this session, 2026-06-13).** Wire C — Tenancy + Members + Invitations. The `tenants` +
+> **W4 DONE (this session, 2026-06-13).** Wire D — Audit + Branding. The last two `_placeholder`
+> routers (`audit` + `brand`) now carry real bodies, the L5 audit-middleware recorder is live, and the
+> new `@yelli/storage` package + `logo-image` queue trigger land. (This session verified-and-committed a
+> prior in-session W4 draft that was written but never validated/committed — reviewed against scope + the
+> HARD CONSTRAINT, ran full validation clean, committed.)
+> • **audit** (`list`, admin-gated, read-only): cursor-paginated AuditLog view for ScreenAdminAudit (Phase
+>   3.3 `sim.auditLog.recent` SWAP BOUNDARY), `createdAt desc`, optional `actionPrefix` §11-namespace filter.
+>   AuditLog is L6-guard-EXCLUDED → the read scopes `tenantId: ctx.tenantId` EXPLICITLY (security.md #10);
+>   tenantId omitted from rows (#13). Read-only ⇒ emits no audit action.
+> • **brand** (`update`, admin-gated): `tenant.branding.update` production wiring of `sim.tenants.updateBranding`.
+>   Optional `displayName` rename + optional `logo` ({base64,mime} to set / `null` to clear). Logo flow:
+>   decode → `validateBrandingUpload` (magic-byte PNG/JPEG + declared-vs-sniffed match + 2 MiB; SVG/HTML
+>   rejected — XSS) → `putBrandingLogo` (tenant-prefixed randomized key) → set `Tenant.logoUrl` → emit
+>   **`tenant.branding.update`** (§11 VERBATIM, HARD CONSTRAINT) via `ctx.recordAudit` → best-effort
+>   `enqueueLogoImage`. Tenant is L6-excluded → direct by-id `ctx.db.tenant.update`.
+> • **audit middleware** (L5, real): `protectedProcedure` now `.use(auditMiddleware)` (LOCKED 5-step chain
+>   fully live: error→rate-limit→auth→tenant-scope→audit). INJECTS a tenant+actor-bound
+>   `recordAudit(action, target, payload?)` onto ctx for every protected call — the sanctioned write path
+>   (binds tenantId+actorUserId from the session so call-sites can't get them wrong). `brand.update` is the
+>   first adopter; the W1a/W3 per-procedure inline-write pattern coexists.
+> • **@yelli/storage** (NEW workspace package, source-exported): `validate.ts` (LOCKED PNG/JPEG magic-byte
+>   whitelist + 2 MiB) + `client.ts` (`putBrandingLogo` lazy S3/MinIO PUT, `forcePathStyle`, env-driven,
+>   side-effect-free import). `apps/yelli/src/server/jobs/logo-queue.ts` = `logo-image` queue PRODUCER
+>   (best-effort, no-op without REDIS_URL; W3 email-queue pattern). next.config: +`@yelli/storage`
+>   transpiled, +`@aws-sdk/client-s3` serverExternal. The resize CONSUMER worker is DEFERRED (BullMQ-wiring
+>   session) — the original logo is already live so branding works end-to-end without it.
+> • **AUDIT VOCAB:** `tenant.branding.update` is entry #46 in the LOCKED `@yelli/shared` AUDIT_ACTIONS
+>   (PROTOTYPE.md §3 contract) — emitted verbatim. HARD CONSTRAINT satisfied. DEFERRED emits (documented,
+>   non-blocking): `tenant.admin.passphrase.set` → W6 LAN-admin (Argon2id); `tenant.export.*` → tenant-export
+>   BullMQ session.
+> Validation all green: `pnpm install --frozen-lockfile` ✓ (8 workspace projects), prisma generate ✓,
+> turbo typecheck 7/7, lint 7/7, test (web 2/2), `next build` ✓ (proxy = `ƒ Proxy (Middleware)`;
+> `@yelli/storage` transpiled + `@aws-sdk/client-s3` external resolved). Only the pre-existing non-fatal
+> @prisma/client `export *` Turbopack warning (S2). **Dispatch note (Rule 15): authored Opus-inline —
+> standing V32.1 env-structural swarm fallback; R1 deviation accepted per the standing pattern.**
+> **ALL 7 routers now carry real bodies. W1b (Wire A UI port) and W2b-2 (client `useSignaling` hook)
+> remain the open backend→UI wire deps; W5-W8 (UI/PWA/validation) follow.**
+
+> **W3 DONE (2026-06-13).** Wire C — Tenancy + Members + Invitations. The `tenants` +
 > `invitations` routers replace their S4b `_placeholder`s with real procedures, and the V25 proxy
 > subdomain cross-check is filled in.
 > • **invitations** (`list`/`create`/`revoke`/`resend`, admin-gated): create+resend mint a single-use
@@ -426,10 +464,13 @@ NEXT:
   5. ✅ **W3 (Wire C — Tenancy + Members + Invitations + V25 proxy)** — DONE this session. tenants +
      invitations routers LIVE; proxy V25 subdomain cross-check filled; invitation email queue trigger +
      W2a session-kill call-sites landed. See the W3 block at the top.
-  6. **W2b-2 / W4-W8** — remaining wire sessions (client `useSignaling` hook, calling/WebRTC UI port,
-     branding+storage, audit view, PWA, pre-production validation). Each keeps the §11 audit vocab VERBATIM.
-     packages/storage (branding MIME whitelist) + the tenant.export worker land with the branding /
-     BullMQ-wiring sessions; invitation.accept lands with accounts-auth. W8 = 9 §3 flows end-to-end + Phase 5
+  6. ✅ **W4 (Wire D — Audit + Branding)** — DONE this session. `audit` + `brand` routers LIVE; L5
+     audit-middleware recorder live; `@yelli/storage` (PNG/JPEG magic-byte whitelist + 2 MiB) + `logo-image`
+     queue producer landed. ALL 7 routers now carry real bodies. See the W4 block at the top.
+  7. **W2b-2 / W5-W8** — remaining wire sessions (client `useSignaling` hook, calling/WebRTC UI port,
+     PWA, pre-production validation). Each keeps the §11 audit vocab VERBATIM. The tenant.export worker +
+     logo-image resize worker land with the BullMQ-wiring session; invitation.accept + Auth.js authorize()
+     land with accounts-auth; LAN-admin argon2 verify lands with W6. W8 = 9 §3 flows end-to-end + Phase 5
      re-run + Visual QA.
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
@@ -437,10 +478,10 @@ NEXT:
 BLOCKERS:     None. W3 (tenancy/members/invitations + V25 proxy) is COMPLETE and committed. Open wire deps:
               W1b (Wire A UI port — depends on W1a hooks/providers) and W2b-2 (client `useSignaling` hook —
               depends on W2b-1). Remaining skeleton TODOs are the later W-series' work, not blockers: Auth.js
-              authorize() + invitation.accept (accounts-auth wire), LAN-admin argon2 verify (W6), the 2
-              still-`_placeholder` routers (audit + brand → W5/W7), tenant.export.* + removeMember
-              (BullMQ-wiring / schema decision — see the W3 deferrals + the non-blocking question), and the
-              30s Valkey freshness cache.
+              authorize() + invitation.accept (accounts-auth wire), LAN-admin argon2 verify (W6),
+              tenant.export.* + removeMember (BullMQ-wiring / schema decision — see the W3 deferrals + the
+              non-blocking question), the logo-image resize CONSUMER worker (BullMQ-wiring; W4 fires the
+              producer only), and the 30s Valkey freshness cache. (audit + brand routers are now DONE — W4.)
 
 GIT_BRANCH:   swarm/rebuild. W3 adds 1 atomic commit (email-queue producer [new] + invitations router +
               tenants router + proxy.ts + env.ts + next.config.ts + package.json + pnpm-lock.yaml + 3
