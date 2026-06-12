@@ -849,3 +849,78 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Hand-off:            Next swarm session S3 — packages/ui + packages/jobs. Human reviews branch `swarm/rebuild`
                        and pushes; the worker never pushes.
 - Commit:              feat(phase-4-S2): Scaffold Part 3 — packages/db (Prisma schema + migration)
+
+## 2026-06-12 — Phase 4 Swarm Session S3 — Scaffold Part 4: packages/ui + packages/jobs
+- Agent:               CLAUDE_CODE (swarm worker, headless `claude -p`)
+- Why:                 Scaffold the shared UI utility layer (@yelli/ui) + the BullMQ job DEFINITIONS layer
+                       (@yelli/jobs) for the clean-slate rebuild. Reproduces the LOCKED Phase-4-Part-4 decisions
+                       (Output Equivalence) — ioredis pin, worker payload-guard convention, branding MIME context —
+                       and the Phase 3.3 signed-off design tokens. Consumes @yelli/shared (S1) + @yelli/db (S2)
+                       conceptually; the running app + workers are wired in S4 + the BullMQ-wiring session.
+- Files added (ui):    packages/ui/{package.json,tsconfig.json,eslint.config.mjs} +
+                       src/{index.ts,lib/cn.ts,tailwind-preset.ts}.
+                         • src/lib/cn.ts — canonical shadcn `cn()` (clsx + tailwind-merge). No shadcn primitives yet
+                           (those land with the app via `npx shadcn@latest init` in S4 — per scope).
+                         • src/tailwind-preset.ts — `yelliTailwindPreset` (`satisfies Partial<Config>`). REPRODUCES the
+                           Phase 3.3 signed-off design system verbatim from prototype/tailwind.config.ts (the
+                           human-validated baseline / docs/DESIGN.md): the full brand+semantic color map onto
+                           CSS vars (canvas/surface/text-*/brand-*/success/warning/error), borderRadius
+                           (xs/sm/md/lg/xl/pill), boxShadow (hairline/card/raised/modal), transitionDuration +
+                           transitionTimingFunction. No `content` (consuming app owns its globs). Token VALUES live
+                           in the app globals.css (S4) as CSS custom properties; the preset only maps utility names.
+                           Output Equivalence: reproduced, not re-decided — keeps the design-review GREEN intact.
+                         • Deps: clsx ^2.1.1 + tailwind-merge ^2.5.5 (runtime), tailwindcss ^3.4.10 (dev — Config type,
+                           pinned to the prototype's proven Tailwind v3 line, not v4).
+- Files added (jobs):  packages/jobs/{package.json,tsconfig.json,eslint.config.mjs} +
+                       src/{index.ts,connection.ts,queues.ts} +
+                       src/workers/{_validate.ts,device-archive.ts,tenant-export.ts,soft-delete-cron.ts,
+                       backup.ts,email.ts,logo-image.ts}.
+                         • src/queues.ts — the 6 queue DEFINITIONS (LOCKED: Jobs + Queues [Step 5] + Database Backup
+                           [Step 7]): QUEUE_NAMES const (device-archive, tenant-export, soft-delete-cron, backup,
+                           email, logo-image — verbatim from inputs.yml jobs.queues), per-queue typed payloads
+                           (BaseJobData{tenantId,userId,idempotencyKey?} + the 6 specializations), a static JobDataMap,
+                           and a `createQueue<N>(name, connection, options)` factory (connection INJECTED — no eager
+                           Redis at import; definitions only, Workers/cron schedulers land in the wiring session).
+                         • src/connection.ts — `createRedisConnection()` ioredis factory; defaults BullMQ's required
+                           `maxRetriesPerRequest: null`; reads REDIS_URL (Valkey).
+                         • src/workers/_validate.ts — the LOCKED worker payload-guard convention: `assertTenantUser`
+                           (every worker calls it at the TOP of its processor, BEFORE any logic — security.md Queue
+                           Safety rule 1+2), the stricter `assertSystemJob` (LOCKED backup exception: tenantId '_pwbt'
+                           + userId 'system' — whole-DB job), and the shared structured-JSON `log()` helper
+                           (operations.observability.format = structured-json — LOCKED).
+                         • 6 worker STUBS — each imports the correct guard (assertTenantUser; backup → assertSystemJob)
+                           + `log`, calls the guard first, logs receipt, then `throw new Error('… not yet implemented
+                           (S3 stub)')` with a TODO(BullMQ wiring session) describing the LOCKED behavior (03:00 UTC
+                           device-archive sweep; tenant-export JSON→S3/MinIO→signed-24h-URL email; 7-day soft-delete
+                           hard-delete; 02:00 UTC pg_dump custom/compress=9→S3 30d/Glacier-IR-7d; invite/verify/reset
+                           email; logo PNG/JPEG-only resize per the LOCKED branding MIME whitelist). No `new Worker()`
+                           — keeps the package definitional (no eager Redis connection), implementation deferred.
+                         • Deps: bullmq ^5.77.7 + ioredis 5.10.1 (EXACT — LOCKED: ioredis version pin).
+- Files modified:      package.json (root) — ADDED `pnpm.overrides.ioredis = "5.10.1"` (LOCKED: ioredis version pin).
+                       Verified single-instance dedup: `node_modules/.pnpm` resolves exactly one `ioredis@5.10.1`
+                       (bullmq's bundled instance + @yelli/jobs's direct dep collapse to one — required under strict +
+                       exactOptionalPropertyTypes so the Redis types are structurally identical).
+                       pnpm-lock.yaml — +bullmq/ioredis/clsx/tailwind-merge/tailwindcss (and transitive) resolved.
+- Schema/migrations:   none.
+- ExportJob REVIEW NOTE resolution (carried from S2): KEPT the packages/db export_jobs table — NOT dropped.
+                       Rationale: PRODUCT.md flow #15 needs a durable ExportJob row for (a) the "An export is already
+                       in progress" 1/tenant/24h rate-limit query, (b) AuditLog tenant.export.request/complete/failed
+                       correlation by a stable exportJobId, and (c) the signed-URL/expiry/downloadedAt lifecycle —
+                       BullMQ job state is ephemeral (jobs are removed on completion) and cannot serve those queries.
+                       TenantExportJobData therefore carries `exportJobId` referencing that row. The S2 table stands.
+- Validation:          pnpm typecheck ✓ (4/4 packages, 0 errors); pnpm lint ✓ (4/4, 0 problems); pnpm build → no-op
+                       exit 0 (all packages source-exported; no build task yet); pnpm test → no tasks exit 0; prettier
+                       --check ✓ on all S3 files + root package.json. ioredis dedup verified = single 5.10.1.
+                       (Repo-wide `format:check` still fails on the same 44 PRE-EXISTING files — docs/, inputs.yml,
+                       README.md — untouched by S3; not an S3 regression.)
+- Prerequisite note:   @yelli/db typecheck still requires `prisma generate` first on a fresh clone (re-run this session
+                       after `pnpm install` altered node_modules — standard Prisma practice; S5 CI wires it).
+- Errors encountered:  1 (self-caught, non-blocking) — initial typecheck failed in tailwind-preset.ts: a JSDoc comment
+                       contained the literal `--duration-*/--ease-*`, whose `*/` prematurely CLOSED the comment block
+                       (TS1109/TS1161 cascade). Reworded the comment to remove the `*/` sequence; typecheck green.
+- Errors resolved:     the above.
+- Execution note (Rule 15 / V32.1): swarm worker ran headless as a single executor and wrote files inline
+                       (sub-agent dispatch not used in this harness — standing V32.1 env-structural fallback).
+- Hand-off:            Next swarm session S4 — apps/yelli (Next.js + shadcn init + Auth.js v5 + tRPC skeleton; AT_RISK).
+                       Human reviews branch `swarm/rebuild` and pushes; the worker never pushes.
+- Commit:              feat(phase-4-S3): Scaffold Part 4 — packages/ui + packages/jobs

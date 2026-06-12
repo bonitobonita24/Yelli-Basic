@@ -1,11 +1,12 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold (swarm/rebuild · S2 complete, 2026-06-12)
+## Current State — Clean-Slate Scaffold (swarm/rebuild · S3 complete, 2026-06-12)
 
 PHASE:        **Phase 4 — Clean-Slate Scaffold-then-Wire rebuild** (driven by the swarm session plan
               on branch `swarm/rebuild`). S0 (re-baseline) + S1 (Parts 1–2 scaffold) + S2 (Part 3:
-              packages/db Prisma schema + L2/L5/L6 + migration 0001) are complete.
+              packages/db Prisma schema + L2/L5/L6 + migration 0001) + S3 (Part 4: packages/ui +
+              packages/jobs) are complete.
 
               ⚠ PLAN CORRECTION (S0): The prior STATE.md falsely claimed "Phase 3.5 COMPLETE · Parts 1–8
               already BUILT in May 2026 V31 adoption — actual remaining work is the prototype→production
@@ -29,8 +30,42 @@ FILESYSTEM REALITY (verified this session):
             migration 0001_init (DDL + L2 RLS), L5 writeAuditLog, L6 $allOperations tenant-guard, L2
             withTenant/setTenantContext, base PrismaClient singleton. pnpm-lock.yaml +prisma 5.22.0.
             ⇒ `prisma generate` (pnpm --filter @yelli/db db:generate) MUST precede typecheck on a fresh clone.
-  ABSENT:   apps/ , packages/ui , packages/jobs , tools/.
+            NEW (S3): packages/ui/ (@yelli/ui) — `cn()` (clsx + tailwind-merge) + `yelliTailwindPreset`
+            (reproduces the Phase 3.3 signed-off design tokens from prototype/tailwind.config.ts; no shadcn
+            primitives yet — those land with the app in S4). packages/jobs/ (@yelli/jobs) — 6 BullMQ queue
+            DEFINITIONS (QUEUE_NAMES + typed payloads + JobDataMap + createQueue factory) + ioredis
+            connection factory + workers/_validate.ts (assertTenantUser / assertSystemJob / log — LOCKED
+            guard convention) + 6 worker STUBS (guard-wired, body = TODO + throw NotImplemented). Root
+            package.json gains `pnpm.overrides.ioredis = "5.10.1"` (LOCKED pin; verified single-instance).
+            ⇒ `pnpm typecheck|lint` run green (4/4 pkgs). Worker bodies + Queue/Worker/cron bootstrap land
+              in the BullMQ-wiring session. ExportJob export_jobs table from S2 was KEPT (durable row needed
+              for the 1/tenant/24h rate-limit + AuditLog correlation — S2 REVIEW NOTE resolved).
+  ABSENT:   apps/ , packages/storage , tools/.
             ⇒ `pnpm tools:validate-inputs` not wired yet (tools/ lands in S5). apps/yelli lands in S4.
+              packages/storage (branding-upload MIME validate.ts — LOCKED PNG/JPEG whitelist) NOT in S3 scope
+              (S3 scope = ui + jobs only); lands in a later session.
+
+LAST_DONE (S3 — Scaffold Part 4: packages/ui + packages/jobs):
+  - **packages/ui (@yelli/ui)** — shared UI utility layer (NO shadcn primitives — those land with the app S4):
+      • src/lib/cn.ts — canonical shadcn `cn()` (clsx + tailwind-merge).
+      • src/tailwind-preset.ts — `yelliTailwindPreset` (`satisfies Partial<Config>`) reproducing the Phase 3.3
+        signed-off design tokens VERBATIM from prototype/tailwind.config.ts (colors→CSS vars, borderRadius,
+        boxShadow, transition duration/timing). No `content` (app owns globs). Output Equivalence: reproduced,
+        keeps design-review GREEN. Deps: clsx + tailwind-merge + tailwindcss ^3.4.10 (dev; v3 line, not v4).
+  - **packages/jobs (@yelli/jobs)** — BullMQ job DEFINITIONS layer (definitions + stubs; no running Workers):
+      • src/queues.ts — 6 queue DEFINITIONS (QUEUE_NAMES verbatim from inputs.yml: device-archive, tenant-export,
+        soft-delete-cron, backup, email, logo-image) + typed payloads (BaseJobData + 6 specializations) + static
+        JobDataMap + `createQueue<N>(name, connection, opts)` factory (connection INJECTED — no eager Redis).
+      • src/connection.ts — `createRedisConnection()` (ioredis; defaults BullMQ `maxRetriesPerRequest: null`).
+      • src/workers/_validate.ts — LOCKED guard convention: `assertTenantUser` (top of every processor),
+        `assertSystemJob` (LOCKED backup exception: '_pwbt'/'system'), shared structured-JSON `log()`.
+      • 6 worker STUBS — guard-wired + log + `throw NotImplemented` + TODO(wiring session) per LOCKED behavior.
+      • Deps: bullmq ^5.77.7 + ioredis 5.10.1 (EXACT — LOCKED pin). Root package.json + `pnpm.overrides.ioredis`.
+  - **ExportJob REVIEW NOTE (from S2) resolved** — KEPT the export_jobs table (durable row required for the
+    1/tenant/24h rate-limit + tenant.export.* AuditLog correlation; BullMQ state is ephemeral). Not dropped.
+  - **Validation green** — typecheck ✓ (4/4, 0 errors); lint ✓ (4/4, 0 problems); build/test no-op exit 0;
+    prettier --check ✓ on all S3 files; ioredis verified single-instance 5.10.1. 1 self-caught JSDoc `*/` bug fixed.
+  - **CHANGELOG_AI.md appended** — full S3 entry (Rule 15 attribution; ExportJob resolution + deviations documented).
 
 LAST_DONE (S2 — Scaffold Part 3: packages/db — Prisma schema + L2/L5/L6 + migration 0001):
   - **packages/db (@yelli/db)** — reproduced the LOCKED Phase-4-Part-3 contract from the wiped scaffold
@@ -95,24 +130,24 @@ LAST_DONE (S0 — Re-baseline + inputs.yml regen):
   - **CHANGELOG_AI.md appended** — clean-slate re-baseline + plan-correction entry (Rule 15 attribution).
 
 NEXT:
-  1. **S3 — Scaffold Part 4: packages/ui + packages/jobs** — shadcn/ui shared component layer + BullMQ typed
-     queues/workers (6 queues per LOCKED Jobs + Queues). Consumes @yelli/db (S2) + @yelli/shared (S1).
-     ⚠ If S3 (packages/jobs export worker) determines ExportJob state should be BullMQ/Valkey-only, it may drop
-     the S2 export_jobs table (additive + isolated — see CHANGELOG S2 review note).
-  2. Then S4 (apps/yelli Next.js + shadcn + Auth.js v5 Credentials/JWT + tRPC skeleton; AT_RISK) → S5 (deploy + CI;
-     wire `prisma generate` before typecheck, add pnpm onlyBuiltDependencies for prisma if needed).
+  1. **S4 — Scaffold Part 5: apps/yelli** — Next.js 14 (App Router) + `npx shadcn@latest init` (consumes
+     @yelli/ui `cn()` + `yelliTailwindPreset`) + Auth.js v5 Credentials/JWT (wire User.securityVersion into the
+     session() callback) + tRPC skeleton. AT_RISK (largest session) — split by surface if the in-scope file set
+     exceeds the budget. Consumes @yelli/shared (S1) + @yelli/db (S2) + @yelli/ui + @yelli/jobs (S3).
+  2. Then S5 (deploy + CI; wire `prisma generate` before typecheck, add pnpm onlyBuiltDependencies for prisma).
   3. Then W1–W8 wire the validated prototype/ flows to the real backend (swap sim layer for tRPC/Prisma),
      finishing with W8 pre-production validation (9 §3 flows end-to-end + Phase 5 re-run + Visual QA).
   Output Equivalence: the scaffold-then-wire rebuild must reproduce the proven decisions in DECISIONS_LOG.md
   and the 9 signed-off §3 flows in PROTOTYPE.md — nothing is re-decided, only re-built.
 
-BLOCKERS:     none for S2. S3 unblocked (depends on S1 + S2, both complete). One non-blocking REVIEW NOTE
-              carried to S3/human: ExportJob persistence (Postgres table vs BullMQ/Valkey-only) — see CHANGELOG S2.
+BLOCKERS:     none for S3. S4 unblocked (depends on S1+S2+S3, all complete). The S2 ExportJob REVIEW NOTE is
+              RESOLVED (table kept — see LAST_DONE S3 + CHANGELOG S3). No open review notes carried to S4.
 
-GIT_BRANCH:   swarm/rebuild. S2 adds 1 atomic commit (packages/db + 0001 migration + entities.ts sync +
-              pnpm-lock.yaml + docs/STATE.md + docs/CHANGELOG_AI.md). The human reviews and pushes — the worker
-              never pushes.
+GIT_BRANCH:   swarm/rebuild. S3 adds 1 atomic commit (packages/ui + packages/jobs + root package.json ioredis
+              override + pnpm-lock.yaml + docs/STATE.md + docs/CHANGELOG_AI.md). The human reviews and pushes —
+              the worker never pushes.
               Recent commits:
+  - `5e0b58c` feat(phase-4-S2): Scaffold Part 3 — packages/db (Prisma schema + migration)
   - `9328eb5` feat(phase-4-S1): Scaffold Parts 1-2 — root config + packages/shared
   - `dddb647` feat(phase-4-S0): Re-baseline + inputs.yml regen (Bootstrap)
   - `552d8ad` chore(phase-3.5): execution plan generated — 9 sessions, brownfield-aware  ← premise corrected by S0
@@ -126,20 +161,21 @@ MODELS:
   execution:  claude-sonnet-4-6 via Claude Code
   governance: gemini-2.5-flash-lite
 
-CHECKPOINT TYPE: full (S2 scaffold session — packages/db: 11 files created + 1 modified package + 2 governance
-  docs updated; 1 atomic commit)
-LINES_TOUCHED (S2): ~830 lines of new scaffold (schema.prisma ~290, migration.sql ~300, down.sql ~55,
-  src/* ~150, package/tsconfig/eslint ~45) + entities.ts (2-line sync) + CHANGELOG_AI.md + this STATE.md.
-FILES_TOUCHED (S2):
-  - packages/db: package.json, tsconfig.json, eslint.config.mjs,
-    prisma/schema.prisma, prisma/migrations/0001_init/migration.sql, prisma/migrations/0001_init/down.sql,
-    prisma/migrations/migration_lock.toml, src/index.ts, src/audit.ts, src/rls.ts, src/middleware/tenant-guard.ts
-  - packages/shared/src/entities.ts (modified — securityVersion + targetId nullable)
-  - pnpm-lock.yaml (modified — prisma 5.22.0)
+CHECKPOINT TYPE: full (S3 scaffold session — packages/ui: 6 files + packages/jobs: 13 files created + root
+  package.json modified + 2 governance docs updated; 1 atomic commit)
+LINES_TOUCHED (S3): ~430 lines of new scaffold (ui src ~95 + 3 config ~30; jobs src ~270 + 3 config ~35) +
+  root package.json (+5: ioredis override) + pnpm-lock.yaml + CHANGELOG_AI.md + this STATE.md.
+FILES_TOUCHED (S3):
+  - packages/ui: package.json, tsconfig.json, eslint.config.mjs, src/index.ts, src/lib/cn.ts, src/tailwind-preset.ts
+  - packages/jobs: package.json, tsconfig.json, eslint.config.mjs, src/index.ts, src/connection.ts, src/queues.ts,
+    src/workers/_validate.ts, src/workers/device-archive.ts, src/workers/tenant-export.ts,
+    src/workers/soft-delete-cron.ts, src/workers/backup.ts, src/workers/email.ts, src/workers/logo-image.ts
+  - package.json (root — modified: +pnpm.overrides.ioredis 5.10.1)
+  - pnpm-lock.yaml (modified — +bullmq/ioredis/clsx/tailwind-merge/tailwindcss)
   - docs/STATE.md (this file), docs/CHANGELOG_AI.md (appended)
-TIER_CLASSIFICATION: Tier 2 — moderate (~830 lines, above the 500-line Sonnet-dispatch gate but executed as a
-  single headless Opus-inline worker per the standing V32.1 fallback; schema+migration are largely declarative/
-  reproduced from the LOCKED scaffold; validated clean with no thrash).
+TIER_CLASSIFICATION: Tier 1 — lightweight (~430 lines, under the 500-line Sonnet-dispatch gate; mostly
+  declarative definitions + small stubs; executed headless Opus-inline per the standing V32.1 fallback;
+  validated clean with one self-caught JSDoc `*/` parse bug, no thrash).
 
 EXECUTION NOTE (Rule 15 / V32.1): This swarm worker runs headless (`claude -p`) as a single executor agent
   and performs its own file writes inline — sub-agent dispatch is not used in this harness. This is the
