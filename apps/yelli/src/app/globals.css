@@ -1,7 +1,7 @@
-/* Font + token source must precede Tailwind directives (CSS @import ordering).
- * Font wiring carried forward verbatim from the Phase 3.3 prototype; migration to
- * next/font is the deferred W7 task (DECISIONS_LOG Phase 3.3 deferrals). */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Token source must precede Tailwind directives (CSS @import ordering).
+ * Inter is now self-hosted via next/font/google (W7 / Phase 3.3 deferral #3): the
+ * RootLayout exposes it as --font-inter on <html>, so the font-family below references
+ * that variable instead of a runtime Google Fonts @import. */
 @import '../styles/tokens.css';
 
 @tailwind base;
@@ -45,6 +45,7 @@
     background: var(--color-canvas);
     color: var(--color-text-primary);
     font-family:
+      var(--font-inter),
       'Inter',
       system-ui,
       -apple-system,

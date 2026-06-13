@@ -20,9 +20,11 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      // Inter is self-hosted via next/font (W7) — no Google Fonts origins needed; fonts
+      // and their @font-face stylesheet are served from 'self'.
+      "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
-      "font-src 'self' https://fonts.gstatic.com",
+      "font-src 'self'",
       "connect-src 'self'",
       "frame-ancestors 'none'",
     ].join('; '),

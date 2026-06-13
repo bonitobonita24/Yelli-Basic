@@ -1,7 +1,36 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W6a complete → W6b / W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W7 design-system finalization (font) complete → W6b / W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
+
+> **W7 DONE (this session, 2026-06-13).** Design system finalization — Phase 3.3 deferral #3
+> (font loading) + `/design-review` regression. Inter is now self-hosted via `next/font/google`
+> (replacing the runtime Google Fonts `@import`): `layout.tsx` configures `Inter({ subsets:['latin'],
+> display:'swap', variable:'--font-inter' })` (variable font ⇒ no weights) + `inter.variable` on
+> `<html>`; `globals.css` drops the `@import` and leads `font-family` with `var(--font-inter)`
+> (letter-spacing preserved); `next.config.ts` CSP tightened — dropped `fonts.googleapis.com`
+> (style-src) + `fonts.gstatic.com` (font-src), now self-hosted from `'self'` (security win).
+> Verified vs Next 16 `next/font` docs (context7). `/design-review` regression GREEN (INHERIT-not-
+> REPLACE): MOCKUP.jsx/DESIGN.md baseline body face = Inter → preserved; LOCKED tokens untouched
+> (parity 2/2); DESIGN.md/MOCKUP.jsx NOT regenerated.
+> • **#2 (overlay eyebrow `<div>`→`<h2>`) RE-DEFERRED — no production target:** `OverlayIncomingCall`/
+>   `OverlayCallRoleAssign` exist ONLY in `prototype/`; the production UI port (W1b / calling-UI port
+>   per q-W2b-03) hasn't run. The heading-semantics fix applies DURING that port (Phase 4 Parts 5-6
+>   MODEL HOOK). Not applied to the signed-off prototype (Phase 3.3 CLOSED; INHERIT-not-REPLACE; it
+>   carries no `eyebrow` markup anyway). → schedule on the overlay UI-port session.
+> • **#4 (hex→CSS var / token consumption) RE-DEFERRED — no clean target without unlocking tokens.css:**
+>   shadcn primitives already consume CSS vars (S4a-*). Residual production hex are not tokenizable —
+>   `themeColor:'#1a3a3a'` is `viewport` metadata (no var allowed); `--primary/--destructive-foreground:
+>   #ffffff` are on-dark whites with no dedicated token; `--border`/`--input:#e5e5e5` have NO matching
+>   LOCKED token (adding one = editing the LOCKED `tokens.css`, forbidden unilaterally). → DECISIONS_LOG-
+>   authorized token-vocabulary session (or finalize during the overlay port alongside #2). tokens.css/
+>   tokens.ts UNTOUCHED.
+> Validation all green: prisma generate ✓, web typecheck 0, web lint 0, prettier ✓ (3 files), web test
+> 2/2, `next build` ✓ (`ƒ Proxy (Middleware)`; only the pre-existing non-fatal @prisma `export *` S2
+> warning). 3 production files (+17/-7) + 2 governance docs; 1 atomic commit. **Dispatch note (Rule 15):
+> authored Opus-inline — standing V32.1 env-structural swarm fallback; the font migration spans 3
+> interdependent files (layout+globals+CSP) = a single indivisible unit ⇒ no fan-out warranted
+> regardless; R1 deviation accepted per the standing pattern.**
 
 > **W6a DONE (this session, 2026-06-13).** Wire W6a — PWA backend surface (Service Worker
 > + manifest + push tRPC + Valkey dedup; zero UI deps). The Brain-approved W6 split (q-W6-01 [A])
