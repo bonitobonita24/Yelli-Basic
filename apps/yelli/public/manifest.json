@@ -1,0 +1,19 @@
+{
+  "name": "Yelli",
+  "short_name": "Yelli",
+  "description": "Dual-mode (LAN + Cloud) peer-to-peer calling for marine ops and small teams.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fffaf0",
+  "theme_color": "#1a3a3a",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

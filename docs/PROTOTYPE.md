@@ -94,6 +94,8 @@ tenant.create              tenant.branding.update      tenant.admin.passphrase.s
 tenant.export.requested    tenant.export.ready         tenant.export.downloaded
 
 lan.admin.login.success    lan.admin.login.fail        lan.admin.logout
+
+pwa.install                (Cloud-only; payload { platform? }; deduped by deviceId)
 ```
 
 Convention: action strings are lowercase, dot-separated. `*.batch` suffix

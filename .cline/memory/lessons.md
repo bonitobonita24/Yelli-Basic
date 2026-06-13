@@ -4,6 +4,21 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-13 — 🔴 gotcha L6 tenant-guard injects tenantId into `data` only — NEVER use Prisma `upsert` through `ctx.db`
+- Type:      🔴 gotcha
+- Phase:     Phase 4 · Swarm Session W6a (PWA — push.subscribe)
+- Files:     apps/yelli/src/server/trpc/routers/push.ts, packages/db/src/middleware/tenant-guard.ts
+- Concepts:  l6-guard, tenant-guard, prisma-upsert, $allOperations, tenantId-injection, web-push-subscription
+- Narrative: The L6 `$allOperations` extension injects `tenantId` into `args.where` (reads/updates/deletes)
+    AND into `args.data` (create/update). But Prisma `upsert` has NO top-level `data` key — it has
+    `where` + `create` + `update`. The guard injects tenantId into the `where` (so the lookup is
+    tenant-scoped) but does NOT reach into `upsert.create`, so an upsert that hits the CREATE branch
+    would write a row with `tenantId = null` (silent cross-tenant/orphan leak). RULE: never call
+    `ctx.db.<model>.upsert(...)` for a tenant-scoped model. Do it as an explicit branch:
+    `findFirst({where:{<uniqueField>}})` (tenant-scoped by the guard) → `update({where:{id}})` or
+    `create({data})` (create's `data` IS injected). push.subscribe upserts WebPushSubscription by its
+    @unique `endpoint` exactly this way. Same caveat applies to any future per-tenant upsert.
+
 ## 2026-06-12 — 🔴 gotcha `/_pwbt/*` App Router routes need the `%5F` folder escape (Next treats `_`-folders as private)
 - Type:      🔴 gotcha
 - Phase:     Phase 4 · Swarm Session W2b-1 (Wire B2 — signaling server + /_pwbt/health)

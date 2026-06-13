@@ -53,6 +53,9 @@ export const AUDIT_ACTIONS = [
   'lan.admin.login.success',
   'lan.admin.login.fail',
   'lan.admin.logout',
+
+  // pwa.* (Cloud-only; deduped by deviceId — see DECISIONS_LOG "PWA install audit")
+  'pwa.install',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

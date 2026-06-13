@@ -1,7 +1,47 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W5a complete → W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W6a complete → W6b / W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
+
+> **W6a DONE (this session, 2026-06-13).** Wire W6a — PWA backend surface (Service Worker
+> + manifest + push tRPC + Valkey dedup; zero UI deps). The Brain-approved W6 split (q-W6-01 [A])
+> ships W6a now (validates green standalone); **W6b** (install banner + offline/Reconnecting banner
+> + client UUIDv7 replay queue) is dispatched with-or-after W1b once the idle-screen app-shell exists.
+> • **push router** (`apps/yelli/src/server/trpc/routers/push.ts`, NEW, merge key `push`): 3
+>   protectedProcedures (q-W6-04 — tenantId+userId bound from the Auth.js v5 session; LAN-anonymous
+>   device-only path DEFERRED to the q-W2b-04 device-session follow-up, NOT a publicProcedure shortcut).
+>   `subscribe` (client-supplied deviceId VERIFIED in-tenant via L6 `ctx.db.device.findUnique` →
+>   NOT_FOUND on cross-tenant; upsert-by-`endpoint` done as explicit find→update/create because the L6
+>   guard injects tenantId into `data` only, NOT into `upsert.create` — 🔴 lessons). `unsubscribe`
+>   (deleteMany by endpoint, idempotent). `recordInstall` emits **`pwa.install`** (§11 VERBATIM) via
+>   the L5 `ctx.recordAudit` recorder, target `{Device, deviceId}`, **deduped by deviceId** (existing
+>   `pwa.install` AuditLog row for the device → no second row; AuditLog is L6-excluded so the dedup read
+>   scopes `tenantId` explicitly per security.md #10). Registered in `root.ts` as `appRouter.push`.
+> • **AUDIT VOCAB (q-W6-03 ritual):** `pwa.install` appended to the LOCKED `@yelli/shared` AUDIT_ACTIONS
+>   (new `pwa.*` namespace) + `docs/PROTOTYPE.md` §3 amended (Cloud-only; payload `{platform?}`; deduped
+>   by deviceId) + a LOCKED DECISIONS_LOG entry citing the PRODUCT.md §11 L204+L390 mandate. HARD
+>   CONSTRAINT satisfied — `push.recordInstall` emits the string verbatim.
+> • **Service Worker** (`apps/yelli/public/sw.js`, NEW, vanilla — q-W6-02): Workbox-EQUIVALENT, no
+>   Workbox dep (next-pwa/Workbox plugin is Turbopack-incompatible; the Workbox CDN runtime violates the
+>   LAN offline-by-design lock §21). cache-first `/_next/static/*` · network-first navigation w/ cached
+>   app-shell fallback (flow #21) · `push` → ONE notification, no action buttons (§20) · `notificationclick`
+>   → focus existing client else `openWindow('/app?incoming={callSessionId}')` (flow #20). DECISIONS_LOG
+>   L28 `Workbox + Web Push` → `Workbox-equivalent vanilla SW + Web Push`.
+> • **manifest.json + icon.svg** (NEW, public/): standalone display, start_url `/app`, brand-teal
+>   `#1a3a3a` theme + canvas `#fffaf0` bg (LOCKED Clay tokens), single maskable SVG icon. **SW registration**
+>   (`src/components/pwa/service-worker-register.tsx`, 'use client') mounted from `layout.tsx`; manifest +
+>   `viewport.themeColor` (Next 16 moved themeColor out of `metadata`) + appleWebApp meta added.
+> • **Valkey idempotency dedup helper** (`apps/yelli/src/server/idempotency.ts`, NEW): `reserveIdempotencyKey
+>   (actorUserId, key)` → `SET yelli:idem:<uid>:<key> 1 NX EX 86400` (LOCKED 24h window §21). Returns
+>   `{duplicate}`; fail-open no-op without REDIS_URL (best-effort, mirrors realtime-bus). The primitive
+>   only — the client replay queue + per-mutation wrapping land in W6b.
+> • **ZERO new external npm deps** — sending push (web-push + VAPID) is a worker concern (deferred); uuid
+>   generation is client-side (W6b). ioredis (5.10.1 pin) already present. No SOPS/secret provisioning needed.
+> Validation all green: prisma generate ✓, turbo typecheck 7/7, lint 7/7, `next build` ✓ (`ƒ Proxy
+> (Middleware)`; `push` router compiled), test (web 2/2), prettier ✓ on all touched files. Only the
+> pre-existing non-fatal @prisma/client `export *` Turbopack warning (S2). **Dispatch note (Rule 15):
+> authored Opus-inline — standing V32.1 env-structural swarm fallback; W6a is a small cohesive
+> already-split unit ⇒ no fan-out warranted; R1 deviation accepted per the standing pattern.**
 
 > **W5a DONE (this session, 2026-06-13).** BullMQ **device-archive** worker — 1st slice of the
 > Brain-approved W5 split (q-W5-03 [A]: "dispatch W5a first as a clean DB-only session, zero new

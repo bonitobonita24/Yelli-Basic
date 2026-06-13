@@ -3,6 +3,7 @@ import { brandRouter } from './routers/brand';
 import { callRouter } from './routers/call';
 import { devicesRouter } from './routers/devices';
 import { invitationsRouter } from './routers/invitations';
+import { pushRouter } from './routers/push';
 import { tenantsRouter } from './routers/tenants';
 import { usersRouter } from './routers/users';
 import { router } from './trpc';
@@ -21,6 +22,7 @@ export const appRouter = router({
   invitations: invitationsRouter,
   audit: auditRouter,
   brand: brandRouter,
+  push: pushRouter,
 });
 
 export type AppRouter = typeof appRouter;
