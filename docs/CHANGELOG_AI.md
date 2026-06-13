@@ -1478,3 +1478,49 @@ Reference-only. No code from the entries below survives on the filesystem after 
 - Hand-off:            S4 COMPLETE (S4a-1 + S4a-2 + S4b). Backend surface on disk for W1-W8. Human reviews branch
                        `swarm/rebuild` and pushes; worker never pushes.
 - Commit:              feat(phase-4-S4b): Scaffold Part 5b — Auth.js v5 + tRPC router skeletons (deferred S4 tail)
+
+## 2026-06-13 — Phase 4 S3b — Port calling-flow UI (OverlayIncomingCall + OverlayCallRoleAssign + ScreenActiveCall)
+- Agent:               CLAUDE_CODE (swarm worker, swarm/rebuild)
+- Why:                 Production port of the 3 Phase 3.3 signed-off calling-flow components (Flow A core),
+                       wiring the prototype `sim.*` SWAP BOUNDARIES to the real tRPC calls/devices routers +
+                       the S1 `useSignaling` transport contract. INHERIT-not-REPLACE from the prototype baseline.
+- Files added:         apps/yelli/src/components/overlays/OverlayIncomingCall.tsx,
+                       apps/yelli/src/components/overlays/OverlayCallRoleAssign.tsx,
+                       apps/yelli/src/components/screens/ScreenActiveCall.tsx
+- Files modified:      docs/STATE.md, docs/CHANGELOG_AI.md
+- Schema/migrations:   none (consumes W2a calls + W1a devices routers; no Prisma changes).
+- Wiring:              OverlayIncomingCall = pure controlled (callerName/callerDeviceName/onAccept/onReject/busy;
+                       parent app-shell wires onAccept→calls.connect+sendAnswer, onReject→calls.end(declined)+
+                       sendHangup — same controlled boundary as OverlayNamePicker). OverlayCallRoleAssign =
+                       self-wired to `trpc.devices.setRole` (faithful: prototype self-called devices.setRole);
+                       the prototype's hand-appended {from,to} audit hack DROPPED — the server's setRole already
+                       emits §11-canonical `device.role.assign { deviceId, from, to }` (W1a); preview box is
+                       display-only. ScreenActiveCall = `trpc.calls.byId` (session + endReason) + `trpc.devices.byId`
+                       (peer name) + `trpc.calls.end(completed)` + `useSignaling.sendHangup` (consumes the
+                       SignalingHandle slice via prop — parent owns the single socket + the RTCPeerConnection media
+                       engine = future call-engine; media controls presentational until then). forbidden-by-role
+                       endReason renders a distinct terminal state (Step 4 server-reject path).
+- Design:              shadcn-only (Dialog/Button primitives + lucide icons + Clay tokens); raw hex dropped per
+                       ui-rules Rule 3. Wave 7 design-refine #2 honored (eyebrow → radix DialogTitle = <h2>).
+                       Residual on-dark text uses Tailwind `white` keyword utilities (no on-dark token exists —
+                       same posture as W7 deferral #4; tokens.css NOT edited). a11y: radiogroup/radio on role
+                       options, aria-labels on all icon-only buttons, aria-live on the call timer.
+- Decisions honored:   INHERIT-not-REPLACE (Phase 3.3 signed-off prototype); §11 canonical audit (delegated to
+                       server emit); single-socket ownership (useSignaling one-instance-per-consumer); controlled-
+                       component precedent (S3a OverlayNamePicker). Placement: overlays→components/overlays,
+                       screen→components/screens (state-machine SPA, not a URL route — W1b owns navigation). No
+                       NEW decision locked.
+- Validation:          prisma generate ✓; web typecheck ✓ (0 errors); web lint ✓ (0/0); web test ✓ (2/2 token-
+                       parity); `next build` ✓ (proxy = `ƒ Proxy (Middleware)`; only the pre-existing non-fatal
+                       @prisma/client `export *` Turbopack warning). New components are imported by W1b (not routed),
+                       so they do not appear in the route table — expected.
+- Errors encountered/resolved: none; no thrash.
+- Execution note (Rule 15 / V32.1): authored Opus-inline — standing env-structural swarm fallback (sub-agent
+                       dispatch unreliable in headless `claude -p`; see lessons.md / STATE.md). The 3 components
+                       share the Clay token surface + the calls/devices/useSignaling contracts = one cohesive
+                       UI-port unit ⇒ no fan-out warranted regardless; R1 deviation accepted per the standing pattern.
+- Hand-off:            Flow A core UI on disk. W1b app-shell mounts these (call-orchestration: inbound-ring
+                       trigger, single useSignaling instance, RTCPeerConnection media engine, navigation) +
+                       OverlayCallRoleAssign into the admin device directory. Human reviews branch swarm/rebuild
+                       and pushes; worker never pushes.
+- Commit:              feat(phase-4-S3b): Port OverlayIncomingCall + OverlayCallRoleAssign + ScreenActiveCall (Flow A core)

@@ -1,7 +1,45 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3a admin-login + name-picker UI port complete → W1b app-shell / W5b-e / W6b NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3b calling-flow UI port complete → W1b app-shell / W5b-e / W6b NEXT, 2026-06-13)
+
+> **S3b DONE (this session, 2026-06-13).** Flow A core UI port — the 3 calling-flow
+> components from the Phase 3.3 signed-off prototype (INHERIT-not-REPLACE), wired to the real
+> tRPC routers + the S1 `useSignaling` contract. 3 NEW files, all green, zero new deps.
+> • **OverlayIncomingCall** (`apps/yelli/src/components/overlays/OverlayIncomingCall.tsx`, NEW):
+>   pure controlled (callerName/callerDeviceName/onAccept/onReject/busy) — same controlled boundary as
+>   `OverlayNamePicker` (S3a). No sim/tRPC in-file (prototype had none). W1b app-shell wires
+>   onAccept→`calls.connect`+`sendAnswer`, onReject→`calls.end({reason:'declined'})`+`sendHangup`.
+>   Recomposed from shadcn `Dialog`/`Button` + lucide (Phone/X) + Clay tokens; non-cancellable
+>   (outside/Esc/X suppressed — you answer the phone). Wave 7 refine #2 satisfied (eyebrow → DialogTitle `<h2>`).
+> • **OverlayCallRoleAssign** (`.../overlays/OverlayCallRoleAssign.tsx`, NEW): self-wired to
+>   `trpc.devices.setRole` (faithful — prototype self-called `devices.setRole`). The prototype's
+>   hand-appended `{from,to}` audit hack is DROPPED: the server's `setRole` already emits the
+>   §11-canonical `device.role.assign { deviceId, from, to }` (W1a) — client neither can nor should
+>   write AuditLog; the "Audit log will record" preview is display-only and mirrors that emit. Loading =
+>   `mutation.isPending` (Save → "Saving…"). a11y: `radiogroup`/`radio` on the 3 role options.
+> • **ScreenActiveCall** (`.../components/screens/ScreenActiveCall.tsx`, NEW): immersive in-call view.
+>   SWAP BOUNDARY wired — `trpc.calls.byId` (session + `endReason`) + `trpc.devices.byId` (peer name) +
+>   `trpc.calls.end({reason:'completed'})` + `useSignaling.sendHangup`. Consumes only the `sendHangup`
+>   slice of the `SignalingHandle` via prop: **single-socket ownership** — the parent W1b owns the ONE
+>   `useSignaling` instance + the RTCPeerConnection media engine (getUserMedia / offer-answer-ICE /
+>   remote-stream attach); the media controls (mute/camera/speaker/swap) are presentational until that
+>   call-engine lands. **forbidden-by-role (Step 4):** `calls.start` server-rejects a role-blocked attempt
+>   by creating the session already-ended with `endReason:'forbidden-by-role'` → this screen renders a
+>   distinct "Call not allowed" terminal (vs generic "Call ended"/"not found"). Live elapsed timer from
+>   `connectedAt` (ringing → "Ringing…"). Clay-token gradient + lucide icons; on-dark text uses Tailwind
+>   `white` keyword utilities (no on-dark token exists — W7 deferral #4 posture; tokens.css NOT edited).
+> • **Placement decision:** overlays→`components/overlays`, screen→`components/screens` (the prototype is
+>   a state-machine SPA, not URL-routed; W1b owns navigation + the PWA `/app?incoming=` entry). No new
+>   `app/` route added (avoids inventing routing W1b owns). New components are imported by W1b (not routed)
+>   ⇒ they do NOT appear in the `next build` route table — expected.
+> Validation all green: prisma generate ✓, web typecheck 0, web lint 0/0, web test 2/2, `next build` ✓
+> (`ƒ Proxy (Middleware)`; only the pre-existing non-fatal @prisma `export *` Turbopack warning).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback; the 3
+> components share the Clay token surface + the calls/devices/useSignaling contracts = one cohesive
+> UI-port unit ⇒ no fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: W1b app-shell — mounts these 3 (inbound-ring trigger + single useSignaling instance +
+> RTCPeerConnection media engine + navigation) + OverlayCallRoleAssign into the admin device directory.**
 
 > **S3a DONE (this session, 2026-06-13).** First production UI port of the Phase 3.3
 > signed-off prototype (INHERIT-not-REPLACE) — Flow E LAN admin login PAGE + Flow D device
