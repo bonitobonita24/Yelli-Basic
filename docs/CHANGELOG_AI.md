@@ -2,6 +2,60 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S3d — Port ScreenAdminAudit (Flow H audit view); ScreenTenantSettings DEFERRED
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless
+  `claude -p` worker; sub-agent dispatch unreliable in this environment. Scope is a single
+  cohesive UI-port unit — one screen wired to one router — so it is indivisible and no parallel
+  fan-out is warranted regardless. R1 deviation accepted per the standing pattern.)
+- Why: Port the Flow H audit-view screen from the Phase 3.3 signed-off prototype
+  (INHERIT-not-REPLACE), wiring the SWAP BOUNDARY from `sim.auditLog.recent` to the real
+  `trpc.audit.list` router, with §11-canonical filter chips (Wave-11 hard contract).
+- SCOPE RESOLVED FROM BRAIN ANSWERS (q-87-S3d-01 / q-87-S3d-02): the original brief paired
+  ScreenAuditView with ScreenTenantSettings, but pre-flight reconciliation (prior run-87) found
+  ScreenTenantSettings has NO Phase 3.3 client-signed-off prototype and the brief's named
+  `trpc.tenants.update` does not exist. The Brain SPLIT the session: ship ScreenAuditView now
+  (unblocked, INHERIT-ready); DEFER ScreenTenantSettings to its own future session AFTER a
+  Phase-3.3-style prototype pass + client sign-off (honors INHERIT-not-REPLACE + the Phase 3.3
+  gate), scoped branding-only to the existing `trpc.brand.update` (the Org-settings page #18
+  needs a NEW backend session to author `tenants.update` first — slug is immutable, LOCKED Step 7).
+  This session builds ONLY ScreenAdminAudit.
+- Files added:
+  - `apps/yelli/src/components/screens/ScreenAdminAudit.tsx` — Flow H audit view. Fully a Client
+    Component (tRPC-react-query + filter/search state; ScreenActiveCall/S3c precedent). SWAP
+    BOUNDARY: `trpc.audit.list` via `useInfiniteQuery` (cursor pagination, default 50) + a "Load
+    more" button — the brief's "paginated audit log" (the sim returned a flat latest-200; the
+    production router is cursor-paginated). Client search filters loaded pages (faithful to the
+    sim's client-side search over action + payload).
+    - WAVE-11 HARD CONTRACT: filter chips are DERIVED from the LOCKED §11-canonical vocabulary
+      (`@yelli/shared` AUDIT_ACTIONS — top-level namespaces) so they match verbatim and cannot
+      drift. The prototype's hand-listed 5-chip subset (all/device/invitation/lan/user) predated
+      the `call.*`/`tenant.*`/`pwa.*` namespace additions; deriving from the single source of
+      truth is the production-correct realization of "chips matching §11 vocabulary verbatim".
+      `actionPrefix` (`${ns}.`) maps directly onto the router's `startsWith` filter.
+    - ACTOR RECONCILIATION (same substitution class as S3a/S3c — the wire shape governs): the sim
+      joined users/devices to show a display name + role-toned Pill, but the audit wire returns
+      only `actorUserId` (no join; tenantId stripped per security.md #13, no name on the row).
+      So actor renders as "System" (null actor — cron / LAN-anonymous origin) or the short actor
+      id. No name lookup is invented.
+    - Naming: the brief calls this "ScreenAuditView"; the canonical codebase name (prototype
+      source + sibling `ScreenAdmin*` screens + W4 audit-router doc) is ScreenAdminAudit — same
+      name reconciliation as S3c's ScreenAdminMembers.
+    - Chrome dropped (W1b mounts behind the admin gate). Clay semantic tokens only, zero raw hex
+      (ui-rules Rule 3); loading = shadcn `<Skeleton>` (Rule 11 PATH A); on-dark payload block
+      uses the `white` keyword (no on-dark token exists — W7/S3b posture; tokens.css untouched).
+- Files modified: none beyond governance (STATE.md + this entry).
+- Schema/migrations: none. Deps: none (zero new packages; `AUDIT_ACTIONS` is an existing client-safe
+  `@yelli/shared` runtime export, already transpiled + runtime-imported elsewhere).
+- Verification: prettier ✓, web typecheck 0, web lint 0/0, web test 2/2, prisma generate ✓,
+  `next build` ✓ (`ƒ Proxy (Middleware)`; route table unchanged — the screen is W1b-mounted, not
+  routed, so it is absent from the build route table by design, per S3a/S3b/S3c).
+- Errors encountered/resolved: none.
+- DEFERRED (Brain-tracked, NOT a blocker): ScreenTenantSettings (branding-only, page #17 →
+  `trpc.brand.update`) awaits a Phase-3.3 prototype + client sign-off session; the Org-settings
+  surface (page #18) additionally needs a backend session to author a `tenants.update`
+  (displayName-only; slug rejected — immutable per LOCKED Step 7) before any UI port.
+
 ### 2026-06-13 — Phase 4 Swarm Session S3c — Port ScreenAdminMembers + ScreenAdminInvitations (Flows G + F admin surfaces)
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless

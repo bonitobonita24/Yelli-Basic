@@ -1,7 +1,40 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3c admin-surface UI port complete → W1b app-shell / W5b-e / W6b NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3d audit-view UI port complete → W1b app-shell / W5b-e / W6b / deferred ScreenTenantSettings NEXT, 2026-06-13)
+
+> **S3d DONE (this session, 2026-06-13).** Flow H audit-view UI port — ScreenAdminAudit from
+> the Phase 3.3 signed-off prototype (INHERIT-not-REPLACE), wired to the real `audit` router.
+> 1 NEW file, all green, zero new deps. **SCOPE SPLIT per Brain q-87-S3d-01/02:** the brief paired
+> ScreenAuditView + ScreenTenantSettings, but ScreenTenantSettings has NO signed-off Phase 3.3
+> prototype and the brief's `trpc.tenants.update` does not exist → DEFERRED to its own future
+> session after a Phase-3.3 prototype + client sign-off (branding-only → existing `trpc.brand.update`;
+> the Org-settings page #18 additionally needs a NEW backend session to author `tenants.update`
+> first — slug immutable, LOCKED Step 7). This session builds ONLY ScreenAdminAudit.
+> • **ScreenAdminAudit** (`apps/yelli/src/components/screens/ScreenAdminAudit.tsx`, NEW): Flow H.
+>   SWAP BOUNDARY — `trpc.audit.list` via `useInfiniteQuery` (cursor pagination, default 50) + a
+>   "Load more" button (= the brief's "paginated audit log"; the sim returned a flat latest-200).
+>   Client search filters loaded pages over action + payload (faithful to the sim). **WAVE-11 HARD
+>   CONTRACT:** filter chips are DERIVED from the LOCKED §11 vocabulary (`@yelli/shared`
+>   AUDIT_ACTIONS top-level namespaces) so they match verbatim and can't drift — the prototype's
+>   5-chip subset (all/device/invitation/lan/user) predated the `call.*`/`tenant.*`/`pwa.*` additions;
+>   deriving from the single source of truth is the production-correct realization. `actionPrefix`
+>   (`${ns}.`) maps onto the router's `startsWith`. **ACTOR reconciliation** (S3a/S3c class — wire
+>   governs): the audit wire returns only `actorUserId` (no name join; tenantId stripped #13), so
+>   actor renders "System" (null → cron / LAN-anonymous) or the short id; no name lookup invented.
+>   Naming: brief's "ScreenAuditView" → canonical ScreenAdminAudit (prototype source + sibling
+>   `ScreenAdmin*` + W4 router doc; same as S3c's ScreenAdminMembers). Chrome dropped (W1b mounts
+>   behind the admin gate); Clay tokens only, zero raw hex (Rule 3); loading = shadcn `<Skeleton>`
+>   (Rule 11 PATH A); on-dark payload block uses `white` keyword (no on-dark token — W7/S3b posture).
+> Validation all green: prettier ✓, web typecheck 0, web lint 0/0, web test 2/2, prisma generate ✓,
+> `next build` ✓ (`ƒ Proxy (Middleware)`; route table unchanged — the screen is W1b-mounted, not
+> routed, so it is absent from the build route table by design, per S3a/S3b/S3c).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`); scope is a single indivisible screen wired to one router ⇒ no fan-out
+> warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: W1b app-shell — mounts ScreenAdminAudit (+ S3a/S3b/S3c screens) behind the admin gate +
+> owns nav + the single useSignaling instance. DEFERRED: ScreenTenantSettings (branding-only) after
+> a Phase-3.3 prototype pass; W5b-e queue bodies; W6b PWA UI.**
 
 > **S3c DONE (this session, 2026-06-13).** Admin-surface UI port — the device directory
 > (Flow G) + the invitations screen (Flow F) from the Phase 3.3 signed-off prototype
