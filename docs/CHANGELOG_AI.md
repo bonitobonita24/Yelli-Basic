@@ -2,6 +2,58 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session B1 — device-home call-engine (Flow A real WebRTC wiring)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless `claude -p`
+  worker; sub-agent dispatch unreliable per lessons.md. The CallEngineProvider + PeerDirectory + the
+  ws-token route share the single-useSignaling-instance contract + the §20 deep-link contract + the
+  RTCPeerConnection lifecycle = one cohesive call-engine unit with no independent fan-out boundary —
+  no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.)
+- Why: Land the device-home call-engine that the S6 pre-flight (q-91…q-94) re-sequenced as the first
+  of six prerequisite sessions before the real W8 end-to-end validation can run. Flow A
+  (place / receive a call) is now walkable on the real backend with the LOCKED §20 deep-link, the
+  server-side role guard, and the existing Phase-3.3 presentational components inherited verbatim.
+- Files added:
+  - apps/yelli/src/components/call/CallEngineProvider.tsx (NEW) — the orchestrator: ONE useSignaling
+    instance app-wide, RTCPeerConnection lifecycle per session (offer/answer/ICE drain + getUserMedia +
+    remote-stream attach), §20 `?incoming=` deep-link consumer (resolves callSessionId via
+    `trpc.calls.byId`, mounts OverlayIncomingCall, persists via `trpc.calls.connect` + sendAnswer on
+    Accept), placeCall API (calls `trpc.calls.start` with the server-side role guard producing
+    `endReason: 'forbidden-by-role'` for blocked attempts → ScreenActiveCall terminal state), and the
+    Step 6 session-kill PUSH handler folded in from the deleted SessionKillListener.
+  - apps/yelli/src/components/call/PeerDirectory.tsx (NEW) — `trpc.devices.list`-driven tile grid with
+    the LOCKED Step 3 "hide-CALL" rule client-side (peer.callRole ∈ receiver/both AND self.callRole ∈
+    caller/both), 5-min `lastSeenAt` presence dot, calls `useCallEngine().placeCall(peer.id)` on tap.
+  - apps/yelli/src/app/api/auth/ws-token/route.ts (NEW) — Auth.js v5 session JWE retrieval endpoint
+    (the signaling server `@auth/core/jwt.decode`s the same cookie with shared AUTH_SECRET). Gates on
+    `auth()`; LAN-anonymous admins 401 (not WS push targets). Unblocks the WS handshake the W2b-1
+    follow-up deferred (q-W2b-04).
+- Files modified:
+  - apps/yelli/src/app/(app)/layout.tsx — wraps children in `<CallEngineProvider>` (mounts the single
+    useSignaling instance).
+  - apps/yelli/src/app/(app)/page.tsx — renders `<PeerDirectory>` under the hero; removes the
+    placeholder "wiring lands with the device session" copy.
+  - apps/yelli/src/components/shell/AppShell.tsx — drops `<SessionKillListener />` mount (folded into
+    CallEngineProvider's signaling callbacks for the single-instance rule).
+  - apps/yelli/src/components/pwa/service-worker-bridge.tsx — `/app?incoming=…` → `/?incoming=…` (the
+    actual app route is `/` — the `(app)` group resolves to `/`, not `/app`; pre-S5 contract bug
+    surfaced only when the deep link was walked end-to-end).
+  - apps/yelli/public/sw.js — same URL reconciliation in the `notificationclick` no-open-client path.
+- Files deleted:
+  - apps/yelli/src/components/shell/SessionKillListener.tsx — superseded by CallEngineProvider (the
+    single-useSignaling-instance contract requires the session-kill PUSH handler to live on the same
+    socket as the call signals). The Step 6 30s SLO behavior is preserved verbatim (signOut on
+    unauthorized + "Session ended." pair).
+- Schema/migrations: none.
+- Errors encountered: none.
+- Errors resolved: corrected an early dynamic `require('@/hooks/useSignaling')` to a static import
+  (initial scaffolding choice — would have shipped fine through ts-loader but breaks under strict
+  build hygiene; replaced before typecheck).
+- Validation: prettier ✓; web typecheck 0; web lint 0/0; web test 11/11 (existing PWA suites — no new
+  tests added for the RTCPeerConnection lifecycle, that's a headed-browser integration surface for
+  the W8/S6 end-to-end pass); turbo typecheck+lint 14/14; `next build` ✓ (`/api/auth/ws-token` now
+  in the route table; only the pre-existing non-fatal @prisma/client `export *` Turbopack warning).
+
 ### 2026-06-13 — Phase 4 Swarm Session S5 — W6b PWA UX: install banner + tap-through + offline replay queue
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless

@@ -1,7 +1,68 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S5 W6b PWA UX DONE → device-home call-engine / W5b-e / deferred ScreenTenantSettings NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B1 device-home call-engine DONE → W5b-e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
+
+> **B1 DONE (this session, 2026-06-13).** Device-home call-engine — Flow A real WebRTC wiring on the
+> production backend. 3 NEW files (CallEngineProvider + PeerDirectory + `/api/auth/ws-token`
+> route) + 5 EDITS + 1 DELETE (SessionKillListener folded), all green, **zero new deps**.
+> • **Single useSignaling instance app-wide (q-B1 contract).** `<CallEngineProvider>` mounts ONE
+>   `useSignaling` for the entire (app) tree and owns: the WS lifecycle (sendOffer/Answer/ICE/Hangup),
+>   the RTCPeerConnection lifecycle per CallSession (offer→answer→ICE drain, getUserMedia capture +
+>   `pc.ontrack` → `<video data-remote-stream-target>` attach), the §20 `?incoming=` deep-link
+>   consumer (URL param → `trpc.calls.byId` → `OverlayIncomingCall` → connect/sendAnswer on Accept,
+>   end+sendHangup on Reject), and the Step 6 session-kill PUSH path that previously lived in
+>   `SessionKillListener` (deleted). `peerOfSessionRef` + `pendingIceRef` + `pendingOffersRef` handle
+>   the offer-arrives-before-Accept and ICE-arrives-before-remoteDescription races verbatim.
+> • **`useCallEngine().placeCall(peerDeviceId)` API.** PeerDirectory tiles call this; the orchestrator
+>   runs `trpc.calls.start` (server-side role guard returns the session already-ended with
+>   `endReason: 'forbidden-by-role'` for blocked attempts — the engine surfaces ScreenActiveCall's
+>   terminal state for those), then creates the PC, captures media, sendOffer. `busy` exposes mid-call
+>   state to the tiles (CALL disabled while a call is in flight).
+> • **`PeerDirectory`** (`src/components/call/PeerDirectory.tsx`, NEW): `trpc.devices.list`-driven
+>   tile grid with the LOCKED Step 3 "hide-CALL" rule client-side (peer.callRole ∈ `receiver`/`both`
+>   AND self.callRole ∈ `caller`/`both`) — the second half (server-reject) is `calls.start`'s
+>   forbidden-by-role. Online presence dot from `lastSeenAt < 5 min` (PRODUCT.md presence rule);
+>   offline tiles disabled. Skeleton-shaped pending-state via lightweight `animate-pulse` `<Card>`
+>   placeholders (ui-rules Rule 11 PATH A — shadcn-composed surface, no phantom-ui needed).
+> • **`/api/auth/ws-token`** (`src/app/api/auth/ws-token/route.ts`, NEW): server-side route reads the
+>   Auth.js HttpOnly session JWE cookie (the same JWE the signaling server decodes via
+>   `@auth/core/jwt` with shared `AUTH_SECRET`) and returns it to `useSignaling.getToken`. Gates on
+>   `auth()` (401 for unauthenticated incl. LAN-anonymous admins — they aren't WS push targets). Tries
+>   both `__Secure-authjs.session-token` (TLS) and the bare dev name. This unblocks the WS handshake
+>   the q-W2b-04 follow-up deferred (no fresh signing, no parallel auth system — same token, surfaced
+>   for the WS `hello` frame).
+> • **§20 URL contract reconciliation.** S5/W6b SW bridge + `public/sw.js` pushed to `/app?incoming=…`
+>   but no `/app` route exists in this app (the `(app)` group resolves to `/`, not `/app` — pre-S5 bug
+>   surfaced only when the deep link was first walked end-to-end). Both updated to `/?incoming=…`. The
+>   LOCKED §20 BRIDGE PROTOCOL (`{type:'incoming-call', callSessionId}` postMessage) is unchanged —
+>   only the incidental URL slug changes; semantic preserved (B1 brief: "consumes the LOCKED §20
+>   deep link").
+> • **Mounts.** `(app)/layout.tsx` now wraps `{children}` in `<CallEngineProvider>`; AppShell drops
+>   its `<SessionKillListener />` mount (the listener is deleted — its `onSessionKill` handler folded
+>   into CallEngineProvider's `useSignaling` callbacks to satisfy the single-instance rule).
+> • **Audit policy (B1 brief).** Structured pino-shaped JSON `console.{info,warn,error}` logs only —
+>   no AuditLog rows, no AUDIT_ACTIONS vocab change. The CallSession lifecycle is already the
+>   server-side audit record (W2a `calls.start/connect/end` rows).
+> • **Loading states (ui-rules Rule 11).** Overlays are short-lived imperative dialogs;
+>   ScreenActiveCall owns its own terminal states; PeerDirectory uses shadcn Card pulse placeholders
+>   for the brief tRPC pending — neither phantom-ui nor `<Skeleton>` upgrade warranted (matches W6b
+>   classification posture).
+> Validation all green: prettier ✓, web typecheck 0 errors, web lint 0/0, web test 11/11 (unchanged,
+> existing PWA suites — no new tests added for the call engine; the RTCPeerConnection lifecycle is an
+> integration-only surface that needs a headed browser + getUserMedia mock — flagged for W8/S6
+> end-to-end validation), turbo typecheck+lint 14/14, `next build` ✓ (route table now includes
+> `/api/auth/ws-token`; only the pre-existing non-fatal @prisma/client `export *` Turbopack warning).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, sub-agent dispatch unreliable per lessons.md). The CallEngineProvider +
+> PeerDirectory + ws-token route share the single-`useSignaling`-instance contract + the §20 deep-link
+> contract + the RTCPeerConnection lifecycle = one cohesive call-engine unit, no independent fan-out
+> boundary ⇒ no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: W5b-e BullMQ queue bodies (tenant-export / email / logo-image / backup) → deferred
+> ScreenTenantSettings (Phase-3.3 prototype + new `trpc.tenants.update` mutation) → re-dispatch S6 as
+> the real W8 end-to-end validation.**
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S5 W6b PWA UX DONE → device-home call-engine / W5b-e / deferred ScreenTenantSettings NEXT, 2026-06-13)
 
 > **S5 DONE (this session, 2026-06-13).** W6b — the PWA client UX the W6a split deferred
 > (q-W6-01 [A]): install banner + cached-shell offline/Reconnecting banner + SW→client incoming-call

@@ -5,7 +5,7 @@
  *
  * Locked §20 contract: on `notificationclick`, the SW focuses an already-open
  * client and POSTS it `{ type: 'incoming-call', callSessionId }` (the no-client
- * case opens `/app?incoming=…` instead — `public/sw.js`). This component is the
+ * case opens `/?incoming=…` instead — `public/sw.js`). This component is the
  * client half: it listens for that message and performs a soft in-app navigation
  * to the deep link so the already-open SPA jumps straight to the incoming call.
  *
@@ -39,7 +39,7 @@ export function ServiceWorkerBridge() {
     const onMessage = (event: MessageEvent) => {
       if (!isIncomingCallMessage(event.data)) return;
       const { callSessionId } = event.data;
-      router.push(callSessionId ? `/app?incoming=${encodeURIComponent(callSessionId)}` : '/app');
+      router.push(callSessionId ? `/?incoming=${encodeURIComponent(callSessionId)}` : '/');
     };
 
     navigator.serviceWorker.addEventListener('message', onMessage);

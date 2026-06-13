@@ -1,0 +1,133 @@
+'use client';
+
+/**
+ * Peer Directory (B1 — device-home Flow A entry surface). The live tile list
+ * driven by `trpc.devices.list`, replacing the prototype's `sim.devices.list`
+ * SWAP BOUNDARY.
+ *
+ * Visibility / rule snapshot:
+ *   • Self is hidden — you don't call yourself.
+ *   • Archived devices are hidden — they cannot be CALL targets.
+ *   • The CALL button is shown ONLY when the peer's `callRole` allows receiving
+ *     (`receiver` or `both`) AND we (selfDeviceId) can call ('caller'/'both').
+ *     This is the LOCKED "hide-CALL" half of the Step 3 rule; the server-side
+ *     `forbidden-by-role` rejection (CallSession created already-ended) is the
+ *     second half and runs regardless.
+ *   • Online presence (PRODUCT.md: lastSeenAt within 5 min) shows a green dot;
+ *     offline tiles still render but the CALL button is disabled.
+ *
+ * Click → `useCallEngine().placeCall(peer.id)` — the orchestrator owns the
+ * RTCPeerConnection lifecycle. This component is pure presentational.
+ */
+
+import { Phone } from 'lucide-react';
+
+import { useCallEngine } from '@/components/call/CallEngineProvider';
+import { Card } from '@/components/ui/card';
+import { trpc } from '@/lib/trpc/react';
+
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+
+function initials(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '–';
+  return trimmed
+    .split(/\s+/)
+    .flatMap((n) => (n[0] ? [n[0]] : []))
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+function isOnline(lastSeenAt: Date | string | null): boolean {
+  if (!lastSeenAt) return false;
+  const t = typeof lastSeenAt === 'string' ? new Date(lastSeenAt).getTime() : lastSeenAt.getTime();
+  return Date.now() - t < ONLINE_WINDOW_MS;
+}
+
+export function PeerDirectory(): React.JSX.Element {
+  const { selfDeviceId, placeCall, busy } = useCallEngine();
+  const listQuery = trpc.devices.list.useQuery(undefined, {
+    // Light polling keeps the directory fresh enough for presence without the
+    // realtime device-event channel that lands with the broader presence work.
+    refetchInterval: 15_000,
+  });
+
+  if (listQuery.isPending) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i} className="h-[88px] animate-pulse bg-surface" />
+        ))}
+      </div>
+    );
+  }
+  if (listQuery.isError || !listQuery.data) {
+    return (
+      <p role="alert" className="text-sm text-error-strong">
+        Couldn&apos;t load the directory.
+      </p>
+    );
+  }
+
+  const peers = listQuery.data.filter((d) => d.id !== selfDeviceId && d.archivedAt === null);
+
+  if (peers.length === 0) {
+    return <p className="text-sm text-text-muted">No other devices in this organisation yet.</p>;
+  }
+
+  // Resolve our own callRole to decide whether to show the CALL action at all.
+  const self = listQuery.data.find((d) => d.id === selfDeviceId);
+  const selfCanCall = self ? self.callRole === 'caller' || self.callRole === 'both' : false;
+
+  return (
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="People you can call">
+      {peers.map((peer) => {
+        const online = isOnline(peer.lastSeenAt);
+        const peerCanReceive = peer.callRole === 'receiver' || peer.callRole === 'both';
+        const showCall = selfCanCall && peerCanReceive;
+        const callDisabled = busy || !online || !selfDeviceId;
+        return (
+          <li key={peer.id}>
+            <Card className="flex items-center justify-between gap-3 p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  aria-hidden
+                  className="grid size-11 flex-shrink-0 place-items-center rounded-full bg-brand-lavender text-sm font-semibold text-text-primary"
+                >
+                  {initials(peer.displayName)}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-text-primary">
+                    {peer.displayName || 'Unnamed device'}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                    <span
+                      aria-hidden
+                      className={
+                        'inline-block size-2 rounded-full ' +
+                        (online ? 'bg-success' : 'bg-text-muted/40')
+                      }
+                    />
+                    {online ? 'Online' : 'Offline'} · {peer.callRole}
+                  </div>
+                </div>
+              </div>
+              {showCall && (
+                <button
+                  type="button"
+                  onClick={() => placeCall(peer.id)}
+                  disabled={callDisabled}
+                  aria-label={`Call ${peer.displayName || 'device'}`}
+                  className="grid size-11 flex-shrink-0 place-items-center rounded-full bg-brand-teal text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Phone className="size-5" />
+                </button>
+              )}
+            </Card>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

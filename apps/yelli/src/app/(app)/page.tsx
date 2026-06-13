@@ -1,19 +1,21 @@
 import { Phone } from 'lucide-react';
 import Link from 'next/link';
 
+import { PeerDirectory } from '@/components/call/PeerDirectory';
 import { Card } from '@/components/ui/card';
 import { resolveAppShellContext } from '@/lib/server/app-context';
 
 /**
- * Role-aware Directory landing (W1b / S4) — the shared home screen ("Same screen
- * serves LAN anonymous + Cloud auth + LAN account mode", PROTOTYPE.md Flow B/§3).
+ * Role-aware Directory landing (W1b / S4 → B1).
  *
- * Renders the device "ready to call" hero for everyone, plus admin quick-links when
- * the viewer is an admin. The live peer directory + the CALL action are presented in
- * their idle state here — wiring them to `devices.list` and the RTCPeerConnection
- * media engine is the dedicated device-home session (the broader W1b call engine,
- * out of this app-shell title's scope). The shell chrome + role-aware nav are
- * supplied by the `(app)` layout.
+ * Renders the device "ready to call" hero + the LIVE peer directory (B1) wired to
+ * `trpc.devices.list` through `<PeerDirectory>`. The CALL action lives on each
+ * peer tile, not on the hero — the hero is the idle/empty state. Admin
+ * quick-links render when the viewer is an admin.
+ *
+ * The single `useSignaling` instance + RTCPeerConnection media engine are owned
+ * by `<CallEngineProvider>` (mounted in the `(app)` layout). The §20 `?incoming=`
+ * deep-link is consumed by the provider; this page reads no searchParams.
  */
 const ADMIN_LINKS = [
   { href: '/admin/members', label: 'Members', hint: 'Manage devices & roles' },
@@ -37,10 +39,14 @@ export default async function DirectoryPage() {
             <div className="mt-1 text-sm font-semibold tracking-[0.08em]">CALL</div>
           </div>
           <p className="mx-auto mt-5 max-w-sm text-sm opacity-80">
-            Your directory and calling are connecting. Tap a person, then CALL — wiring lands with
-            the device session.
+            Tap a person below to place a call.
           </p>
         </div>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-sm font-semibold text-text-secondary">People you can call</h2>
+        <PeerDirectory />
       </section>
 
       {ctx.isAdmin && (

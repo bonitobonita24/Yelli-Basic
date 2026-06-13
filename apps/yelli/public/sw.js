@@ -124,7 +124,7 @@ self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data || {};
   const callSessionId = data.callSessionId || null;
   const target =
-    data.url || (callSessionId ? `/app?incoming=${encodeURIComponent(callSessionId)}` : '/app');
+    data.url || (callSessionId ? `/?incoming=${encodeURIComponent(callSessionId)}` : '/');
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

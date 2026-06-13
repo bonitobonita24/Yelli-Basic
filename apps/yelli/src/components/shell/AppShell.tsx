@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import type { ReactNode } from 'react';
 
-import { SessionKillListener } from '@/components/shell/SessionKillListener';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,8 +59,8 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas pb-16 md:pb-0">
-      <SessionKillListener />
-
+      {/* Session-kill PUSH listener moved into <CallEngineProvider> (B1 — ONE
+          useSignaling instance app-wide). */}
       <header className="flex h-16 w-full items-center justify-between border-b border-border bg-canvas px-4 md:px-6">
         <Link href="/" className="-ml-2 flex h-11 min-w-0 items-center gap-2 px-2">
           {ctx.brand?.logoUrl ? (
