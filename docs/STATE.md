@@ -1,7 +1,59 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3b calling-flow UI port complete → W1b app-shell / W5b-e / W6b NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3c admin-surface UI port complete → W1b app-shell / W5b-e / W6b NEXT, 2026-06-13)
+
+> **S3c DONE (this session, 2026-06-13).** Admin-surface UI port — the device directory
+> (Flow G) + the invitations screen (Flow F) from the Phase 3.3 signed-off prototype
+> (INHERIT-not-REPLACE), wired to the real `devices`/`invitations` routers. 4 files (2 NEW
+> screens + 1 NEW shadcn primitive + 1 type-helper edit), all green, zero new deps.
+> • **SCOPE RECONCILIATION (resolved from authoritative artifacts — no escalation):** the
+>   brief listed "ScreenAdminMembers + ScreenAdminDevices + ScreenAdminInvitations (Flows
+>   F/G/H), wired to trpc.members.*/users.*/invitations.*". Reality (signed-off prototype +
+>   real routers): there is **no `ScreenAdminDevices`** and **no `members` router** — in Yelli
+>   a "member" IS a device, so `ScreenAdminMembers` IS the device directory (Flow G) and it
+>   consumes `trpc.devices.*`. So S3c ports the **2 screens that exist**; "ScreenAdminDevices"
+>   is the same surface (not a 3rd screen to invent — Rule 29/INHERIT). `users.*` isn't needed
+>   (the prototype's `ensureAdminUser` is a sim-only hack; in prod `invitedBy` = the session user).
+> • **ScreenAdminMembers** (`apps/yelli/src/components/screens/ScreenAdminMembers.tsx`, NEW): the
+>   device directory. SWAP BOUNDARY wired — `trpc.devices.list` (status derived client-side: 5-min
+>   online window / 15-min idle), filters (all/online/archived) + client name search, status +
+>   call-role Badges. Actions: Change role → ported **OverlayCallRoleAssign** (S3b, self-wires
+>   `devices.setRole`); Rename → ported **OverlayNamePicker** (S3a, parent wires `devices.setDisplayName`,
+>   replacing the prototype's `window.prompt`); Archive/Remove → inline shadcn `Dialog` confirm
+>   (no `window.confirm`) → `devices.archive`/`devices.delete`; Unarchive → `devices.unarchive`.
+>   **Wave 9 split honored:** the screen calls `devices.archive` (singular admin → server emits
+>   `device.archive`); the mass `device.archive.batch` stays cron-only (packages/jobs) — Audit View
+>   pills intact. NO client-side audit writes (server emits §11 vocab). Hand-rolled prototype `<table>`
+>   recomposed with the shadcn `Table` primitive + responsive mobile-card split; loading = shadcn
+>   `<Skeleton>` (ui-rules Rule 11 PATH A); all Clay semantic tokens, zero raw hex (ui-rules Rule 3).
+> • **ScreenAdminInvitations** (`.../screens/ScreenAdminInvitations.tsx`, NEW): Flow F. SWAP BOUNDARY —
+>   `trpc.invitations.list`/`create`/`revoke`/`resend`. **Prototype-affordance reconciliation:** the
+>   prototype's "Open link" can't exist in prod (raw token never client-returned — INVITATION_SELECT
+>   omits tokenHash; token travels only in the queued email), so pending invites expose **Resend**
+>   (router re-delivery) + **Revoke** — same intent, same substitution class as S3a's Flow E gate fix.
+>   Status Badges reproduce the signed-off Pill tones verbatim (pending=green, accepted+expired=ink).
+> • **shadcn `Table` primitive** (`.../components/ui/table.tsx`, NEW): the canonical MIT copy-in (exactly
+>   what `shadcn add table` writes; `table` was absent from the S4a-2 set). Hand-authored to satisfy
+>   the brief's "shadcn DataTable" intent without network/CLI. Full TanStack `data-table` NOT warranted
+>   (the directory is a simple filtered list — no column engine/sort/pagination; it would add a dep +
+>   change the signed-off design).
+> • **`src/lib/trpc/react.ts`** (EDIT): added `RouterOutputs`/`RouterInputs` (`inferRouterOutputs`/
+>   `inferRouterInputs<AppRouter>`) so client screens type rows as the exact wire shape
+>   (`RouterOutputs['devices']['list'][number]`).
+> • **Placement/precedent:** screens → `components/screens` (W1b mounts them behind the admin gate +
+>   owns nav). Chrome (TenantTopBar/BottomNav/AppFooter) dropped (S3a/S3b precedent). Fully Client
+>   Components (tRPC-react hooks + filter state can't run in a Server Component — ScreenActiveCall
+>   precedent; the brief's "Server Component for list views" yields to that established pattern).
+>   New components are imported by W1b, NOT routed ⇒ absent from the `next build` route table (expected).
+> Validation all green: prisma generate ✓, web typecheck 0, web lint 0/0, web test 2/2, `next build` ✓
+> (`ƒ Proxy (Middleware)`; route table unchanged — components are W1b-mounted, not routes), prettier ✓.
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, subagent dispatch unreliable per lessons.md). The 2 screens + the Table
+> primitive + the type-helper share the Clay token surface + the devices/invitations contracts =
+> one cohesive UI-port unit; R1 deviation accepted per the standing pattern.**
+> **NEXT: W1b app-shell — mounts ScreenAdminMembers + ScreenAdminInvitations (+ S3a/S3b screens) behind
+> the admin gate, builds the device/idle screens, owns navigation + the single useSignaling instance.**
 
 > **S3b DONE (this session, 2026-06-13).** Flow A core UI port — the 3 calling-flow
 > components from the Phase 3.3 signed-off prototype (INHERIT-not-REPLACE), wired to the real

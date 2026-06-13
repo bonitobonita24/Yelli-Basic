@@ -2,6 +2,62 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S3c — Port ScreenAdminMembers + ScreenAdminInvitations (Flows G + F admin surfaces)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless
+  `claude -p` worker; sub-agent dispatch unreliable in this environment. The 2 screens + the
+  shadcn `Table` primitive + the `RouterOutputs` helper share the Clay token surface and the
+  `devices`/`invitations` contracts = one cohesive UI-port unit; no fan-out warranted regardless.
+  R1 deviation accepted per the standing pattern.)
+- Why: Port the admin-surface screens from the Phase 3.3 signed-off prototype (INHERIT-not-REPLACE),
+  wiring the SWAP BOUNDARY from `sim.*` to the real `devices`/`invitations` routers.
+- SCOPE RECONCILIATION (resolved from authoritative artifacts — no escalation): the session brief
+  listed "ScreenAdminMembers + ScreenAdminDevices + ScreenAdminInvitations (Flows F/G/H), wired to
+  trpc.members.*/users.*/invitations.*". The signed-off prototype + the real routers establish: (1)
+  there is NO standalone `ScreenAdminDevices` — in Yelli a "member" IS a device, so `ScreenAdminMembers`
+  IS the device directory (Flow G) and consumes `trpc.devices.*`; "ScreenAdminDevices" is the same
+  surface, not a 3rd screen to invent (Rule 29 / INHERIT-not-REPLACE); (2) there is NO `members`
+  router (member admin lives in `tenants.ts`, devices in `devices.ts`); (3) `users.*` is unneeded —
+  the prototype's `ensureAdminUser` is a sim-only hack; in prod `invitedBy` = the session user. S3c
+  therefore ports the 2 screens that exist (Flows G + F).
+- Files added:
+  - `apps/yelli/src/components/screens/ScreenAdminMembers.tsx` — device directory (Flow G). Fully a
+    Client Component (ScreenActiveCall precedent). SWAP BOUNDARY: `trpc.devices.list` (status derived
+    client-side — 5-min online window / 15-min idle), filters (all/online/archived) + client name
+    search, status + call-role Badges (Clay tokens). Actions: Change role → ported OverlayCallRoleAssign
+    (S3b, self-wires `devices.setRole`); Rename → ported OverlayNamePicker (S3a, parent wires
+    `devices.setDisplayName` — production replacement for the prototype's `window.prompt`); Archive/Remove
+    → inline shadcn `Dialog` confirm (no `window.confirm`) → `devices.archive` / `devices.delete`;
+    Unarchive → `devices.unarchive`. WAVE 9 SPLIT HONORED: the screen calls the singular admin
+    `devices.archive` (server emits `device.archive`); the mass `device.archive.batch` stays cron-only
+    (packages/jobs) → Audit View pills intact. NO client-side audit writes (server emits §11 vocab).
+    Hand-rolled prototype `<table>` recomposed with the shadcn `Table` primitive + responsive mobile-card
+    split; loading = shadcn `<Skeleton>` (ui-rules Rule 11 PATH A); zero raw hex (ui-rules Rule 3).
+  - `apps/yelli/src/components/screens/ScreenAdminInvitations.tsx` — invitations (Flow F). Client
+    Component. SWAP BOUNDARY: `trpc.invitations.list`/`create`/`revoke`/`resend`. PROTOTYPE-AFFORDANCE
+    RECONCILIATION: the prototype's "Open link" cannot exist in prod (the raw token is never returned to
+    the client — INVITATION_SELECT omits tokenHash; it travels only in the queued email), so pending
+    invites expose Resend (router re-delivery) + Revoke — same intent, same substitution class as S3a's
+    Flow E gate fix. Status Badge tones reproduce the signed-off Pill mapping verbatim (pending=green,
+    accepted+expired=ink). Create-form errors inline; loading = shadcn `<Skeleton>`.
+  - `apps/yelli/src/components/ui/table.tsx` — canonical shadcn `Table` primitive (the exact MIT file
+    `shadcn add table` writes; `table` was absent from the S4a-2 primitive set). Hand-authored to satisfy
+    the brief's "shadcn DataTable" intent without network/CLI. Full TanStack `data-table` NOT introduced
+    (the directory is a simple filtered list — no column engine/sort/pagination; it would add a dep +
+    alter the signed-off design).
+- Files modified:
+  - `apps/yelli/src/lib/trpc/react.ts` — added `RouterOutputs` / `RouterInputs`
+    (`inferRouterOutputs`/`inferRouterInputs<AppRouter>`) so client screens type rows as the exact wire
+    shape (e.g. `RouterOutputs['devices']['list'][number]`).
+- Schema/migrations: none. Routers/audit vocab: unchanged (UI-only port; `devices`/`invitations` bodies
+  + §11 vocab already landed in W1a/W3). No new deps. No new `app/` route (screens are W1b-mounted, not
+  routed → absent from the `next build` route table — expected).
+- Precedent: screens → `components/screens` (W1b mounts behind the admin gate + owns nav); chrome
+  (TenantTopBar/BottomNav/AppFooter) dropped (S3a/S3b); fully Client Components (tRPC-react hooks can't
+  run in a Server Component — the brief's "Server Component for list views" yields to that pattern).
+- Errors encountered/resolved: none. Validation all green — prisma generate ✓, web typecheck 0,
+  web lint 0/0, web test 2/2, `next build` ✓ (`ƒ Proxy (Middleware)`; route table unchanged), prettier ✓.
+
 ### 2026-06-13 — Phase 4 Swarm Session S3a — Port ScreenAdminLogin + OverlayNamePicker (Flow E + D entry)
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless
