@@ -610,3 +610,20 @@
     `at: string` (ISO ts) — the bus event types in `@yelli/shared/realtime.ts` are the source of truth;
     build the full shape (a tiny local `invalidate(tenantId,userId,securityVersion)` wrapper that stamps
     `at` keeps the 5 call-sites clean).
+
+## 2026-06-13 — 🟡 fix UUIDv7 keys do NOT preserve insertion order within the same millisecond (offline replay FIFO)
+- Type:      🟡 fix
+- Phase:     Phase 4 (swarm S5 — W6b PWA offline replay queue)
+- Files:     apps/yelli/src/lib/pwa/replay-queue.ts, apps/yelli/src/lib/pwa/uuidv7.ts
+- Concepts:  uuidv7, replay-queue, FIFO, idempotency, Date.now, monotonic-clock, indexeddb, ordering
+- Narrative: The offline mutation replay queue must replay "in order on reconnect" (PRODUCT.md §21). I
+    first sorted queued items by (queuedAt = Date.now(), then id). Two traps compounded: (1) Date.now()
+    can return the SAME ms for a burst of enqueues, and (2) a UUIDv7's leading 48 bits are the ms
+    timestamp but its TRAILING bits are random — so within one ms, sorting by id is RANDOM order, not
+    insertion order. A 3-item same-ms test (ok→boom→after) intermittently replayed boom first. FIX: stamp
+    each item with a strictly-increasing `monotonicNow()` (`lastSeq = now > lastSeq ? now : lastSeq+1`),
+    seeded from wall-clock so it stays ≈ epoch-ms AND survives reloads (a later launch always exceeds any
+    persisted value). Sort by that. Lesson: UUIDv7 gives uniqueness + coarse time-ordering, NOT a tie-break
+    for same-ms FIFO — any "replay/process in order" queue needs its own monotonic sequence, never raw
+    Date.now() and never the random tail of a v7 id. (The unit test against an in-memory store is what
+    caught it — pure-logic queue tests earn their keep.)

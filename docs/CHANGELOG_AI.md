@@ -2,6 +2,69 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S5 — W6b PWA UX: install banner + tap-through + offline replay queue
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless
+  `claude -p` worker; sub-agent dispatch unreliable in this environment per lessons.md. The install
+  banner + offline banner + SW tap-through bridge + the UUIDv7/IDB replay queue + provider all share
+  the W6a Service-Worker/idempotency contracts + the Clay token surface + one ReplayQueue type
+  surface = one cohesive PWA-chrome unit with no independent fan-out boundary — no parallel fan-out
+  warranted regardless. R1 deviation accepted per the standing pattern.)
+- Why: Land the W6b client deliverables the W6a split deferred (q-W6-01 [A]) — the PWA install
+  banner (flow #19), the cached-shell offline/Reconnecting banner (flow #21), the SW→client
+  incoming-call tap-through bridge (flow #20), and the client-side UUIDv7 offline mutation replay
+  queue with reconnect flush (flow #21), all wired to the already-shipped W6a SW + `push` router +
+  Valkey 24h-dedup primitive.
+- SCOPE NOTE (resolved from authoritative artifacts — no escalation): the S5 scope sheet listed a
+  `coturn` compose service and `release.yml` + Windows PowerShell scripts; both pre-resolved by the
+  Brain queue (q-run9-S5-02 [A] / q-run9-S5-03 [A]) as out-of-scope template carryover — S5 ships
+  ONLY the W6b client PWA surface. The W6a Service Worker already implemented the cached-shell offline
+  strategy + a `notificationclick` handler; S5 corrects that handler to the LOCKED §20 contract
+  (postMessage `{ type:'incoming-call', callSessionId }` to a focused client, not `client.navigate`)
+  and adds the client bridge — it does NOT recreate the SW.
+- Files added:
+  - `apps/yelli/src/lib/pwa/uuidv7.ts` — RFC-9562 v7 generator (time-ordered, dependency-free) for
+    the offline idempotency key.
+  - `apps/yelli/src/lib/pwa/replay-queue.ts` — IDB-backed FIFO replay queue primitive (`ReplayQueue`
+    + `idbStore`/`memoryStore`); monotonic enqueue clock guarantees same-ms FIFO order; stop-on-throw
+    replay preserves order across reconnects; fail-safe to memory without IndexedDB.
+  - `apps/yelli/src/lib/pwa/uuidv7.test.ts` + `…/replay-queue.test.ts` — 9 unit tests (format/version/
+    variant/time-ordering/uniqueness; FIFO order, drain, stop-on-failure, retry-same-head).
+  - `apps/yelli/src/components/pwa/replay-queue-provider.tsx` — React context owning the queue +
+    reconnect-flush lifecycle + per-`type` executor registry; `pendingCount` drives the offline banner.
+  - `apps/yelli/src/components/pwa/offline-banner.tsx` — `navigator.onLine`-driven cached-shell
+    offline / "Reconnecting…" banner with queued-action count (Clay tokens, a11y `role=status`).
+  - `apps/yelli/src/components/pwa/install-banner.tsx` — `beforeinstallprompt` intercept, 2nd-visit
+    gate (`localStorage.yelli_visited`), 30-day snooze (`localStorage.yelli_install_snoozed_until`),
+    iOS Safari A2HS-walkthrough fallback (inline — the spec's Settings page is the deferred
+    ScreenTenantSettings), standalone suppression, Cloud-only `push.recordInstall` audit on accept.
+  - `apps/yelli/src/components/pwa/service-worker-bridge.tsx` — client listener for the SW
+    `{ type:'incoming-call', callSessionId }` message → soft `router.push('/app?incoming=…')`.
+  - `apps/yelli/src/components/pwa/pwa-global-chrome.tsx` — root-mounted OfflineBanner + bridge.
+- Files modified:
+  - `apps/yelli/public/sw.js` — `notificationclick` now POSTs the focused client the §20 message
+    (was `client.navigate`, a deviation); header strategy comment updated.
+  - `apps/yelli/src/app/layout.tsx` — wrap the tree in `ReplayQueueProvider` + mount `PwaGlobalChrome`
+    inside `Providers`.
+  - `apps/yelli/src/app/(app)/layout.tsx` — mount `InstallBanner` above the shell (idle-directory scope).
+- Schema/migrations: none. New deps: none (UUIDv7 + IDB hand-rolled — consistent with W6a's
+  "uuid generation is client-side (W6b)" anticipation; zero external npm packages).
+- Decisions/boundaries (documented, non-blocking): toast feedback ("Will retry when reconnected") is
+  surfaced as inline banner text — no `<Toaster>` is mounted in the app, so the queued-count messaging
+  lives in the offline banner instead (same intent, no sonner dependency). The WebSocket-specific
+  "Reconnecting…/exponential-backoff/Retry-now/CALL-disable/directory-resync" half of flow #21 stays
+  with the single `useSignaling` instance the device-home call-engine owns — the network-level offline
+  banner + replay queue ship here; the socket-coupled pieces wire in the call-engine session. The
+  replay queue's executor registry has no live producer yet (the enqueuing mutations live in the
+  deferred settings/call screens) — it ships as a complete, unit-tested primitive (the `useSignaling`
+  S1 precedent: full transport before its consuming screens).
+- Errors encountered/resolved: the FIFO test caught a real ordering bug — `Date.now()` repeats within
+  a millisecond and a UUIDv7's intra-ms order is random, so same-ms enqueues scrambled; fixed with a
+  monotonic enqueue clock (`monotonicNow`) so the FIFO sort is deterministic and reload-safe.
+- Validation: prettier ✓; web typecheck 0; web lint 0/0; web test 11/11 (was 2/2 — +9 PWA tests);
+  `next build` ✓ (route table unchanged — components are mounted not routed; only the pre-existing
+  non-fatal @prisma/client `export *` Turbopack warning, S2); turbo typecheck+lint 14/14.
+
 ### 2026-06-13 — Phase 4 Swarm Session S4 — W1b app shell + nav + role-aware landing + gated admin routes + session-kill listener
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless

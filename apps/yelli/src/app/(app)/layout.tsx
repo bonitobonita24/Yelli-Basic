@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { InstallBanner } from '@/components/pwa/install-banner';
 import { AppShell } from '@/components/shell/AppShell';
 import { resolveAppShellContext } from '@/lib/server/app-context';
 
@@ -11,5 +12,11 @@ import { resolveAppShellContext } from '@/lib/server/app-context';
  */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await resolveAppShellContext();
-  return <AppShell ctx={ctx}>{children}</AppShell>;
+  return (
+    <>
+      {/* flow #19: the install banner is scoped to the idle directory, above the shell. */}
+      <InstallBanner />
+      <AppShell ctx={ctx}>{children}</AppShell>
+    </>
+  );
 }

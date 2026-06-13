@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
 
+import { PwaGlobalChrome } from '@/components/pwa/pwa-global-chrome';
+import { ReplayQueueProvider } from '@/components/pwa/replay-queue-provider';
 import { ServiceWorkerRegister } from '@/components/pwa/service-worker-register';
 import { Providers } from '@/lib/providers';
 import { auth } from '@/server/auth/config';
@@ -32,7 +34,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-canvas text-text-primary antialiased">
         <ServiceWorkerRegister />
-        <Providers session={session}>{children}</Providers>
+        <Providers session={session}>
+          {/* W6b: one replay queue for the whole tree; PWA chrome spans all routes. */}
+          <ReplayQueueProvider>
+            <PwaGlobalChrome />
+            {children}
+          </ReplayQueueProvider>
+        </Providers>
       </body>
     </html>
   );

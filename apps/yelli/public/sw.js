@@ -14,7 +14,8 @@
  *                      (PRODUCT.md §21 cached-shell offline UX, flow #21).
  *   3. push UX       — `push` shows ONE notification (no action buttons, PRODUCT.md
  *                      §20, flow #20); `notificationclick` focuses an existing client
- *                      else opens /app?incoming={callSessionId}.
+ *                      and POSTs it `{ type:'incoming-call', callSessionId }` (the
+ *                      client bridge soft-navigates), else opens /app?incoming=….
  *
  * This file is plain JS served from /sw.js (NOT bundled by Next) so it has a stable
  * scope at the origin root. W6b adds the client-side install banner + replay queue.
@@ -114,19 +115,22 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Tap-to-open: focus an existing Yelli client, else open the deep link (flow #20).
+// Tap-to-open (PRODUCT.md §20, flow #20): focus an already-open Yelli client and
+// POST it `{ type:'incoming-call', callSessionId }` — the client-side bridge
+// (service-worker-bridge.tsx) performs the soft in-app navigation. With no open
+// client, open the deep link directly; that fresh app reads the `incoming` param.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
+  const callSessionId = data.callSessionId || null;
   const target =
-    data.url ||
-    (data.callSessionId ? `/app?incoming=${encodeURIComponent(data.callSessionId)}` : '/app');
+    data.url || (callSessionId ? `/app?incoming=${encodeURIComponent(callSessionId)}` : '/app');
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
         if ('focus' in client) {
-          client.navigate(target).catch(() => {});
+          client.postMessage({ type: 'incoming-call', callSessionId });
           return client.focus();
         }
       }
