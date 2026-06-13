@@ -20,6 +20,7 @@
 - **Auth:** Cloud sign-in via Auth.js `/api/auth/signin` (email + password + tenantSlug) → session issued → gated routes accessible. (Test admin seeded in `_pwbt`, deleted after.)
 - **ScreenTenantSettings (the new Page-18 screen) — END-TO-END:** renders live tenant data; display-name edit → Save → `brand.update` mutation → "Saved." → re-disables; slug `_pwbt` read-only with `.yelli.app` + permanent helper. The save emitted a `tenant.branding.update` entry **visible in ScreenAdminAudit** — full L5 audit chain confirmed.
 - **Admin screens:** Members, Invitations, Audit all render; Audit filter chips derive from the §11 vocabulary; "N shown" counts correct.
+- **Invitation + email worker (Flow F) — END-TO-END:** created an invite → row shows "Pending · expires +7d" → **MailHog received "You're invited to join Yelli"** → Revoke → row flips to "Expired". This validates the entire **BullMQ pipeline live** (`invitation.create` → email queue → email worker B2/W5c → SMTP → inbox) — the worker runtime was swarm-built but previously un-exercised. Major de-risk.
 - **Visual QA:** desktop + mobile (375px). Mobile-first contract holds — forms stack single-column, bottom nav carries all 5 items (incl. the new Settings) without overflow; desktop nav hidden < md.
 - **Console:** zero errors after the env fix (favicon 404 only, cosmetic).
 
