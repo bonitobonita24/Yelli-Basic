@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Mail, ScrollText, UserCog, Users } from 'lucide-react';
+import { LogOut, Mail, ScrollText, Settings, UserCog, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
@@ -34,6 +34,7 @@ function navItems(isAdmin: boolean): NavItem[] {
       { href: '/admin/members', label: 'Members', icon: UserCog },
       { href: '/admin/invitations', label: 'Invitations', icon: Mail },
       { href: '/admin/audit', label: 'Audit', icon: ScrollText },
+      { href: '/admin/settings', label: 'Settings', icon: Settings },
     );
   }
   return items;
