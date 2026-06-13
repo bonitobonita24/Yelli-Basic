@@ -1,7 +1,58 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B2 W5c email worker body DONE → W5b/W5d/W5e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B3 W5d logo-image worker body DONE → W5b/W5e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
+
+> **B3 DONE (this session, 2026-06-13).** W5d — the logo-image-worker BODY (sharp resize/optimize),
+> branding pipeline. The S3 throwing stub in `packages/jobs/src/workers/logo-image.ts` is now a real
+> resize path; the live W4 producer (`enqueueLogoImage`) finally optimizes the uploaded logo instead of
+> failing into the DLQ. 1 worker rewritten + a storage GET helper + 2 package.json deps, all green.
+> • **Fetch → re-verify → resize → write-back → point logoUrl (W5d brief).** The worker pulls the
+>   ORIGINAL by its trusted `storageKey` via a NEW `getBrandingObject(key)` helper added to
+>   `@yelli/storage` (GetObjectCommand → `Body.transformToByteArray()`), re-verifies it server-side with
+>   the existing LOCKED `validateBrandingUpload` (magic-byte PNG/JPEG whitelist + 2 MiB cap — SVG/HTML
+>   rejected as XSS, security.md File Upload Safety #6; declaredMime = stored ContentType, falling back to
+>   sharp's sniffed `metadata().format`), resizes with **sharp** to a 72 px square (2× of the ~36 px
+>   app-shell render box → retina-crisp; `fit:'contain'` + `withoutEnlargement`), re-encodes preserving
+>   format (PNG keeps transparent canvas + `compressionLevel:9`/`palette`; JPEG flattened on white +
+>   `quality:82`/`mozjpeg`), writes the processed asset back via the existing `putBrandingLogo`
+>   (tenant-prefixed randomized key), and points `Tenant.logoUrl` at it.
+> • **Single retina asset, not orphaned 1×/2× variants.** The Tenant schema holds ONE `logoUrl` column,
+>   so the worker stores ONE retina-ready 72 px asset (faithful to "36×36 + retina" given the single
+>   column) rather than uploading 1×/2× variants the schema cannot reference. `updateMany` scoped by id
+>   (not `update`) → 0 rows = tenant deleted mid-flight = warn + no-op, no DLQ spam (device-archive
+>   precedent).
+> • **No new credential.** Storage reached through `@yelli/storage`, which reads the already-provisioned
+>   MinIO/S3 branding-upload env (`STORAGE_ENDPOINT`/`STORAGE_BUCKET`/`STORAGE_ACCESS_KEY`/
+>   `STORAGE_SECRET_KEY`) — reuse, not re-provision.
+> • **Audit policy (W5d brief, device-archive / W5c precedent).** Structured-JSON completion / failure
+>   logs ONLY via the shared `_validate.log` helper — NO AuditLog row, NO AUDIT_ACTIONS vocab change. The
+>   `tenant.branding.update` domain row is already written by the brand router (W4) at enqueue time; this
+>   worker is image-processing infrastructure. Logs carry byte/dimension counts + the internal storage
+>   keys only — no PII. On any failure (bad/oversize/SVG input, storage error, resize error): emit the
+>   error log (message only) then rethrow → BullMQ `attempts:3` + exponential backoff → DLQ; the original
+>   logo stays live on `Tenant.logoUrl`.
+> • **Deps:** `sharp ^0.33.5` (Apache-2.0/OSS, Rule 14; 0.33.x ships prebuilt musl binaries → Alpine
+>   `Dockerfile.workers` compatible, no apk libvips) added to `packages/jobs` deps + `@yelli/storage`
+>   workspace dep (the worker now imports it). pnpm flagged `Ignored build scripts: sharp@0.33.5` → added
+>   `"sharp"` to root `pnpm.onlyBuiltDependencies` (brief's "if required by the pnpm build"); reinstall ran
+>   the native install (`sharp install: Done`), verified loading + a 200×120→72×72 resize from the jobs
+>   package. `queues.ts` / `_validate.ts` / `processors.ts` / `worker-host.ts` / `logo-queue.ts` (producer)
+>   UNTOUCHED — the worker was already registered against the stub in S2; only its body changed.
+> Validation all green: `pnpm install` ✓ (+sharp +@yelli/storage), prettier ✓, turbo typecheck 14/14 +
+> lint 14/14 (incl. @yelli/jobs + @yelli/storage), test 11/11 (web — jobs has no test task; the resize
+> pipeline was smoke-verified out-of-band against a synthetic PNG), `next build` ✓ (route table unchanged
+> — the worker runs in the @yelli/jobs host process, not a web route; only the pre-existing non-fatal
+> @prisma/client `export *` Turbopack warning).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, sub-agent dispatch unreliable per lessons.md). The worker body depends on the
+> storage GET helper it consumes and is itself a single file = one indivisible unit, no fan-out boundary
+> ⇒ no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: W5b (tenant-export body — S3/MinIO bundle + signed-URL email) · W5e (backup pg_dump) queue
+> bodies → deferred ScreenTenantSettings (Phase-3.3 prototype + `tenants.update`) → re-dispatch S6 as the
+> real W8 end-to-end validation.**
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B2 W5c email worker body DONE → W5b/W5d/W5e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
 
 > **B2 DONE (this session, 2026-06-13).** W5c — the email-worker BODY (nodemailer/SMTP), Flow F.
 > The S3 throwing stub in `packages/jobs/src/workers/email.ts` is now a real send path; the live W3

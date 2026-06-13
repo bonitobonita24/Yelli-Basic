@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 /**
  * S3 / MinIO object PUT for branding logos. The same S3 API covers MinIO (dev)
@@ -64,4 +64,25 @@ export async function putBrandingLogo(input: {
   );
 
   return { key, url: `${baseUrl}/${key}` };
+}
+
+/**
+ * Fetch a stored object's raw bytes + content type by key. Used by the logo-image
+ * resize worker (@yelli/jobs) to pull the original upload it must re-encode. The
+ * key is server-controlled (it is the value returned by `putBrandingLogo` and
+ * persisted on the producer side) — never a raw client-supplied path
+ * (security.md File Upload Safety #8: download endpoints take the storage key from
+ * trusted server state, not the client).
+ */
+export async function getBrandingObject(
+  key: string,
+): Promise<{ bytes: Uint8Array; contentType: string | undefined }> {
+  const { client, bucket } = getStorage();
+  const response = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  if (!response.Body) {
+    throw new Error(`Storage object has no body: ${key}`);
+  }
+  // AWS SDK v3 streaming blob → bytes (Node, browser, and edge runtimes all support this).
+  const bytes = await response.Body.transformToByteArray();
+  return { bytes, contentType: response.ContentType };
 }

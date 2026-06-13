@@ -2,6 +2,53 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session B3 — W5d logo-image worker body (sharp resize/optimize)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless `claude -p`
+  worker; sub-agent dispatch unreliable per lessons.md. The worker body depends on the storage GET
+  helper it consumes and is itself a single file = one indivisible unit with no independent fan-out
+  boundary — no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.)
+- Why: Fill the W5d logo-image-worker stub so the live W4 branding producer (`enqueueLogoImage`) actually
+  resizes/optimizes the uploaded tenant logo instead of failing into the DLQ. The brand router already
+  uploads the original + sets `Tenant.logoUrl` (branding works without the worker); this worker produces
+  the retina-ready, optimized render asset and re-points `Tenant.logoUrl` at it.
+- Files modified:
+  - packages/jobs/src/workers/logo-image.ts — replaced the S3 throwing stub with a real body: fetch the
+    original by trusted `storageKey` (new `getBrandingObject` helper) → re-verify server-side with the
+    LOCKED `validateBrandingUpload` (magic-byte PNG/JPEG whitelist + 2 MiB cap; SVG/HTML rejected as XSS,
+    security.md File Upload Safety #6; declaredMime = stored ContentType, falling back to sharp's sniffed
+    `metadata().format`) → resize with sharp to a 72 px square (2× of the ~36 px app-shell render box;
+    `fit:'contain'` + `withoutEnlargement`) → re-encode preserving format (PNG transparent canvas,
+    `compressionLevel:9`/`palette`; JPEG flattened on white, `quality:82`/`mozjpeg`) → write back via the
+    existing `putBrandingLogo` → `prisma.tenant.updateMany({where:{id:tenantId}})` set `logoUrl`
+    (updateMany → 0 rows = tenant deleted mid-flight = warn + no-op, no DLQ spam).
+  - packages/storage/src/client.ts — added `getBrandingObject(key)`: `GetObjectCommand` →
+    `Body.transformToByteArray()` → `{ bytes, contentType }`. The key is trusted server state (the value
+    `putBrandingLogo` returned + persisted on the producer side), never a raw client path (security.md
+    File Upload Safety #8).
+  - packages/storage/src/index.ts — export `getBrandingObject`.
+  - packages/jobs/package.json — added `sharp ^0.33.5` (Apache-2.0 / OSS, Rule 14; 0.33.x ships prebuilt
+    musl binaries → Alpine `Dockerfile.workers` compatible) + `@yelli/storage` workspace dep.
+  - package.json (root) — added `"sharp"` to `pnpm.onlyBuiltDependencies` (pnpm flagged
+    `Ignored build scripts: sharp@0.33.5`; brief's "if required by the pnpm build"). Reinstall ran the
+    native install (`sharp install: Done`); load + 200×120→72×72 resize verified from the jobs package.
+- Schema/migrations: none.
+- Single-asset note: the Tenant schema holds ONE `logoUrl` column, so the worker stores ONE retina-ready
+  72 px asset (faithful to "36×36 + retina" given the single column) rather than orphaned 1×/2× variants
+  the schema cannot reference.
+- No new credential: storage reached through `@yelli/storage`, which reads the already-provisioned
+  MinIO/S3 branding-upload env (STORAGE_ENDPOINT / STORAGE_BUCKET / STORAGE_ACCESS_KEY / STORAGE_SECRET_KEY).
+- Audit policy: structured-JSON completion / failure logs ONLY (via the shared `_validate.log` helper) —
+  NO AuditLog row, NO AUDIT_ACTIONS vocab change (device-archive / W5c precedent / W5d brief). The
+  `tenant.branding.update` domain row is already written by the brand router at enqueue time; the worker
+  is image-processing infrastructure. Logs carry byte/dimension counts + internal storage keys only — no
+  PII. On any failure → error log (message only) → rethrow → BullMQ attempts:3 + backoff → DLQ; the
+  original logo stays live on `Tenant.logoUrl`.
+- Errors encountered/resolved: none. Validation all green — `pnpm install` ✓ (+sharp +@yelli/storage),
+  prettier ✓, turbo typecheck 14/14 + lint 14/14 (incl. @yelli/jobs + @yelli/storage), test 11/11 (web —
+  jobs has no test task; resize pipeline smoke-verified out-of-band), `next build` ✓ (route table
+  unchanged — the worker runs in the @yelli/jobs host process, not a web route).
+
 ### 2026-06-13 — Phase 4 Swarm Session B2 — W5c email worker body (nodemailer/SMTP, Flow F)
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless `claude -p`
