@@ -21,6 +21,7 @@ const ADMIN_LINKS = [
   { href: '/admin/members', label: 'Members', hint: 'Manage devices & roles' },
   { href: '/admin/invitations', label: 'Invitations', hint: 'Invite & revoke access' },
   { href: '/admin/audit', label: 'Audit', hint: 'Review the activity log' },
+  { href: '/admin/settings', label: 'Settings', hint: 'Organization name & address' },
 ];
 
 export default async function DirectoryPage() {
