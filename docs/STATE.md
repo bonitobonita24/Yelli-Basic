@@ -1,7 +1,65 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B4 W5b tenant-export worker body DONE → W5e backup body / ScreenTenantSettings NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B5 W5e backup worker body DONE → all W5 bodies filled · ScreenTenantSettings / S6 W8 e2e NEXT, 2026-06-13)
+
+> **B5 DONE (this session, 2026-06-13).** W5e — the backup-worker BODY (`pg_dump`→S3), the LAST
+> unfilled W5 body. The S3 throwing stub in `packages/jobs/src/workers/backup.ts` is now a real, but
+> **RUNTIME-DEFERRED**, whole-DB backup path. 1 worker rewritten + 2 jobs deps + 5 `.env.example`
+> placeholder keys, all green.
+> • **Runtime-deferred deferral gate (W5e brief).** The dedicated offsite backup bucket is NOT
+>   provisioned. The worker reads 5 NEW `BACKUP_S3_*` env vars (`BUCKET`/`REGION`/`ENDPOINT`/
+>   `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`) at CALL time via `resolveBackupS3()` — NOT at module load, so
+>   importing the module is side-effect-free and `startWorkerHost` boots cleanly. If ANY of the 5 is
+>   missing it emits a structured `log('warn', …)` (presence booleans only — never a credential value)
+>   then throws the exact LOCKED message **`BACKUP_S3 not configured — backup runtime deferred`**. It
+>   NEVER fabricates a credential. `assertSystemJob` (LOCKED `_pwbt`/`system` guard) runs FIRST, above
+>   the gate.
+> • **Real pg_dump→S3 for when creds land.** `spawn('pg_dump', ['--format=custom','--compress=9',
+>   '--no-password','--dbname', url])` with the connection string passed via `--dbname` (never in
+>   positional argv, never logged), streaming stdout straight to S3 via `@aws-sdk/lib-storage` `Upload`
+>   — NEVER buffering a whole-DB dump in memory (multipart handles arbitrary size). Connection =
+>   `BACKUP_DATABASE_URL ?? DATABASE_URL`, the DIRECT pg URL (pg_dump needs session-level features — NOT
+>   the PgBouncer transaction-pooling URL). Key = `postgres/YYYY-MM-DD.dump` (verbatim stub/PRODUCT.md,
+>   UTC, daily cadence → one object/day by design). Success → structured `info` (bucket/key/bytes).
+>   Failure (pg_dump non-zero / spawn ENOENT / upload error) → best-effort `upload.abort()` +
+>   `dump.kill('SIGTERM')` + structured `error` (message only) → rethrow → BullMQ `attempts:3` +
+>   exponential backoff → DLQ. `client.destroy()` in `finally`.
+> • **Separate credential namespace (NOT @yelli/storage).** Backup uses its OWN local `S3Client`
+>   (`forcePathStyle`, S3-compatible) built from `BACKUP_S3_*` — a DISTINCT namespace from
+>   `@yelli/storage`'s `STORAGE_*` MinIO branding/uploads creds. Conflating them into `@yelli/storage`
+>   would mix two credential sets, so the backup S3 client stays LOCAL to the worker (jobs package).
+> • **Audit policy (W5e brief, device-archive / W5b / W5c / W5d precedent).** Structured-JSON logs ONLY
+>   via the shared `_validate.log` helper — NO AuditLog row, NO AUDIT_ACTIONS vocab change. ("pino" in
+>   the brief = the house structured-JSON convention; no real `pino` dep exists or was added.) Backup is
+>   platform infrastructure, not a tenant-scoped domain event.
+> • **.env.example ONLY.** Added the 5 `BACKUP_S3_*` keys with EMPTY values under a new commented block
+>   (runtime-deferral note + separate-namespace note). `.env.dev`/`.staging`/`.prod` NOT touched.
+> • **Deps:** `@aws-sdk/client-s3 ^3.700.0` + `@aws-sdk/lib-storage ^3.700.0` (Apache-2.0/OSS, Rule 14;
+>   version-matched to the existing storage AWS SDK deps; W5b/W5d dep-add precedent) added to
+>   `packages/jobs` — the worker uses its own S3 client, so the SDK is a direct jobs dep. One harmless
+>   1-patch peer skew (lib-storage 3.1068.0 wants client-s3 ^3.1068.0, found storage-pinned 3.1067.0)
+>   alongside the repo's pre-existing tRPC/next-auth peer warnings; non-fatal, internally compatible.
+> • **Scope boundaries (NOT done, by design).** The 02:00 UTC backup CRON scheduler stays UNSCHEDULED
+>   (S2 deferred it to "W5e") — wiring it now would fail daily against the deferred creds (the exact
+>   crash this deferral posture avoids) and is scheduler work beyond the "worker body" scope.
+>   `queues.ts`/`_validate.ts`/`processors.ts`/`scheduler.ts`/`worker-host.ts` UNTOUCHED — the worker was
+>   already registered against the stub in S2; only its body changed. 30d/Glacier-IR lifecycle = bucket
+>   config (deployment) concern, documented not wired (W5b precedent).
+> Validation all green: `pnpm install` ✓ (+lib-storage), prettier ✓, turbo typecheck 7/7, turbo lint
+> 7/7, turbo test 11/11 (web; jobs has no test task — the pg_dump→S3 path needs a live Postgres + a
+> provisioned backup bucket, flagged for W8/S6 end-to-end validation), `next build` ✓ (route table
+> unchanged — the worker runs in the @yelli/jobs host process, not a web route).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, sub-agent dispatch unreliable per lessons.md). The worker body + its deferral
+> guard + its local S3 client form one cohesive single file = one indivisible unit, no fan-out boundary
+> ⇒ no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: all 5 W5 worker bodies (device-archive + tenant-export + email + logo-image + backup) are now
+> filled. Remaining: deferred ScreenTenantSettings (Phase-3.3 prototype + `tenants.update`) → the 02:00
+> backup cron + soft-delete-cron schedulers (await provisioned creds + the schema column) → re-dispatch
+> S6 as the real W8 end-to-end validation.**
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B4 W5b tenant-export worker body DONE → W5e backup body / ScreenTenantSettings NEXT, 2026-06-13)
 
 > **B4 DONE (this session, 2026-06-13).** W5b — the tenant-export-worker BODY (Flow I, #15
 > GDPR/DPA export). The S3 throwing stub in `packages/jobs/src/workers/tenant-export.ts` is now a real

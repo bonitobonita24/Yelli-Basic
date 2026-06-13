@@ -2,6 +2,59 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session B5 — W5e backup worker body (pg_dump→S3, runtime-deferred)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless `claude -p`
+  worker; sub-agent dispatch unreliable per lessons.md. The worker body + its deferral guard + its
+  local S3 client form one cohesive single file = one indivisible unit with no independent fan-out
+  boundary — no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.)
+- Why: Fill the W5e backup-worker stub (the last unfilled W5 body) so the LOCKED daily 02:00 UTC
+  whole-DB backup (Step 7) has a real `pg_dump`→S3 path for when the offsite backup bucket is
+  provisioned — while staying RUNTIME-DEFERRED until then (the bucket is NOT provisioned; the worker
+  must neither crash the queue boot nor fabricate a credential).
+- Files modified:
+  - packages/jobs/src/workers/backup.ts — replaced the S3 throwing stub with a real body. Order:
+    (1) `assertSystemJob` payload guard FIRST (LOCKED convention — system identity `_pwbt`/`system`
+    only); (2) `resolveBackupS3()` reads the 5 `BACKUP_S3_*` vars at CALL time (not module load, so the
+    worker host boots side-effect-free) and, if ANY is missing, emits a structured `log('warn', …)`
+    (booleans only — never a credential value) then throws the LOCKED message `BACKUP_S3 not configured
+    — backup runtime deferred`; (3) resolves `BACKUP_DATABASE_URL ?? DATABASE_URL` (the DIRECT pg URL,
+    not the PgBouncer transaction-pooling URL — pg_dump needs session-level features); (4) builds a
+    LOCAL `S3Client` (`forcePathStyle`, S3-compatible) — NOT `@yelli/storage`'s branding client, because
+    `BACKUP_S3_*` is a SEPARATE credential namespace from `STORAGE_*`; (5) `spawn('pg_dump',
+    ['--format=custom','--compress=9','--no-password','--dbname', url])` with the connection string
+    passed via `--dbname` (never logged), streaming stdout straight to S3 via `@aws-sdk/lib-storage`
+    `Upload` — NEVER buffering a whole-DB dump in memory; key = `postgres/YYYY-MM-DD.dump` (verbatim
+    stub/PRODUCT.md, UTC, daily cadence). On success: structured `info` (bucket/key/bytes — no creds).
+    On any failure (pg_dump non-zero / spawn ENOENT / upload error): best-effort `upload.abort()` +
+    `dump.kill('SIGTERM')`, structured `error` (message only), rethrow → BullMQ `attempts:3` +
+    exponential backoff → DLQ. `client.destroy()` in `finally`.
+  - .env.example — added the 5 `BACKUP_S3_*` placeholder keys (EMPTY values) under a new commented block
+    explaining the runtime-deferral + that they are a separate namespace from the existing S3_*/STORAGE_*
+    MinIO creds. `.env.dev`/`.staging`/`.prod` were NOT touched (per scope).
+  - packages/jobs/package.json — added `@aws-sdk/client-s3 ^3.700.0` + `@aws-sdk/lib-storage ^3.700.0`
+    (Apache-2.0 / OSS, Rule 14; version-matched to the existing storage AWS SDK deps, W5b/W5d dep-add
+    precedent). The backup worker uses its OWN S3 client (BACKUP_S3 creds), so the SDK is a direct jobs
+    dep, not reached through `@yelli/storage`.
+- Schema/migrations: none.
+- Audit policy (W5e brief; device-archive / W5b / W5c / W5d precedent): structured-JSON logs ONLY via the
+  shared `_validate.log` helper — NO AuditLog row, NO AUDIT_ACTIONS vocab change. ("pino" in the brief =
+  the house structured-JSON `log()` convention; no real `pino` dep exists or was added — consistent with
+  every prior worker.) Backup is platform infrastructure, not a tenant-scoped domain event.
+- Scope boundaries (NOT done, by design): the 02:00 UTC backup CRON scheduler stays UNSCHEDULED
+  (S2 deferred it to "W5e"); wiring it now would fail daily against the deferred creds — the exact
+  crash the brief's runtime-deferral posture avoids — and is scheduler work beyond the "worker body"
+  scope. `queues.ts` / `_validate.ts` / `processors.ts` / `scheduler.ts` / `worker-host.ts` UNTOUCHED
+  (the worker was already registered against the stub in S2; only its body changed). The 30d/Glacier-IR
+  lifecycle is a bucket-config (deployment) concern, documented not wired (W5b precedent).
+- Validation: `pnpm install` ✓ (+`@aws-sdk/lib-storage`; one harmless 1-patch AWS-SDK peer skew —
+  lib-storage 3.1068.0 wants client-s3 ^3.1068.0, found the storage-pinned 3.1067.0 — alongside the
+  repo's pre-existing tRPC/next-auth peer warnings; non-fatal, internally compatible). prettier ✓,
+  turbo typecheck 7/7, turbo lint 7/7, turbo test 11/11 (web; jobs has no test task — the pg_dump→S3
+  path needs a live Postgres + provisioned backup bucket, flagged for W8/S6 end-to-end validation),
+  `next build` ✓ (route table unchanged — the worker runs in the @yelli/jobs host process, not a web
+  route; only the pre-existing non-fatal @prisma/client `export *` Turbopack warning).
+
 ### 2026-06-13 — Phase 4 Swarm Session B3 — W5d logo-image worker body (sharp resize/optimize)
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless `claude -p`
