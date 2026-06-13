@@ -2,6 +2,56 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S3a — Port ScreenAdminLogin + OverlayNamePicker (Flow E + D entry)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless
+  `claude -p` worker; sub-agent dispatch unreliable in this environment. The route relocation +
+  login page + name-picker overlay share the Clay token surface and the LOCKED Step 6 / q-S3a-01
+  routing decision = one cohesive UI-port unit; no fan-out warranted regardless. R1 deviation
+  accepted per the standing pattern.)
+- Why: First production UI port of the Phase 3.3 signed-off prototype (INHERIT-not-REPLACE) —
+  the LAN admin login screen (Flow E) and the device display-name picker overlay (Flow D
+  first-join + later rename). Resolves the S0 route/page collision per Brain q-S3a-01 [A] and
+  applies the Phase 3.3 Flow E deferral fix in its production-correct shape.
+- Files added:
+  - `apps/yelli/src/app/(public)/admin/login/page.tsx` — Flow E login PAGE. Client component;
+    shadcn `Card`/`Label`/`Input`(password)/`Button` on Clay semantic tokens (no raw hex —
+    ui-rules.md Rule 3). Per q-S3a-01 [A] it does NOT call next-auth `signIn()` — it client-POSTs
+    `{passphrase}` to the relocated `/api/admin/login` Route Handler (LOCKED Step 6 cookie path via
+    `signInLanAdmin` → `yelli_admin_session`), then on `{ ok:true }` runs `router.push('/admin/members')`
+    + `router.refresh()`. Generic "Couldn't sign in" on every failure (security.md AUTH rule). The
+    demo-passphrase hint + prototype chrome (TenantTopBar/AppFooter/BottomNav) are intentionally
+    dropped (security + chrome lands with the app-shell port).
+  - `apps/yelli/src/components/overlays/OverlayNamePicker.tsx` — Flow D name picker. Bespoke
+    prototype overlay recomposed from shadcn `Dialog` primitives + Clay tokens; controlled-component
+    contract preserved verbatim (`initialName`/`onSave`/`onClose`, +optional `saving` in-flight
+    guard). First-join mode (empty `initialName`) is non-cancellable: Cancel hidden, built-in X
+    suppressed via `[&>button]:hidden`, outside-click + Esc dismissal `preventDefault`'d. Stays a
+    pure controlled component — the parent app-shell (W1b) wires the `device.first_join` trigger +
+    `onSave` → `trpc.devices.setDisplayName`.
+- Files moved (path-only, verbatim — q-S3a-01 [A], no logic change):
+  - `apps/yelli/src/app/admin/login/route.ts` → `apps/yelli/src/app/api/admin/login/route.ts`
+    (`git mv`). Required to resolve the Next.js route.js/page.js path collision at `/admin/login`
+    without violating the LOCKED Step 6 architecture. The `(public)` route group does not alter the
+    URL → the page still serves `/admin/login`; the handler now serves `/api/admin/login`. Import
+    (`@/server/auth/lan-admin`) unchanged.
+- Flow E deferral fix (DECISIONS_LOG Phase 3.3 deferral #1): the prototype's `go('admin-members')`
+  setState no-op cannot occur under real URL navigation. The production fix is structurally different
+  (as the deferral mandated): navigate for real, then `router.refresh()` to invalidate the RSC Router
+  Cache so the server-side admin gate re-reads the freshly-set cookie — the App Router analog of the
+  deferral's "react-query invalidation". The deferral's *suggested* mechanism ("tRPC session query")
+  is superseded by the more recent session-specific q-S3a-01 [A] (no-tRPC wiring) per H1 priority;
+  the deferral's *intent* (real fix, not a prototype patch) is honored.
+- Loading states (ui-rules.md Rule 11): no async data load on mount in either component, so neither
+  shadcn `<Skeleton>` nor `<phantom-ui>` applies. Submit-in-flight is a disabled-button state.
+- Schema/migrations: none.
+- Errors encountered/resolved: stale `apps/yelli/.next/types/validator.ts` still referenced the
+  pre-move route path after `git mv` → `rm -rf apps/yelli/.next` regenerates the route-type manifest
+  (logged as 🔴 lessons).
+- Validation: prisma generate ✓ · web typecheck 0 · web lint 0 · web test 2/2 · `next build` ✓
+  (route table shows `ƒ /admin/login` [page] + `ƒ /api/admin/login` [handler], no collision;
+  `ƒ Proxy (Middleware)`).
+
 ### 2026-06-13 — Phase 4 Swarm Session S2 — BullMQ worker host runtime (W5-runtime)
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — the

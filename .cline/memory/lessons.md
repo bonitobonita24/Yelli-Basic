@@ -4,6 +4,19 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-13 — 🔴 gotcha `git mv` of an App Router route.ts leaves a stale `.next/types/validator.ts` → phantom typecheck error
+- Type:      🔴 gotcha
+- Phase:     Phase 4 · Swarm Session S3a (port ScreenAdminLogin; relocate /admin/login handler → /api/admin/login)
+- Files:     apps/yelli/.next/types/validator.ts (generated), apps/yelli/src/app/api/admin/login/route.ts
+- Concepts:  next.js, app-router, route-move, git-mv, generated-types, typecheck, stale-cache, .next
+- Narrative: After `git mv apps/yelli/src/app/admin/login/route.ts → .../api/admin/login/route.ts`, `pnpm
+    --filter @yelli/web typecheck` failed with `TS2307: Cannot find module '../../src/app/admin/login/route.js'`
+    — the error is NOT in any source file. Next.js's generated `.next/types/validator.ts` still imported the
+    OLD route path; `tsc --noEmit` type-checks that generated manifest. `next build` regenerates it, but a bare
+    `tsc` run against the stale `.next` does not. FIX: `rm -rf apps/yelli/.next` before re-running typecheck (or
+    run `next build` first to regenerate the route-type manifest). Applies to ANY future App Router route
+    relocation/rename — clear `.next` after the move before validating.
+
 ## 2026-06-13 — 🟤 decision Stub Workers (email/logo-image) registered now → real jobs land in the DLQ until W5c/W5d
 - Type:      🟤 decision
 - Phase:     Phase 4 · Swarm Session S2 (W5-runtime — BullMQ worker host)

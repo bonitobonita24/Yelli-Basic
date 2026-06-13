@@ -1,7 +1,44 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S2 BullMQ worker host runtime complete → W5b-e / W6b / W1b NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3a admin-login + name-picker UI port complete → W1b app-shell / W5b-e / W6b NEXT, 2026-06-13)
+
+> **S3a DONE (this session, 2026-06-13).** First production UI port of the Phase 3.3
+> signed-off prototype (INHERIT-not-REPLACE) — Flow E LAN admin login PAGE + Flow D device
+> name-picker overlay. Resolves the S0 route/page collision per Brain q-S3a-01 [A].
+> • **Login page** (`apps/yelli/src/app/(public)/admin/login/page.tsx`, NEW): client component;
+>   shadcn `Card`/`Label`/`Input`(password)/`Button` on Clay semantic tokens (no raw hex — ui-rules
+>   Rule 3). Per q-S3a-01 [A] it does NOT call next-auth `signIn()` — client-POSTs `{passphrase}` to
+>   the relocated `/api/admin/login` handler (LOCKED Step 6 `signInLanAdmin` → `yelli_admin_session`
+>   cookie), then on `{ok:true}` `router.push('/admin/members')` + `router.refresh()`. Generic
+>   "Couldn't sign in" on every failure (security.md AUTH rule). Demo-passphrase hint + prototype
+>   chrome (TenantTopBar/AppFooter/BottomNav) intentionally dropped (security + chrome = app-shell port).
+> • **Name-picker overlay** (`apps/yelli/src/components/overlays/OverlayNamePicker.tsx`, NEW): bespoke
+>   prototype overlay recomposed from shadcn `Dialog` primitives + Clay tokens; controlled-component
+>   contract preserved verbatim (`initialName`/`onSave`/`onClose` + optional `saving`). First-join mode
+>   (empty `initialName`) non-cancellable: Cancel hidden, built-in X suppressed via `[&>button]:hidden`,
+>   outside-click + Esc `preventDefault`'d. Pure controlled — **W1b app-shell wires the `device.first_join`
+>   trigger + `onSave` → `trpc.devices.setDisplayName`** (the trigger mount is NOT in this scope).
+> • **Route relocation (path-only, verbatim — q-S3a-01 [A]):** `git mv
+>   apps/yelli/src/app/admin/login/route.ts → apps/yelli/src/app/api/admin/login/route.ts`. Resolves the
+>   Next.js route.js/page.js collision at `/admin/login`; the `(public)` route group keeps the page URL at
+>   `/admin/login`, the handler moves to `/api/admin/login`. No logic change; import unchanged.
+> • **Flow E gate re-render fix (DECISIONS_LOG Phase 3.3 deferral #1):** the prototype's `go('admin-members')`
+>   setState no-op can't occur under real URL navigation; the production fix is structurally different (as the
+>   deferral mandated) — navigate for real + `router.refresh()` to invalidate the RSC Router Cache so the
+>   server-side admin gate re-reads the freshly-set cookie (App Router analog of "react-query invalidation").
+>   The deferral's *suggested* mechanism ("tRPC session query") is superseded by the newer session-specific
+>   q-S3a-01 [A] (no-tRPC wiring) per H1; its *intent* (real fix, not a prototype patch) is honored.
+> • **Loading states (ui-rules Rule 11):** no async data load on mount ⇒ neither shadcn `<Skeleton>` nor
+>   `<phantom-ui>` applies; submit-in-flight is a disabled-button state. • **Build gotcha (🔴 lessons):** a
+>   `git mv` of an App Router `route.ts` leaves a stale `.next/types/validator.ts` referencing the old path →
+>   `rm -rf apps/yelli/.next` before typecheck. Validation all green: prisma generate ✓, web typecheck 0,
+>   web lint 0, web test 2/2, `next build` ✓ (route table: `ƒ /admin/login` [page] + `ƒ /api/admin/login`
+>   [handler], no collision; `ƒ Proxy (Middleware)`). **Dispatch note (Rule 15): authored Opus-inline —
+>   headless `claude -p` swarm worker, sub-agent dispatch unreliable (standing V32.1 env-structural fallback);
+>   the 3 units share the token surface + LOCKED routing decision = one cohesive UI-port unit ⇒ no fan-out
+>   warranted regardless; R1 deviation accepted per the standing pattern.** **NEXT: W1b app-shell (mounts the
+>   name-picker on `device.first_join`, builds the device/idle screens) + the admin-area pages behind the gate.**
 
 > **S2 DONE (this session, 2026-06-13).** W5-runtime — BullMQ worker HOST process +
 > device-archive 03:00 UTC cron + container image + compose service. The 6 queue
