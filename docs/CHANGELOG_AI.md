@@ -2,6 +2,41 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S1 — useSignaling client transport hook
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — a
+  single-file transport hook is an indivisible unit, no fan-out warranted).
+- Why: Wire the W2b-2 client side of the standalone signaling server (apps/signaling).
+  Pure transport — no UI deps — so the W1b/idle-screen/calling-UI sessions can adopt it
+  without coupling. Provides the 4 WebRTC signal senders (offer/answer/ice/hangup), the
+  reconnect-with-backoff transport, and the Step 6 LOCKED `onSessionKill` push handler.
+- Files added:
+  - `apps/yelli/src/hooks/useSignaling.ts` — typed `useSignaling()` hook. Manages socket
+    lifecycle (connect → `hello` → `ready` → open → reconnect on close), 25s keepalive
+    ping, exponential backoff (1/2/4/8/16/30s, ±20% jitter), terminal close on
+    CLOSE_POLICY_VIOLATION (no retry — server already rejected). Senders match
+    `signalMessageSchema` verbatim. Callbacks: onReady / onSignal / onCallSignal /
+    onPeerOffline / onError / onSessionKill / onStatusChange. The token is fetched via a
+    caller-supplied `getToken()` thunk (the Auth.js cookie is HttpOnly so JS can't read
+    it directly — the wiring session will add an internal `/api/auth/ws-token` route).
+- Files modified:
+  - `apps/yelli/src/env.ts` — added `NEXT_PUBLIC_SIGNALING_URL` (optional URL). Absent ⇒
+    the hook stays idle, so W1b can ship before signaling is provisioned.
+- Schema/migrations: none.
+- Non-blocking notes (surfaced for the Brain, not blocking S1):
+  - Step 5 LOCKED Valkey pub/sub role-broadcast does NOT cross the WS protocol —
+    `ServerMessage` carries no `role-change`, and apps/signaling/src/server.ts only
+    forwards `call-signal` + closes on `session-invalidate`. Live role-change UI
+    reactivity has to ride the existing jwt-callback DB-revalidate path (every Auth.js
+    session lookup) plus a tRPC subscription / polling layer — not this transport hook.
+    Marked as a question for the calling-UI session, not S1.
+  - Token retrieval: hook accepts `getToken: () => Promise<string|null>` rather than
+    reaching into Auth.js itself. The `/api/auth/ws-token` route (or equivalent) is a
+    follow-up wiring concern, not in S1 scope.
+- Errors encountered: 1 lint error (`react-hooks/exhaustive-deps` rule not installed) —
+  removed the disable comment, added stable refs to the dep array instead. Re-run green.
+- Validation: pnpm -F @yelli/web lint ✓ · typecheck ✓ · test 2/2 ✓ · next build ✓.
+
 ### 2026-06-13 — Phase 4 Swarm Session S0 — accounts-auth Wire (Auth.js authorize + LAN admin verify + invitation.accept)
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 swarm fallback — single cohesive auth pipeline)

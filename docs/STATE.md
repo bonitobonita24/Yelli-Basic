@@ -1,7 +1,36 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S0 accounts-auth Wire complete → W6b / W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S1 useSignaling client transport hook complete → W6b / W5-runtime / W5b-e / W1b NEXT, 2026-06-13)
+
+> **S1 DONE (this session, 2026-06-13).** W2b-2 — `useSignaling` client transport
+> hook (`apps/yelli/src/hooks/useSignaling.ts` + `env.NEXT_PUBLIC_SIGNALING_URL`).
+> Pure-transport React hook ('use client'): owns the WebSocket lifecycle against
+> `apps/signaling`, sends the `hello` handshake with an Auth.js v5 JWT supplied by
+> a caller-injected `getToken()` async, exposes typed senders for the 4 LOCKED
+> signal op-codes (`offer`/`answer`/`ice`/`hangup` — scope's "bye" maps to the
+> locked `hangup` vocab matching `signalMessageSchema`), surfaces inbound
+> `signal`/`call-signal`/`peer-offline`/`error`/`pong` frames via stable
+> ref-stored callbacks (parent re-renders never tear down the socket — only
+> `enabled`/`deviceId`/`url` reconnect), and runs a 25s keepalive ping inside the
+> server's 30s window. Reconnect uses an exponential-backoff schedule
+> (1s→2s→4s→8s→16s→30s capped, ±20% jitter) that resets to 0 after a successful
+> `ready`. Step 6 LOCKED session-kill push: server pairs `unauthorized` +
+> "Session ended." then closes with `CLOSE_POLICY_VIOLATION` — the hook
+> recognises both signals, fires `onSessionKill` once, flips to terminal `failed`
+> state, and stays down (no reconnect; consumer is expected to `signOut` and
+> route to /login). Status machine: `idle → connecting → authenticating → open →
+> reconnecting → closed | failed`. Step 5 LOCKED role-broadcast (Valkey pub/sub)
+> explicitly stays OUT of this hook — the client-facing `ServerMessage` union has
+> no `role-change` variant and `apps/signaling/src/server.ts` doesn't relay it;
+> when/if a `role-change` ServerMessage lands the hook extends without an API
+> break (callback shape designed for it). Env: `NEXT_PUBLIC_SIGNALING_URL`
+> (optional URL) added to `apps/yelli/src/env.ts` — absent ⇒ hook stays idle, so
+> W1b can ship without it. Validation all green: web typecheck 0, web lint 0,
+> web test 2/2. **Dispatch note (Rule 15):** authored Opus-inline — standing
+> V32.1 env-structural swarm fallback (per lessons.md); the hook is a single
+> indivisible unit (lifecycle + senders + handlers share refs/state) so no
+> fan-out warranted regardless; R1 deviation accepted per the standing pattern.
 
 > **S0 DONE (this session, 2026-06-13).** Accounts-auth Wire — Auth.js v5 `authorize()`,
 > LAN Anonymous Admin verify/issue, and tRPC `invitation.accept`. The three inert skeletons

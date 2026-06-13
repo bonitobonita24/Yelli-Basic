@@ -23,6 +23,10 @@ const schema = z.object({
   // Public (client-exposed) — optional until the relevant features are wired.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY: z.string().optional(),
+  // WS URL the client useSignaling hook connects to (e.g. `wss://yelli.app/ws`
+  // in prod via the Traefik reverse proxy, `ws://localhost:46849/ws` in dev).
+  // Optional until W1b wires the calling screens; absent ⇒ the hook stays idle.
+  NEXT_PUBLIC_SIGNALING_URL: z.string().url().optional(),
 });
 
 type Env = z.infer<typeof schema>;
