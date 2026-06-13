@@ -12,7 +12,8 @@
 | `b47aa27` | Settings was added to the AppShell nav but missing from the home "Admin tools" card grid | Nav parity restored. |
 
 ## Static suite — GREEN
-- `typecheck` ✅ · `lint` ✅ · monorepo tests **79/79** (web **45**, signaling 10, jobs **24**) — up from 21 at start of session.
+- `typecheck` ✅ · `lint` ✅ · monorepo tests **92/92** (web **55**, signaling 10, jobs **27**) — up from 21 at start of session.
+- **Component-test layer added** (jsdom + Testing Library; web was node-only): 4 admin screens — ScreenTenantSettings, ScreenAdminAudit, ScreenAdminMembers, ScreenAdminInvitations — loading/error/empty/populated states, read-only-slug, filter chips, invite form. (ScreenActiveCall deferred — call-engine/media context.)
 - **Full router coverage added this session:** first tRPC router-test harness (mock `@yelli/db` + `createCaller` through the real middleware chain) + `@` vitest alias. Suites for **all 8 routers** — tenants, brand, invitations, devices, audit, call, users, push — asserting RBAC gates, last-admin guard, setDisplayName + call + push IDOR guards, role-based call auto-reject, §11 audit actions (incl. pwa.install dedup), email enqueue, tenant-scoping, cursor pagination.
 - **Jobs worker coverage added this session:** stood up vitest for `@yelli/jobs` (was zero tests) + suites for the Queue-Safety payload guards (`assertTenantUser`/`assertSystemJob`), device-archive cron (90d sweep + batch audit), email send (token link, no-recipient failure), backup fail-safe (gate-#2 runtime-deferred), tenant-export IDOR not-found no-op. (Remaining untested: `logo-image` — sharp pipeline needs image fixtures; `soft-delete-cron` — intentional stub.)
 
