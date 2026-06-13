@@ -1,7 +1,50 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B1 device-home call-engine DONE → W5b-e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B2 W5c email worker body DONE → W5b/W5d/W5e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
+
+> **B2 DONE (this session, 2026-06-13).** W5c — the email-worker BODY (nodemailer/SMTP), Flow F.
+> The S3 throwing stub in `packages/jobs/src/workers/email.ts` is now a real send path; the live W3
+> producer (`enqueueInvitationEmail`) finally delivers mail instead of failing into the DLQ. 1 file
+> rewritten + 1 package.json (2 deps), all green.
+> • **SMTP transport from provisioned env (W5c brief).** Lazy `nodemailer` transporter singleton:
+>   `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` ALWAYS; auth `{user,pass}` applied ONLY when both
+>   `SMTP_USER` and `SMTP_PASS` are present (schema key `SMTP_PASS`, with legacy `SMTP_PASSWORD`
+>   fallback) — dev runs against MailHog (localhost:46843, no auth, plaintext); staging/prod carry real
+>   creds. `secure:true` only on port 465 (implicit TLS), STARTTLS/plaintext otherwise. Reads
+>   `process.env` directly (jobs has no env.ts — same posture as `connection.ts`).
+> • **Invitation template + LOCKED accept link (Flow F).** Builds
+>   `${APP_URL ?? NEXTAUTH_URL}/invite?token=…` — the token-gated accept route LOCKED in PRODUCT.md's
+>   route table (`/invite?token=...`). Renders both a plaintext part and an inline-styled HTML part
+>   (transactional email needs literal hex inline — ui-rules Rule 3 governs app components, not email
+>   bodies; brand teal `#1a3a3a` matches chrome). Token is `encodeURIComponent`'d, never persisted,
+>   never logged.
+> • **kind gate (S3-stub posture).** Only `kind:'invitation'` is implemented (the sole producer).
+>   `verify`/`reset` (no producer yet) throw → fail fast into the failed set (DLQ), surfacing the gap
+>   rather than fabricating their copy — Brain q-80-S2-01 posture, consistent with the other unfilled
+>   workers.
+> • **Audit policy (W5c brief, device-archive precedent).** Structured-JSON completion + failure logs
+>   ONLY (via the shared `_validate.log` helper) — NO AuditLog row, NO AUDIT_ACTIONS vocab change. The
+>   `invitation.create` domain audit row is already written at enqueue time by the invitations router;
+>   the worker is delivery infrastructure. Logs carry counts + `messageId` only — NEVER token/recipient
+>   PII. On any send failure: emit the error log (message only) then rethrow → BullMQ `attempts:3` +
+>   exponential backoff → DLQ. `info.accepted.length === 0` is treated as failure (retry/DLQ).
+> • **Deps:** `nodemailer ^6.9.16` (dep) + `@types/nodemailer ^6.4.17` (devDep) — MIT/OSS (Rule 14).
+>   No credential added; transport wired from already-provisioned env. `queues.ts` / `_validate.ts` /
+>   `processors.ts` / `worker-host.ts` UNTOUCHED (the worker was already registered against the stub in
+>   S2 — only its body changed).
+> Validation all green: `pnpm install` ✓ (+nodemailer +types, 4 packages), jobs typecheck 0 / lint 0 /
+> prettier ✓, turbo typecheck+lint 14/14, test 21/21 (web 11 + signaling 10), `next build` ✓ (route
+> table unchanged — the worker runs in the @yelli/jobs host process, not a web route).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, sub-agent dispatch unreliable per lessons.md). The worker body [transport +
+> invitation template + send] is a single cohesive file = one indivisible unit, no fan-out boundary ⇒
+> no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: W5b (tenant-export body — S3/MinIO bundle + signed-URL email) · W5d (logo-image resize) ·
+> W5e (backup pg_dump) queue bodies → deferred ScreenTenantSettings (Phase-3.3 prototype +
+> `tenants.update`) → re-dispatch S6 as the real W8 end-to-end validation.**
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B1 device-home call-engine DONE → W5b-e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
 
 > **B1 DONE (this session, 2026-06-13).** Device-home call-engine — Flow A real WebRTC wiring on the
 > production backend. 3 NEW files (CallEngineProvider + PeerDirectory + `/api/auth/ws-token`

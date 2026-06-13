@@ -2,6 +2,39 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session B2 — W5c email worker body (nodemailer/SMTP, Flow F)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless `claude -p`
+  worker; sub-agent dispatch unreliable per lessons.md. Scope is a single cohesive worker body
+  [transport + invitation template + send] in one file = a single indivisible unit with no independent
+  fan-out boundary — no parallel fan-out warranted regardless; R1 deviation accepted per the standing
+  pattern.)
+- Why: Fill the W5c email-worker stub so the live W3 invitation producer (`enqueueInvitationEmail`)
+  actually delivers mail instead of failing into the DLQ. SMTP is provisioned (dev = MailHog at
+  localhost:46843, no auth; staging/prod = real SMTP_USER + SMTP_PASS). Flow F (PRODUCT.md §3 flow 12)
+  is now end-to-end: admin invites → row + `invitation.create` AuditLog → email queued → worker sends.
+- Files modified:
+  - packages/jobs/src/workers/email.ts — replaced the S3 throwing stub with a real body: a lazy
+    `nodemailer` transporter singleton built from env (SMTP_HOST / SMTP_PORT / SMTP_FROM always; auth
+    applied ONLY when SMTP_USER + SMTP_PASS both present — schema key SMTP_PASS, legacy SMTP_PASSWORD
+    fallback; `secure` on port 465). Builds the LOCKED token-gated accept link
+    `${APP_URL ?? NEXTAUTH_URL}/invite?token=…` (PRODUCT.md route table), renders a text + inline-HTML
+    invitation email, and sends via SMTP. `verify`/`reset` kinds (no producer yet) fail fast into the
+    DLQ rather than fabricating copy (S3-stub "surface the gap" posture).
+  - packages/jobs/package.json — added `nodemailer ^6.9.16` (dep) + `@types/nodemailer ^6.4.17`
+    (devDep). nodemailer is MIT / OSS (Rule 14). No credential added — transport is wired from
+    already-provisioned env.
+- Schema/migrations: none.
+- Audit policy: structured-JSON completion / failure logs ONLY (via the shared `_validate.log` helper)
+  — NO AuditLog row, NO AUDIT_ACTIONS vocab change (device-archive precedent / W5c brief). The
+  `invitation.create` domain audit row is already written by the invitations router at enqueue time;
+  the worker is delivery infrastructure. Logs carry counts + messageId only — NEVER the token or
+  recipient address (security: no PII / no secrets in logs).
+- Errors encountered/resolved: none. Validation all green — `pnpm install` ✓ (+nodemailer +types),
+  jobs typecheck 0 / lint 0 / prettier ✓, turbo typecheck+lint 14/14, test 21/21 (web 11 + signaling
+  10), `next build` ✓ (route table unchanged — the worker runs in the @yelli/jobs host process, not a
+  web route).
+
 ### 2026-06-13 — Phase 4 Swarm Session B1 — device-home call-engine (Flow A real WebRTC wiring)
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless `claude -p`

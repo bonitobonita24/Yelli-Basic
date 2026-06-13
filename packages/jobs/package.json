@@ -16,10 +16,12 @@
   "dependencies": {
     "@yelli/db": "workspace:*",
     "bullmq": "^5.77.7",
-    "ioredis": "5.10.1"
+    "ioredis": "5.10.1",
+    "nodemailer": "^6.9.16"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "@types/nodemailer": "^6.4.17",
     "tsx": "^4.19.2",
     "typescript": "catalog:"
   }
