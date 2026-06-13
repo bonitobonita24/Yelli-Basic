@@ -12,8 +12,8 @@
 | `b47aa27` | Settings was added to the AppShell nav but missing from the home "Admin tools" card grid | Nav parity restored. |
 
 ## Static suite — GREEN
-- `typecheck` ✅ · `lint` ✅ · monorepo tests **21/21** (web 11, signaling 10).
-- Coverage gap noted: tRPC routers (tenants/brand/devices/audit), auth/RBAC, and `@yelli/jobs` have **no unit tests** — recommend a Phase-5 test-coverage epic (validated live instead, below).
+- `typecheck` ✅ · `lint` ✅ · monorepo tests **42/42** (web **32**, signaling 10) — up from 21 at start of session.
+- **Router coverage added this session:** first tRPC router-test harness (mock `@yelli/db` + `createCaller` through the real middleware chain) + `@` vitest alias. Suites for **tenants, brand, invitations, devices, audit** — RBAC gates, last-admin guard, setDisplayName IDOR guard, §11 audit-action assertions, email enqueue, tenant-scoping, cursor pagination. (Remaining untested: `calls`/`push` routers + `@yelli/jobs` workers — recommend a follow-up.)
 
 ## Live walk — GREEN
 - **Boot:** web `/`→200, `/admin/login`→200, gated `/admin/*`→307; `/_pwbt/health` = `{ok, db, valkey, signaling: all true}`. Signaling listening on `:46850/ws`; jobs host ready with 6 queues + cron.
