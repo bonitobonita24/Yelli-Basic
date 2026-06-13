@@ -2014,3 +2014,37 @@ Reference-only. No code from the entries below survives on the filesystem after 
                        deferred ScreenTenantSettings → re-dispatch S6 as the real W8 end-to-end validation. Human
                        reviews branch swarm/rebuild and pushes; worker never pushes.
 - Commit:              feat(phase-4-B4): W5b tenant-export worker body (s3-request-presigner)
+
+## 2026-06-13 — Phase 4 S6 — Partial static-only validation (NO phase-4-complete tag)
+- Agent:               CLAUDE_CODE
+- Why:                 Run the Phase 5 STATIC suite on swarm/rebuild to confirm the B6 audit remediation
+                       holds and nothing regressed. Per resolved human queue (q-91..94-S6-01 [A]), this is
+                       a PARTIAL validation only — the live-backend §3 flow-walk (Flow A/F) + Visual QA are
+                       DEFERRED to a post-merge deploy-side session. phase-4-complete MUST NOT be tagged
+                       against a partial build (Master Prompt anti-thrashing + Phase 8 completeness check).
+- Files added:         none
+- Files modified:      docs/STATE.md, docs/CHANGELOG_AI.md (Smart Checkpoint only — no source change)
+- Files deleted:       none
+- Schema/migrations:   none
+- Static suite (9/9 GREEN):
+                       install (frozen) ✓ · tools:validate-inputs ✓ · tools:check-env ✓ ·
+                       tools:check-product-sync ✓ · lint ✓ (turbo 7/7) · typecheck ✓ (turbo 7/7) ·
+                       test ✓ (web 11/11, 3 files) · build ✓ (next 2/2, 7 pages) ·
+                       audit --audit-level=high ✓ (0 high / 0 critical; 5 below threshold = 2 low + 3 mod).
+- Deferred (NOT done this session, by human decision):
+                       (1) live-backend end-to-end §3 flow-walk (Flow A calling, Flow F email/verify) +
+                           Visual QA — needs real tRPC+WS+workers+MinIO+seeded tenant → post-merge deploy session;
+                       (2) ScreenTenantSettings (flow #18) — awaits Phase 3.3 sign-off + new tenants.update mutation;
+                       (3) backup + soft-delete-cron schedulers — await provisioned BACKUP_S3 creds + schema column.
+- Observation (non-blocking, NOT a regression): no `## ` CHANGELOG entries exist for B5/B6 commits
+                       (e4522c8, a0b2b51) — those prior sessions updated STATE.md but did not append a changelog
+                       header. Out of S6 scope to backfill; check-product-sync still passes. Flagged for a future
+                       Governance Sync.
+- Errors encountered:  none
+- Errors resolved:     none
+- Execution note (Rule 15 / V32.1): authored Opus-inline — standing env-structural swarm fallback (sub-agent
+                       dispatch unreliable in headless `claude -p`). This session is pure read-only validation +
+                       a two-doc checkpoint = one indivisible unit, no independent fan-out boundary ⇒ no parallel
+                       fan-out warranted regardless; R1 deviation accepted per the standing pattern.
+- Tag status:          phase-4-complete is NOT tagged (correct — partial build).
+- Commit:              feat(phase-4-S6): Partial W8 validation — NO phase-4-complete tag

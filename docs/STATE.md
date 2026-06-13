@@ -1,7 +1,36 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B6 dependency remediation DONE → 2 HIGH CVEs cleared, Phase 5 audit gate green · ScreenTenantSettings / S6 W8 e2e NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S6 PARTIAL static-only validation DONE → 9/9 static checks GREEN, phase-4-complete NOT tagged · live §3 flow-walk + Visual QA DEFERRED to post-merge deploy session, 2026-06-13)
+
+> **S6 DONE (this session, 2026-06-13) — PARTIAL static-only validation, NO phase-4-complete tag.**
+> Per resolved human queue (q-91..94-S6-01 [A]): S6 ran ONLY the Phase 5 STATIC suite on `swarm/rebuild`
+> to confirm B6's audit remediation holds and nothing regressed. The live-backend end-to-end §3 flow-walk
+> (Flow A calling, Flow F email/verify) and Visual QA are DEFERRED by human decision to a post-merge,
+> deploy-side session (q-106-S6-02 resolved: defer). **No Docker bounce, no db:migrate, no signaling/worker
+> stand-up, no live-walk re-raise** — exactly as scoped. **Zero source change** — Smart Checkpoint only
+> (STATE.md + CHANGELOG_AI.md).
+> • **Static suite 9/9 GREEN:** `pnpm install` (frozen) ✓ · `tools:validate-inputs` ✓ · `tools:check-env` ✓ ·
+>   `tools:check-product-sync` ✓ · `lint` ✓ (turbo 7/7 FULL TURBO) · `typecheck` ✓ (turbo 7/7) ·
+>   `test` ✓ (web 11/11, 3 files) · `build` ✓ (next 2/2, 7 static pages compiled) ·
+>   **`pnpm audit --audit-level=high` ✓ (0 high / 0 critical** — 5 remaining below the gate = 2 low + 3 moderate;
+>   B6 remediation confirmed holding).
+> • **phase-4-complete is NOT tagged** (correct — partial build; tagging against a partial build is prohibited
+>   by Master Prompt anti-thrashing + Phase 8 completeness check).
+> • **Observation (non-blocking, NOT a regression):** no `## ` CHANGELOG headers exist for the B5/B6 commits
+>   (`e4522c8`, `a0b2b51`) — those prior sessions updated STATE.md but never appended a changelog entry.
+>   Out of S6 scope to backfill; `check-product-sync` still passes. Flag for a future Governance Sync.
+> • **Dispatch note (Rule 15 / V32.1):** authored Opus-inline — standing env-structural swarm fallback
+>   (headless `claude -p`, sub-agent dispatch unreliable per lessons.md). Read-only validation + two-doc
+>   checkpoint = one indivisible unit, no fan-out boundary ⇒ no parallel fan-out warranted; R1 deviation
+>   accepted per the standing pattern.
+> **REMAINING / DEFERRED before phase-4-complete can ever be tagged (re-dispatch S6 as the REAL W8 e2e then):**
+> (1) live-backend end-to-end §3 flow-walk (all 9 flows on real tRPC+WS+workers+MinIO+seeded tenant) + Visual QA
+>     — post-merge deploy-side session; (2) **ScreenTenantSettings** (flow #18) — awaits Phase 3.3 sign-off +
+>     NEW `tenants.update` tRPC mutation (slug immutable per LOCKED Step 7); (3) **backup worker runtime** +
+>     soft-delete-cron schedulers — await provisioned `BACKUP_S3` creds + the schema column.
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B6 dependency remediation DONE → 2 HIGH CVEs cleared, Phase 5 audit gate green · ScreenTenantSettings / S6 W8 e2e NEXT, 2026-06-13)
 
 > **B6 DONE (this session, 2026-06-13).** Dependency remediation — cleared the 2 HIGH CVEs blocking the
 > Phase 5 `pnpm audit --audit-level=high` gate on `swarm/rebuild`. 2 manifest edits + the regenerated
