@@ -1,6 +1,9 @@
+import bcrypt from 'bcryptjs';
+
 import { prisma } from '@yelli/db';
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import { z } from 'zod';
 
 /**
  * Auth.js v5 — Credentials provider + JWT sessions, NO PrismaAdapter
@@ -12,7 +15,23 @@ import Credentials from 'next-auth/providers/credentials';
  * and returns null on mismatch — preserving the V28 session-invalidation guarantee
  * under the stateless JWT strategy (security.md §AUTH #6). The session callback
  * surfaces the validated identity onto session.user.
+ *
+ * `authorize()` is the Cloud sign-in path (multi-tenant). Tenants resolve from the
+ * required `tenantSlug` credential; the subdomain proxy (V25) injects the matching
+ * value at the login form. LAN edition uses a different path entirely (no Auth.js
+ * User — see ./lan-admin.ts cookie session).
+ *
+ * Hash algorithm — bcryptjs at 12 rounds — is LOCKED (DECISIONS "Webmaster password
+ * hash algorithm"); Argon2id is reserved for Tenant.adminPassphraseHash (LAN admin).
+ * Generic null-returns on any failure satisfy the security.md AUTH error-message
+ * rule (never reveal whether tenant/email exists).
  */
+const credentialsSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+  tenantSlug: z.string().min(1),
+});
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: 'jwt' },
   trustHost: true,
@@ -24,12 +43,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Password', type: 'password' },
         tenantSlug: { label: 'Tenant', type: 'text' },
       },
-      // TODO (accounts-auth Wire session): resolve tenant by slug, look up the user
-      // by (tenantId, email), bcrypt.compare(password, user.passwordHash) at 12
-      // rounds (LOCKED: Webmaster password hash algorithm), then return the
-      // augmented user. Returns null until wired — login is intentionally inert in
-      // the scaffold.
-      authorize: async () => null,
+      authorize: async (raw) => {
+        const parsed = credentialsSchema.safeParse(raw);
+        if (!parsed.success) return null;
+        const { email, password, tenantSlug } = parsed.data;
+
+        const tenant = await prisma.tenant.findUnique({
+          where: { slug: tenantSlug },
+          select: { id: true, slug: true, isSuspended: true },
+        });
+        if (!tenant || tenant.isSuspended) return null;
+
+        const user = await prisma.user.findUnique({
+          where: { tenantId_email: { tenantId: tenant.id, email } },
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+            passwordHash: true,
+            role: true,
+            tenantId: true,
+            isSuspended: true,
+            securityVersion: true,
+          },
+        });
+        if (!user || user.isSuspended) return null;
+
+        const ok = await bcrypt.compare(password, user.passwordHash);
+        if (!ok) return null;
+
+        // Record last-login best-effort (non-blocking; failure must not block sign-in).
+        prisma.user
+          .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+          .catch(() => {});
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.displayName,
+          role: user.role,
+          tenantId: user.tenantId,
+          tenantSlug: tenant.slug,
+          securityVersion: user.securityVersion,
+        };
+      },
     }),
   ],
   callbacks: {

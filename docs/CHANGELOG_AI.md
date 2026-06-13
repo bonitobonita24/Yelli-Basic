@@ -2,6 +2,65 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S0 — accounts-auth Wire (Auth.js authorize + LAN admin verify + invitation.accept)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 swarm fallback — single cohesive auth pipeline)
+- Why: Replace the three inert auth skeletons (`config.ts` `authorize: async () => null`,
+  `lan-admin.ts` presence-only cookie check, missing `invitation.accept`) with real
+  verifiers so Cloud sign-in, LAN Anonymous Admin, and member invitation acceptance work
+  end-to-end. The Brain queued this as a SAFE Group-1 prerequisite for S3-S6 (UI / shell
+  / PWA / validation).
+- Files modified:
+  - `apps/yelli/src/server/auth/config.ts` — real Auth.js v5 `authorize()`. Resolves
+    tenant by slug, looks up `User` via `tenantId_email`, `bcrypt.compare` (12 rounds —
+    LOCKED Webmaster password hash algorithm), returns augmented user shape matching
+    `next-auth.d.ts`; null on any failure (security.md AUTH error rule); best-effort
+    `lastLoginAt` stamp. jwt/session callbacks UNCHANGED.
+  - `apps/yelli/src/server/auth/lan-admin.ts` — REWRITTEN. `verifyAndIssueLanAdminSession`
+    (Argon2id verify via `@node-rs/argon2` against `Tenant.adminPassphraseHash`, signs
+    30-day HMAC-SHA256 cookie keyed with `AUTH_SECRET`, constant-time hex compare via
+    `timingSafeEqual`); `clearLanAdminSession` (emits `lan.admin.logout`); `getLanAdminSession`
+    now verifies signature + 30-day TTL (was presence-only). Emits §11-canonical
+    `lan.admin.login.success` / `lan.admin.login.fail` / `lan.admin.logout` verbatim.
+  - `apps/yelli/src/server/trpc/routers/invitations.ts` — NEW `accept` `publicProcedure`.
+    sha256-token lookup → expiry/already-accepted gate → `bcrypt.hash(12)` outside tx →
+    `prisma.$transaction` create User (`role:'member'`, `emailVerifiedAt: now`, `security
+    Version: 0`) + stamp `acceptedAt` + emit §11 `invitation.accept` audit (actor =
+    new user; AuditLog L6-excluded so `tenantId` explicit per security.md #10). P2002
+    → CONFLICT. Returns `{id,email,role}` only.
+  - `apps/yelli/package.json` — +`bcryptjs ^2.4.3` (User passwords) +`@node-rs/argon2 ^2.0.2`
+    (LAN passphrase, pure Rust MIT, no native build) +`@types/bcryptjs ^2.4.6` (devDep).
+  - `pnpm-lock.yaml` — relinked.
+- Files added: none
+- Files deleted: none
+- Schema/migrations: none (User.passwordHash, Tenant.adminPassphraseHash, Invitation.tokenHash
+  were already in the W1a/W3 schema)
+- Errors encountered: none
+- Errors resolved: none
+
+**Hash algo conflict resolution (logged per Rule 28 / H1):** session scope specified
+"Argon2id verify against User" but `docs/DECISIONS_LOG.md` LOCKED entry "Webmaster password
+hash algorithm" mandates bcryptjs at 12 rounds for `User.passwordHash`. Followed the
+higher-priority source (DECISIONS_LOG priority 5 > session message priority 8). Argon2id
+remains exclusive to `Tenant.adminPassphraseHash` (LAN admin). Result: two hash algorithms
+coexist by design, as the existing "LOCKED: Webmaster password hash algorithm" entry already
+documented.
+
+**Audit vocabulary (HARD CONSTRAINT, satisfied verbatim from @yelli/shared AUDIT_ACTIONS):**
+`invitation.accept` (was already in the locked list — accepts the previously-deferred entry
+that PROTOTYPE.md §3 reserved), `lan.admin.login.success`, `lan.admin.login.fail`,
+`lan.admin.logout`. No new actions added; no DECISIONS_LOG amendment required.
+
+**Validation:** `pnpm install` ✓ (+4 packages), prisma generate (no schema change), web
+typecheck 0 errors, web lint 0 errors, `next build` ✓ (`ƒ Proxy (Middleware)`; only the
+pre-existing non-fatal @prisma/client `export *` Turbopack warning — S2), web test 2/2.
+
+**Deferred (non-blocking, surfaced for follow-up):**
+- 5/min/IP rate-limit on `/admin/login` (LOCKED Step 6) lives at the future Route Handler
+  that wires `verifyAndIssueLanAdminSession` — it needs request IP, unreachable from this
+  pure backend helper. The audit pair already provides observability.
+- LAN admin login UI / Route Handler itself — this session is backend-only per scope.
+
 ### 2026-06-13 — Phase 4 Swarm Session W7 — Design system finalization (Phase 3.3 deferral #3 font loading; #2/#4 re-deferred)
 
 - Agent: CLAUDE_CODE (Opus — R1 DEVIATION: authored Opus-inline. The V32.1 swarm subagent-dispatch regression is environment-structural; standing accepted fallback, not a discretionary bypass. The W7 actionable surface is the font-loading migration across 3 interdependent files [layout + globals + CSP] — a single indivisible unit ⇒ no parallel fan-out warranted regardless.)

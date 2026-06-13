@@ -1,9 +1,71 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · W7 design-system finalization (font) complete → W6b / W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S0 accounts-auth Wire complete → W6b / W5-runtime / W5b-e / W1b / W2b-2 NEXT, 2026-06-13)
 
-> **W7 DONE (this session, 2026-06-13).** Design system finalization — Phase 3.3 deferral #3
+> **S0 DONE (this session, 2026-06-13).** Accounts-auth Wire — Auth.js v5 `authorize()`,
+> LAN Anonymous Admin verify/issue, and tRPC `invitation.accept`. The three inert skeletons
+> across `apps/yelli/src/server/auth/` + `routers/invitations.ts` are now real.
+> • **Cloud sign-in (`config.ts`):** `authorize({email,password,tenantSlug})` resolves the
+>   tenant by slug → looks up `User` by `tenantId_email` → `bcrypt.compare` against
+>   `User.passwordHash` at 12 rounds (**LOCKED Webmaster password hash algorithm** wins over
+>   the session scope's "Argon2id verify against User" — DECISIONS_LOG priority 5 > session
+>   message priority 8 per H1; Argon2id stays reserved for `Tenant.adminPassphraseHash`).
+>   Returns the augmented user shape `{id,email,name,role,tenantId,tenantSlug,securityVersion}`
+>   matching the `next-auth.d.ts` augmentation; null on any failure (suspended tenant/user,
+>   bad password, bad slug) per security.md AUTH error-message rule. Best-effort
+>   `lastLoginAt` stamp on success (non-blocking). Existing jwt+session callbacks
+>   (DB-validate `securityVersion`+`isSuspended` per call — V28) ALREADY honor this shape
+>   verbatim; ZERO touch to the callbacks.
+> • **LAN Anonymous Admin (`lan-admin.ts`):** real `verifyAndIssueLanAdminSession(passphrase)`
+>   — resolves the implicit LAN tenant (earliest-created tenant carrying a non-null
+>   `adminPassphraseHash`) → `@node-rs/argon2` `verify` against
+>   `Tenant.adminPassphraseHash` → on success issues a 30-day signed HMAC-SHA256 cookie
+>   (`${tenantId}.${issuedAtMs}.${hmac}` keyed with `AUTH_SECRET`; constant-time hex compare
+>   via `timingSafeEqual`) with `HttpOnly` + `SameSite=Lax` + `Secure` in prod (LOCKED
+>   Step 6). Emits §11-canonical **`lan.admin.login.success`** / **`lan.admin.login.fail`**
+>   (HARD CONSTRAINT). `getLanAdminSession()` now verifies signature + 30-day TTL (was
+>   presence-only); new `clearLanAdminSession()` deletes the cookie + emits
+>   **`lan.admin.logout`**. Cloud tenants have `adminPassphraseHash: null` ⇒ resolver
+>   returns null ⇒ verify always fails (correct: Cloud uses Auth.js, not this path).
+> • **`invitation.accept` (`routers/invitations.ts`, NEW `publicProcedure`):** unauthenticated
+>   acceptance flow — `sha256(rawToken)` lookup against `Invitation.tokenHash` (@unique) →
+>   not-expired + not-already-accepted gate (NOT_FOUND on any miss per security.md AUTH
+>   error rule) → `bcrypt.hash(password,12)` OUTSIDE the tx (no write-lock held during
+>   hash) → `prisma.$transaction`: re-reads invitation inside tx for double-accept race
+>   defense → `tx.user.create` with `role: 'member'` (DECISIONS Step 1 default) +
+>   `emailVerifiedAt: new Date()` (the invite link IS the verification) + `securityVersion: 0`
+>   → `tx.invitation.update` `acceptedAt` stamp → §11-canonical **`invitation.accept`**
+>   AuditLog row with `actorUserId: created.id` (the user just provisioned themselves;
+>   AuditLog is L6-excluded so `tenantId` is passed explicitly per security.md #10). P2002
+>   `(tenantId,email)` unique violation → CONFLICT (account exists). Returns client-safe
+>   `{id,email,role}` only — never the `passwordHash`.
+> • **HASH ALGO CONFLICT NOTED + RESOLVED PER H1.** Session scope said "Argon2id verify
+>   against User" but `docs/DECISIONS_LOG.md` LOCKED entry `"Webmaster password hash
+>   algorithm"` mandates `bcryptjs at 12 rounds` for `User.passwordHash`. Followed the
+>   higher-priority source (DECISIONS_LOG > session message) — User uses bcryptjs;
+>   Argon2id remains exclusive to `Tenant.adminPassphraseHash` (LAN admin). Logged here
+>   per Rule 28 / H1 priority-order resolution rule.
+> • **3 deps added** to `apps/yelli/package.json` (auth surface needs real verifiers):
+>   `bcryptjs ^2.4.3` (pure JS, OSS — Rule 14) + `@types/bcryptjs ^2.4.6` + `@node-rs/argon2
+>   ^2.0.2` (pure-Rust Argon2id, MIT, no native build — superior to native `argon2`).
+> • **5/min/IP rate-limit on LAN login (LOCKED Step 6) DEFERRED** to the future
+>   `/admin/login` Route Handler that will wire `verifyAndIssueLanAdminSession` — it
+>   needs the request IP, unreachable from a pure backend helper. Non-blocking; the audit
+>   pair (`lan.admin.login.success`/`fail`) is already live for observability.
+> • **`invitation.create/resend/revoke` UNCHANGED** — W3's existing bodies stand; only
+>   the previously-DEFERRED `accept` lands.
+> Validation all green: `pnpm install` ✓ (4 packages added: @node-rs/argon2 + bcryptjs +
+> @types/bcryptjs + transitives), prisma generate (no schema change), web typecheck 0,
+> web lint 0, `next build` ✓ (`ƒ Proxy (Middleware)`; only the pre-existing non-fatal
+> @prisma/client `export *` Turbopack warning), web test 2/2. **Dispatch note (Rule 15):
+> authored Opus-inline — standing V32.1 env-structural swarm fallback (see lessons.md);
+> 3 files form one cohesive auth pipeline (Cloud authorize ↔ invitation.accept share the
+> bcryptjs decision; LAN admin shares the audit-vocab + AUTH_SECRET surface) = single
+> indivisible unit ⇒ no fan-out warranted regardless; R1 deviation accepted per the
+> standing pattern.**
+
+> **W7 DONE (2026-06-13).** Design system finalization — Phase 3.3 deferral #3
 > (font loading) + `/design-review` regression. Inter is now self-hosted via `next/font/google`
 > (replacing the runtime Google Fonts `@import`): `layout.tsx` configures `Inter({ subsets:['latin'],
 > display:'swap', variable:'--font-inter' })` (variable font ⇒ no weights) + `inter.variable` on

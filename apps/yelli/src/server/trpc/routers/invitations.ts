@@ -1,14 +1,15 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { TRPCError } from '@trpc/server';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
-import { Prisma } from '@yelli/db';
+import { Prisma, prisma } from '@yelli/db';
 import { emailSchema } from '@yelli/shared';
 
 import { enqueueInvitationEmail } from '@/server/jobs/email-queue';
 
-import { protectedProcedure } from '../procedures';
+import { protectedProcedure, publicProcedure } from '../procedures';
 import { router } from '../trpc';
 
 /**
@@ -24,9 +25,11 @@ import { router } from '../trpc';
  * tokenHash (a secret) is never returned to the client — INVITATION_SELECT omits it.
  * The raw token is hashed before storage and travels ONLY in the queued email.
  *
- * DEFERRED (accounts-auth Wire session): `accept` (invitation.accept + user.create).
- * Accepting an invite provisions a User with a bcrypt passwordHash — that is the
- * accounts-auth concern (Auth.js authorize() is still a skeleton), not W3's.
+ * `accept` (S0 Wire — this session) is the unauthenticated counterpart: an invitee
+ * supplies the raw token + a display name + a chosen password; we look up the
+ * Invitation by `tokenHash = sha256(rawToken)`, verify it isn't expired or already
+ * accepted, then provision the User (bcrypt(passwordHash, 12) — LOCKED) inside one
+ * transaction with the invitation's `acceptedAt` stamp and the audit row.
  */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7-day expiry (DECISIONS Flow F).
 
@@ -173,4 +176,102 @@ export const invitationsRouter = router({
     });
     return result;
   }),
+
+  /**
+   * Accept a pending invite — unauthenticated. Verifies the raw token against the
+   * stored SHA-256 hash, checks expiry + non-acceptance, then provisions a User
+   * (bcryptjs at 12 rounds — LOCKED Webmaster password hash algorithm) inside one
+   * transaction with the `acceptedAt` stamp and the §11-canonical `invitation.accept`
+   * audit row. `member` is the default role for new invitees (DECISIONS Step 1).
+   *
+   * The L6 tenant-guard auto-injects `tenantId` only on the top-level table the
+   * mutation targets — we pass it explicitly on every create/update inside the tx
+   * (and on the AuditLog row, which is L6-excluded). Generic NOT_FOUND on any
+   * invalid token satisfies the security.md AUTH error-message rule.
+   */
+  accept: publicProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        displayName: z.string().min(1).max(80),
+        password: z.string().min(8).max(128),
+      }),
+    )
+    .mutation(async ({ ctx: _ctx, input }) => {
+      const tokenHash = createHash('sha256').update(input.token).digest('hex');
+
+      // Lookup OUTSIDE the tx so we don't hold a write lock during bcrypt.hash.
+      const invitation = await prisma.invitation.findUnique({
+        where: { tokenHash },
+        select: {
+          id: true,
+          tenantId: true,
+          email: true,
+          expiresAt: true,
+          acceptedAt: true,
+        },
+      });
+      if (!invitation || invitation.acceptedAt || invitation.expiresAt <= new Date()) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid or expired invitation.' });
+      }
+
+      const passwordHash = await bcrypt.hash(input.password, 12);
+
+      const user = await prisma.$transaction(async (tx) => {
+        // Re-read inside the tx to defend against double-accept races.
+        const fresh = await tx.invitation.findUnique({
+          where: { id: invitation.id },
+          select: { acceptedAt: true, expiresAt: true },
+        });
+        if (!fresh || fresh.acceptedAt || fresh.expiresAt <= new Date()) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid or expired invitation.' });
+        }
+
+        let created;
+        try {
+          created = await tx.user.create({
+            data: {
+              tenantId: invitation.tenantId,
+              email: invitation.email,
+              passwordHash,
+              displayName: input.displayName,
+              role: 'member',
+              emailVerifiedAt: new Date(),
+              securityVersion: 0,
+            },
+            select: { id: true, email: true, role: true },
+          });
+        } catch (err) {
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+            throw new TRPCError({
+              code: 'CONFLICT',
+              message: 'An account with that email already exists.',
+            });
+          }
+          throw err;
+        }
+
+        await tx.invitation.update({
+          where: { id: invitation.id },
+          data: { acceptedAt: new Date() },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            tenantId: invitation.tenantId,
+            actorUserId: created.id,
+            action: 'invitation.accept',
+            targetType: 'Invitation',
+            targetId: invitation.id,
+            payload: { invitationId: invitation.id, userId: created.id },
+          },
+        });
+
+        return created;
+      });
+
+      // Client-safe: never return the passwordHash. Caller redirects to Auth.js
+      // sign-in — the new account works immediately (Cloud authorize() is live).
+      return { id: user.id, email: user.email, role: user.role };
+    }),
 });
