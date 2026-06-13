@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1.7
+# ─── Yelli — BullMQ worker host image (W5-runtime) ────────────────────────
+# Long-running background process: one BullMQ Worker per queue + the device-archive
+# 03:00 UTC cron. Unlike apps/signaling, this CANNOT be a single esbuild bundle —
+# @yelli/db pulls in @prisma/client + its native query engine, which must exist in
+# node_modules at runtime. So we keep the workspace node_modules, `prisma generate`
+# inside the image, and run the TS entrypoint with `tsx`.
+# LOCKED Deployment Tags: :vX.Y.Z (immutable) + floating :prod.
+
+# ─── Stage 1: deps (workspace install) ───────────────────────────────────
+FROM node:24-alpine AS deps
+WORKDIR /repo
+RUN apk add --no-cache libc6-compat openssl
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Workspace metadata + every package.json so the frozen install resolves the full graph.
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
+COPY apps/yelli/package.json apps/yelli/package.json
+COPY apps/signaling/package.json apps/signaling/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/jobs/package.json packages/jobs/package.json
+COPY packages/ui/package.json packages/ui/package.json
+
+RUN pnpm install --frozen-lockfile
+
+# ─── Stage 2: builder (Prisma generate) ──────────────────────────────────
+FROM node:24-alpine AS builder
+WORKDIR /repo
+RUN apk add --no-cache libc6-compat openssl
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY --from=deps /repo/node_modules ./node_modules
+COPY . .
+
+# Generate the Prisma client (matches the Linux/musl libc of this image).
+RUN pnpm --filter @yelli/db exec prisma generate
+
+# ─── Stage 3: runner ──────────────────────────────────────────────────────
+FROM node:24-alpine AS runner
+WORKDIR /repo
+RUN apk add --no-cache libc6-compat openssl tini
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 yelli
+
+# Whole-workspace copy: node_modules (incl. the generated @prisma/client + engine,
+# bullmq, ioredis, tsx) + every package's source. tsx runs the TS entrypoint directly.
+COPY --from=builder --chown=yelli:nodejs /repo /repo
+
+USER yelli
+
+# No port — this is a background worker, not an HTTP server.
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node_modules/.bin/tsx", "packages/jobs/src/runtime/main.ts"]

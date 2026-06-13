@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "start": "tsx src/runtime/main.ts",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
     "typescript": "catalog:"
   }
 }

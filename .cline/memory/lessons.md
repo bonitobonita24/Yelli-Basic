@@ -4,6 +4,26 @@
 # READ ORDER: 🔴 first → 🟤 second → rest by relevance
 # ---
 
+## 2026-06-13 — 🟤 decision Stub Workers (email/logo-image) registered now → real jobs land in the DLQ until W5c/W5d
+- Type:      🟤 decision
+- Phase:     Phase 4 · Swarm Session S2 (W5-runtime — BullMQ worker host)
+- Files:     packages/jobs/src/runtime/processors.ts, packages/jobs/src/runtime/worker-host.ts, packages/jobs/src/workers/{email,logo-image,tenant-export,soft-delete-cron,backup}.ts
+- Concepts:  bullmq, worker-host, dlq, failed-set, stub-worker, device-archive-cron, dispatcher, fan-out
+- Narrative: W5-runtime registers a BullMQ `Worker` for ALL 6 queues — device-archive carries the real
+    W5a body; the other 5 are guard-wired STUBS that `throw NotImplemented`. Two of those queues
+    (`email`, `logo-image`) ALREADY have live producers (W3 invitation create/resend enqueues `email`;
+    W4 brand.update enqueues `logo-image`). CONSEQUENCE: once the worker host runs, a real invitation
+    email or logo-resize job is picked up by its stub, throws, retries 3× (exponential backoff), then
+    rests in the failed set = the de-facto DLQ. This is DELIBERATE (Brain q-80-S2-01: "register Workers
+    against current stubs, no-op/throw until filled") — failing fast + visible in the DLQ beats silent
+    pile-up. W5c (email + nodemailer) and W5d (logo-image + sharp) replace the bodies; until then,
+    invitation emails do not send and logo originals stay un-resized (the original logo IS already live
+    from W4, so branding still works). Also: only device-archive is cron-scheduled (03:00 UTC). `backup`
+    (02:00, Step 7) + `soft-delete-cron` (deferred schema session) are intentionally UNSCHEDULED to avoid
+    daily failing ticks — their schedulers land in W5e / the schema session. PER-TENANT FAN-OUT: the
+    device-archive processor is per-tenant, so the cron uses a `device-archive-dispatch` infra queue whose
+    dispatcher reads non-suspended tenants and `addBulk`s one job per tenant (security.md cron rule 7).
+
 ## 2026-06-13 — 🔴 gotcha L6 tenant-guard injects tenantId into `data` only — NEVER use Prisma `upsert` through `ctx.db`
 - Type:      🔴 gotcha
 - Phase:     Phase 4 · Swarm Session W6a (PWA — push.subscribe)

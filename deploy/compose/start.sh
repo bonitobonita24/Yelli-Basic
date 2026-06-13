@@ -43,9 +43,11 @@ if [ "$ENV" = "dev" ]; then
 fi
 # 6. App
 [ -f "$BASE/docker-compose.app.yml" ]     && FILES+=("-f" "$BASE/docker-compose.app.yml")
-# 7. Signaling WS server (W2b) — after app
+# 7. Worker host (W5-runtime BullMQ workers + device-archive cron) — after app
+[ -f "$BASE/docker-compose.worker.yml" ]  && FILES+=("-f" "$BASE/docker-compose.worker.yml")
+# 8. Signaling WS server (W2b) — after app
 [ -f "$BASE/docker-compose.signaling.yml" ] && FILES+=("-f" "$BASE/docker-compose.signaling.yml")
-# 8. Cloudflared sidecar — prod only (optional)
+# 9. Cloudflared sidecar — prod only (optional)
 if [ "$ENV" = "prod" ]; then
   [ -f "$BASE/docker-compose.cloudflared.yml" ] && FILES+=("-f" "$BASE/docker-compose.cloudflared.yml")
 fi

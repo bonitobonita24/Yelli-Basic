@@ -1,0 +1,26 @@
+# ⚠ NO build: key — prod pulls the worker image from Docker Hub only, never builds
+# Background BullMQ worker host (W5-runtime): no host port, no Traefik labels.
+# Image tag: WORKER_IMAGE_TAG defaults to :prod (floating, matches the app tag scheme).
+
+networks:
+  app_network:
+    name: ${COMPOSE_PROJECT_NAME}_network
+    external: true
+
+services:
+  worker:
+    image: ${DOCKERHUB_USERNAME}/${WORKER_IMAGE_NAME:-yelli-worker}:${WORKER_IMAGE_TAG:-prod}
+    container_name: ${COMPOSE_PROJECT_NAME}_worker
+    hostname: ${COMPOSE_PROJECT_NAME}_worker
+    env_file: ../../../.env.prod
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL_INTERNAL}
+      REDIS_URL: ${REDIS_URL_INTERNAL}
+    networks: [app_network]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped

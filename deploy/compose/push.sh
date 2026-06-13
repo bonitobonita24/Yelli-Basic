@@ -13,6 +13,8 @@ set -euo pipefail
 
 # ── Config ──────────────────────────────────────────────────────────────────
 IMAGE_BASE="${DOCKERHUB_USERNAME:?'DOCKERHUB_USERNAME env var is required. Run: export DOCKERHUB_USERNAME=powerbyteit'}/${IMAGE_NAME:-yelli}"
+# Background BullMQ worker host (W5-runtime) — a separate image from the app.
+WORKER_IMAGE_BASE="${DOCKERHUB_USERNAME}/${WORKER_IMAGE_NAME:-yelli-worker}"
 SHORT_SHA=$(git rev-parse --short HEAD)
 
 # ── Guard: docker.publish ────────────────────────────────────────────────────
@@ -41,6 +43,14 @@ case "$TARGET" in
       --platform linux/amd64 \
       .
 
+    echo "🔨  Building worker image from source…"
+    docker build \
+      --file packages/jobs/Dockerfile.workers \
+      --tag "${WORKER_IMAGE_BASE}:dev-latest" \
+      --tag "${WORKER_IMAGE_BASE}:dev-sha-${SHORT_SHA}" \
+      --platform linux/amd64 \
+      .
+
     echo "🧪  Starting dev stack for tests…"
     bash deploy/compose/start.sh dev up -d
     sleep 8
@@ -56,31 +66,43 @@ case "$TARGET" in
     echo "🛑  Tearing down dev stack…"
     bash deploy/compose/start.sh dev down
 
-    echo "📤  Pushing dev image to Docker Hub…"
+    echo "📤  Pushing dev images to Docker Hub…"
     docker push "${IMAGE_BASE}:dev-latest"
     docker push "${IMAGE_BASE}:dev-sha-${SHORT_SHA}"
+    docker push "${WORKER_IMAGE_BASE}:dev-latest"
+    docker push "${WORKER_IMAGE_BASE}:dev-sha-${SHORT_SHA}"
 
     echo ""
-    echo "✅  Dev image pushed:"
+    echo "✅  Dev images pushed:"
     echo "     ${IMAGE_BASE}:dev-latest"
     echo "     ${IMAGE_BASE}:dev-sha-${SHORT_SHA}"
+    echo "     ${WORKER_IMAGE_BASE}:dev-latest"
+    echo "     ${WORKER_IMAGE_BASE}:dev-sha-${SHORT_SHA}"
     echo ""
     echo "▶   To promote to staging: bash deploy/compose/push.sh staging"
     ;;
 
   # ── STAGING: re-tag dev-latest → staging-*, push ─────────────────────────
   staging)
-    echo "🔁  Promoting dev image → staging…"
+    echo "🔁  Promoting dev images → staging…"
     docker pull "${IMAGE_BASE}:dev-latest"
     docker tag  "${IMAGE_BASE}:dev-latest" "${IMAGE_BASE}:staging-latest"
     docker tag  "${IMAGE_BASE}:dev-latest" "${IMAGE_BASE}:staging-sha-${SHORT_SHA}"
     docker push "${IMAGE_BASE}:staging-latest"
     docker push "${IMAGE_BASE}:staging-sha-${SHORT_SHA}"
 
+    docker pull "${WORKER_IMAGE_BASE}:dev-latest"
+    docker tag  "${WORKER_IMAGE_BASE}:dev-latest" "${WORKER_IMAGE_BASE}:staging-latest"
+    docker tag  "${WORKER_IMAGE_BASE}:dev-latest" "${WORKER_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
+    docker push "${WORKER_IMAGE_BASE}:staging-latest"
+    docker push "${WORKER_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
+
     echo ""
-    echo "✅  Staging image pushed:"
+    echo "✅  Staging images pushed:"
     echo "     ${IMAGE_BASE}:staging-latest"
     echo "     ${IMAGE_BASE}:staging-sha-${SHORT_SHA}"
+    echo "     ${WORKER_IMAGE_BASE}:staging-latest"
+    echo "     ${WORKER_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
     echo ""
     echo "📋  On your staging server, run:"
     echo "     docker compose -f deploy/compose/stage/docker-compose.app.yml pull"
@@ -91,17 +113,25 @@ case "$TARGET" in
 
   # ── PROD: re-tag staging-latest → prod + prod-sha-*, push ─────────────────
   prod)
-    echo "🚀  Promoting staging image → production…"
+    echo "🚀  Promoting staging images → production…"
     docker pull "${IMAGE_BASE}:staging-latest"
     docker tag  "${IMAGE_BASE}:staging-latest" "${IMAGE_BASE}:prod"
     docker tag  "${IMAGE_BASE}:staging-latest" "${IMAGE_BASE}:prod-sha-${SHORT_SHA}"
     docker push "${IMAGE_BASE}:prod"
     docker push "${IMAGE_BASE}:prod-sha-${SHORT_SHA}"
 
+    docker pull "${WORKER_IMAGE_BASE}:staging-latest"
+    docker tag  "${WORKER_IMAGE_BASE}:staging-latest" "${WORKER_IMAGE_BASE}:prod"
+    docker tag  "${WORKER_IMAGE_BASE}:staging-latest" "${WORKER_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
+    docker push "${WORKER_IMAGE_BASE}:prod"
+    docker push "${WORKER_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
+
     echo ""
-    echo "✅  Production image pushed:"
+    echo "✅  Production images pushed:"
     echo "     ${IMAGE_BASE}:prod"
     echo "     ${IMAGE_BASE}:prod-sha-${SHORT_SHA}"
+    echo "     ${WORKER_IMAGE_BASE}:prod"
+    echo "     ${WORKER_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
     echo ""
     echo "📋  On your production server, run:"
     echo "     docker compose -f deploy/compose/prod/docker-compose.app.yml pull"

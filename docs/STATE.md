@@ -1,7 +1,48 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S1 useSignaling client transport hook complete → W6b / W5-runtime / W5b-e / W1b NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S2 BullMQ worker host runtime complete → W5b-e / W6b / W1b NEXT, 2026-06-13)
+
+> **S2 DONE (this session, 2026-06-13).** W5-runtime — BullMQ worker HOST process +
+> device-archive 03:00 UTC cron + container image + compose service. The 6 queue
+> DEFINITIONS (S3) + the device-archive PROCESSOR (W5a) finally have a runtime to execute in.
+> RE-SCOPED to W5-runtime only per Brain q-80-S2-01 (tenant-export/email/logo-image/backup
+> BODIES = separate ordered sub-sessions W5b→W5e; soft-delete-cron stays a throwing stub
+> behind the deferred schema session per q-80-S2-02 — NO schema column added here).
+> • **Runtime layer (NEW `packages/jobs/src/runtime/`):** `processors.ts` (typed `PROCESSORS`
+>   registry — device-archive real, 5 stubs) · `scheduler.ts` (`startDeviceArchiveCron` — a
+>   `device-archive-dispatch` infra queue carries the daily tick via BullMQ `upsertJobScheduler`
+>   `{ pattern:'0 0 3 * * *', tz:'UTC' }`; its dispatcher worker reads non-suspended tenants and
+>   `addBulk`s ONE `{tenantId,userId:'system'}` device-archive job per tenant — security.md cron
+>   rule 7, since the W5a processor is per-tenant) · `worker-host.ts` (`startWorkerHost` — 6 typed
+>   Workers + the cron dispatcher, shared ioredis connection, default opts `attempts:3 +
+>   exponential backoff`, `removeOnFail` keeps 1000 = the DLQ, `failed`/`error` structured-JSON
+>   listeners, `stop()` drains→closes→quits) · `main.ts` (entrypoint `tsx src/runtime/main.ts`,
+>   SIGTERM/SIGINT graceful shutdown).
+> • **ONLY device-archive is cron-scheduled** (03:00 UTC). `backup` (02:00, Step 7) +
+>   `soft-delete-cron` stay UNSCHEDULED — registering their crons would fail daily against stubs;
+>   their schedulers land in W5e / the schema session.
+> • **DLQ note (🟤 lessons):** `email` + `logo-image` HAVE live producers (W3 invitations / W4
+>   branding). With stub Workers now registered, real jobs fail fast → 3 retries → failed set (DLQ)
+>   instead of silent pile-up — the Brain-chosen behavior. W5c/W5d fill the bodies. Branding still
+>   works (the original logo is live from W4); invitation emails won't send until W5c.
+> • **Container:** `packages/jobs/Dockerfile.workers` — 3-stage. Can't esbuild-bundle (Prisma engine
+>   must live in node_modules), so it keeps the workspace install, `prisma generate`s in-image, runs
+>   the TS entrypoint with `tsx` (NEW devDep `tsx ^4.19.2`). Non-root + tini, no port.
+> • **Compose:** `deploy/compose/{dev,stage,prod}/docker-compose.worker.yml` — dev builds; stage/prod
+>   pull `${DOCKERHUB_USERNAME}/${WORKER_IMAGE_NAME:-yelli-worker}` (NO build:). No host port / no
+>   Traefik (background). `start.sh` wires it in (after app); `push.sh` builds/promotes the separate
+>   `yelli-worker` image alongside the app.
+> • **`packages/jobs/package.json`** +`"start":"tsx src/runtime/main.ts"`; **`index.ts`** exports
+>   `startWorkerHost`/`WorkerHost`/`PROCESSORS`. LOCKED `queues.ts` + the 6 worker files UNTOUCHED.
+> Validation all green: pnpm install ✓ (tsx relinked), prisma generate ✓, turbo typecheck 7/7, lint
+> 7/7, test 2/2 (web) + signaling, `next build` ✓ (2/2). **Dispatch note (Rule 15): authored
+> Opus-inline — standing V32.1 env-structural swarm fallback; the runtime layer (processors→scheduler
+> →host→entrypoint) shares types + the Redis connection + shutdown path, and the Docker/compose files
+> must match the entrypoint path/script verbatim = single indivisible unit ⇒ no fan-out warranted
+> regardless; R1 deviation accepted per the standing pattern.**
+> **W5-runtime is the host; the queue BODIES remain: W5b (tenant-export) → W5c (email) → W5d
+> (logo-image) → W5e (backup), dispatched IN ORDER. soft-delete-cron stays deferred behind the schema session.**
 
 > **S1 DONE (this session, 2026-06-13).** W2b-2 — `useSignaling` client transport
 > hook (`apps/yelli/src/hooks/useSignaling.ts` + `env.NEXT_PUBLIC_SIGNALING_URL`).

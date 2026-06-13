@@ -2,6 +2,57 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S2 — BullMQ worker host runtime (W5-runtime)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — the
+  runtime layer is one cohesive unit: processors → scheduler → host → entrypoint share
+  types + the Redis connection + shutdown path, and the Docker/compose files must match
+  the entrypoint path/script verbatim; no fan-out warranted).
+- Why: The 6 BullMQ queues + device-archive processor (W5a) had no host to run in. This
+  session adds the long-running worker process: one `Worker` per queue + the
+  device-archive 03:00 UTC cron + container image + compose service. RE-SCOPED to
+  W5-runtime only per Brain q-80-S2-01 (the tenant-export/email/logo-image/backup BODIES
+  are separate ordered sub-sessions W5b–W5e; soft-delete-cron stays a throwing stub
+  behind the deferred schema session per q-80-S2-02).
+- Files added:
+  - `packages/jobs/src/runtime/processors.ts` — typed `PROCESSORS` registry (queue →
+    processor): device-archive real (W5a); the other 5 against their guard-wired S3 stubs.
+  - `packages/jobs/src/runtime/scheduler.ts` — `startDeviceArchiveCron()`. A `device-archive-dispatch`
+    infra queue carries the daily tick (BullMQ `upsertJobScheduler`, pattern `0 0 3 * * *`,
+    `tz: 'UTC'`); its dispatcher worker reads non-suspended tenants and `addBulk`s ONE
+    `{tenantId, userId:'system'}` device-archive job per tenant (security.md cron rule 7 —
+    explicit per-tenant iteration; W5a processor is per-tenant). Only device-archive is
+    scheduled — backup (02:00) + soft-delete stay UNSCHEDULED until their bodies land.
+  - `packages/jobs/src/runtime/worker-host.ts` — `startWorkerHost()`: 6 typed Workers +
+    the cron dispatcher, shared ioredis connection, default job opts (attempts 3 +
+    exponential backoff; `removeOnFail` keeps the last 1000 = the DLQ), `failed`/`error`
+    structured-JSON listeners (DLQ observability), and a `stop()` that drains workers →
+    closes queues → quits Redis.
+  - `packages/jobs/src/runtime/main.ts` — container entrypoint (`tsx src/runtime/main.ts`):
+    boots the host, installs SIGTERM/SIGINT graceful-shutdown.
+  - `packages/jobs/Dockerfile.workers` — 3-stage image. Cannot esbuild-bundle (Prisma
+    engine must live in node_modules), so it keeps the workspace install, `prisma generate`s
+    inside the image, and runs the TS entrypoint via `tsx`. Non-root + tini. No port.
+  - `deploy/compose/{dev,stage,prod}/docker-compose.worker.yml` — `worker` service. Dev
+    builds from source; stage/prod pull `${DOCKERHUB_USERNAME}/${WORKER_IMAGE_NAME:-yelli-worker}`
+    from Docker Hub (NO build: key). No host port / no Traefik labels (background process).
+- Files modified:
+  - `packages/jobs/src/index.ts` — export `startWorkerHost` / `WorkerHost` / `PROCESSORS`.
+  - `packages/jobs/package.json` — `"start": "tsx src/runtime/main.ts"` + `tsx ^4.19.2` devDep.
+  - `deploy/compose/start.sh` — wire `docker-compose.worker.yml` into the project (after app).
+  - `deploy/compose/push.sh` — build/tag/promote the separate `yelli-worker` image alongside app.
+  - `pnpm-lock.yaml` — relinked for `tsx`.
+- Schema/migrations: none.
+- Non-blocking notes:
+  - The `email` + `logo-image` queues HAVE live producers (W3 invitations / W4 branding).
+    With their stub Workers now registered, real enqueued jobs fail fast (throw → 3 retries
+    → land in the failed set = DLQ) instead of piling up unprocessed. This is the
+    Brain-chosen behavior (q-80-S2-01: "no-op/throw until filled") — surfaces the gap
+    rather than hiding it. W5c (email) + W5d (logo-image) replace the bodies. Logged 🟤.
+- Errors encountered: none (typecheck/lint clean first pass).
+- Validation: pnpm install ✓ (tsx relinked) · prisma generate ✓ · turbo typecheck 7/7 ✓ ·
+  lint 7/7 ✓ · test 2/2 (web) + signaling ✓ · build 2/2 (web + signaling) ✓.
+
 ### 2026-06-13 — Phase 4 Swarm Session S1 — useSignaling client transport hook
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — a

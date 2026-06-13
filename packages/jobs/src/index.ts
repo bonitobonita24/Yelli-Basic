@@ -24,3 +24,8 @@ export { processSoftDeleteCron } from './workers/soft-delete-cron';
 export { processBackup } from './workers/backup';
 export { processEmail } from './workers/email';
 export { processLogoImage } from './workers/logo-image';
+
+// Worker host runtime — the long-running process that instantiates the Workers +
+// device-archive cron. The container entrypoint is `src/runtime/main.ts`.
+export { startWorkerHost, type WorkerHost } from './runtime/worker-host';
+export { PROCESSORS, type Processor } from './runtime/processors';
