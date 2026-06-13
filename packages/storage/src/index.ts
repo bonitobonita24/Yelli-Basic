@@ -18,4 +18,4 @@ export {
   MAX_BRANDING_BYTES,
   type BrandingMime,
 } from './validate';
-export { putBrandingLogo, getBrandingObject } from './client';
+export { putBrandingLogo, getBrandingObject, putTenantExport, getSignedObjectUrl } from './client';

@@ -1,7 +1,60 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B3 W5d logo-image worker body DONE → W5b/W5e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B4 W5b tenant-export worker body DONE → W5e backup body / ScreenTenantSettings NEXT, 2026-06-13)
+
+> **B4 DONE (this session, 2026-06-13).** W5b — the tenant-export-worker BODY (Flow I, #15
+> GDPR/DPA export). The S3 throwing stub in `packages/jobs/src/workers/tenant-export.ts` is now a real
+> gather→upload→presign→persist path. 1 worker rewritten + 2 storage helpers + 1 storage dep, all green.
+> • **Gather → upload → presign → flip-to-ready (W5b brief).** The worker loads + claims the
+>   `ExportJob` row scoped by `{id: exportJobId, tenantId}` (status→`processing`), assembles a
+>   tenant-scoped JSON bundle (Tenant + Users + Devices + Invitations + AuditLog + CallSession — the
+>   stub's named set + Tenant/Invitations for a complete GDPR export), uploads it to S3/MinIO under
+>   `exports/<tenantId>/<exportJobId>.json` via a NEW `putTenantExport` helper, presigns a 24h GET URL
+>   via a NEW `getSignedObjectUrl` helper (`@aws-sdk/s3-request-presigner` `getSignedUrl`), then flips
+>   the row to `ready` with `signedUrl`/`readyAt`/`expiresAt`/`payloadBytes` (all `updateMany` scoped
+>   `{id, tenantId}` → 0 rows = row deleted mid-flight = warn + no-op, no DLQ spam, device-archive
+>   precedent).
+> • **Tenant scoping + secret omission (security.md).** Runs on the base UNGUARDED PrismaClient outside
+>   the tRPC L6 guard, so EVERY query is scoped to `job.data.tenantId` explicitly (DB Safety #9, IDOR
+>   defense-in-depth). `User.passwordHash` + `Invitation.tokenHash` are excluded via explicit `select`
+>   (the generated Prisma 5.22 client typed `omit` as `never` here, so `select` is the bulletproof
+>   route) — an export must NEVER carry credential material.
+> • **No new credential.** Storage reached through `@yelli/storage`, reusing the already-provisioned
+>   MinIO/S3 branding-upload env (`STORAGE_ENDPOINT`/`STORAGE_BUCKET`/`STORAGE_ACCESS_KEY`/
+>   `STORAGE_SECRET_KEY`) — same client, same bucket, new `exports/` key prefix. The dedicated
+>   `yelli-backups-prod` / `tenant-exports/` lifecycle bucket (PRODUCT.md §bucket spec) is a
+>   deployment-routing concern, NOT wired here (would be a new config = out of brief scope).
+> • **Audit policy (W5b brief, device-archive / W5c / W5d precedent).** Structured-JSON completion +
+>   failure logs ONLY (via the shared `_validate.log` helper) — NO AuditLog row, NO AUDIT_ACTIONS vocab
+>   change. `tenant.export.requested`/`.ready`/`.downloaded` ALREADY exist in AUDIT_ACTIONS and are the
+>   router's concern (request / markDownloaded); this worker is storage infrastructure. Logs carry
+>   counts + the internal storage key only — NEVER the signed URL or PII. On any throw: emit the error
+>   log (message only) then rethrow → BullMQ `attempts:3` + backoff → DLQ. `ExportJobStatus` has no
+>   `failed` value (enum is `queued|processing|ready|expired`), so a failed row stays `processing`; the
+>   host `failed` listener is the surfaced signal and a re-request makes a fresh job.
+> • **Delivery gap (surfaced, not papered over — W5c verify/reset posture).** PRODUCT.md #15 says the
+>   worker "emails the signed link", but the LOCKED `EmailJobData` has no `export` kind / URL field, so
+>   emailing would require editing LOCKED `queues.ts` + the B2 email worker (out of W5b scope). The
+>   signed URL is delivered IN-APP via `ExportJob.signedUrl` (the column exists for exactly this; Flow I
+>   admin export list reads it). The email leg is deferred to a future export-email session.
+> • **Deps:** `@aws-sdk/s3-request-presigner ^3.700.0` (Apache-2.0/OSS, Rule 14; version-matched to the
+>   existing `@aws-sdk/client-s3`) added to `packages/storage` deps. `queues.ts` / `_validate.ts` /
+>   `processors.ts` / `worker-host.ts` UNTOUCHED — the worker was already registered against the stub in
+>   S2; only its body + 2 storage helpers + the storage index re-export changed.
+> Validation all green: `pnpm install` ✓ (+1: s3-request-presigner), prettier ✓, jobs typecheck 0 /
+> lint 0, storage typecheck 0 / lint 0, turbo typecheck+lint 14/14, test 11/11 (web — jobs/storage have
+> no test task; the gather→upload→presign path needs a live MinIO + seeded tenant, flagged for W8/S6
+> end-to-end validation), `next build` ✓ 2/2 (route table unchanged — the worker runs in the @yelli/jobs
+> host process, not a web route; only the pre-existing non-fatal @prisma/client `export *` Turbopack warning).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, sub-agent dispatch unreliable per lessons.md). The worker body DEPENDS on the
+> two storage helpers it consumes (sequential dependency, not independent) = one cohesive unit, no
+> fan-out boundary ⇒ no parallel fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: W5e (backup pg_dump → S3) queue body — the last W5 body → deferred ScreenTenantSettings
+> (Phase-3.3 prototype + `tenants.update`) → re-dispatch S6 as the real W8 end-to-end validation.**
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B3 W5d logo-image worker body DONE → W5b/W5e queue bodies / ScreenTenantSettings NEXT, 2026-06-13)
 
 > **B3 DONE (this session, 2026-06-13).** W5d — the logo-image-worker BODY (sharp resize/optimize),
 > branding pipeline. The S3 throwing stub in `packages/jobs/src/workers/logo-image.ts` is now a real

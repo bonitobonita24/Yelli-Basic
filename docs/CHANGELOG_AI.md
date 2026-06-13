@@ -1869,3 +1869,54 @@ Reference-only. No code from the entries below survives on the filesystem after 
                        OverlayCallRoleAssign into the admin device directory. Human reviews branch swarm/rebuild
                        and pushes; worker never pushes.
 - Commit:              feat(phase-4-S3b): Port OverlayIncomingCall + OverlayCallRoleAssign + ScreenActiveCall (Flow A core)
+
+## 2026-06-13 — Phase 4 B4 — W5b tenant-export worker body (Flow I, s3-request-presigner)
+- Agent:               CLAUDE_CODE
+- Why:                 Fill the tenant-export-worker BODY (the S2-registered stub threw). Flow I (#15
+                       GDPR/DPA export): gather tenant data → upload JSON to S3/MinIO → presign a 24h
+                       download URL → flip the ExportJob row to `ready`. One ordered W5 sub-session (W5b).
+- Files modified:      packages/jobs/src/workers/tenant-export.ts (stub → real gather/upload/presign/persist
+                       body); packages/storage/src/client.ts (+putTenantExport, +getSignedObjectUrl);
+                       packages/storage/src/index.ts (re-export the 2 helpers); packages/storage/package.json
+                       (+@aws-sdk/s3-request-presigner ^3.700.0); docs/STATE.md; docs/CHANGELOG_AI.md.
+- Files added:         none (all edits/extends — brownfield).
+- Behavior:            Load+claim ExportJob scoped {id, tenantId} (status→processing) → assemble tenant-scoped
+                       JSON bundle (Tenant + Users + Devices + Invitations + AuditLog + CallSession, every query
+                       filtered by tenantId) → PUT to `exports/<tenantId>/<exportJobId>.json` via @yelli/storage
+                       (reuses provisioned MinIO/S3 branding creds — same bucket, exports/ prefix; NO new cred) →
+                       presign a 24h GET URL (@aws-sdk/s3-request-presigner getSignedUrl) → updateMany {id,
+                       tenantId} status→ready + signedUrl/readyAt/expiresAt/payloadBytes. 0-row updates =
+                       deleted mid-flight = warn + no-op (device-archive precedent).
+- Security:            DB Safety #9 — runs on base UNGUARDED PrismaClient, so every query scoped to tenantId
+                       explicitly (IDOR defense-in-depth). User.passwordHash + Invitation.tokenHash EXCLUDED via
+                       explicit `select` (Prisma 5.22 generated client typed `omit` as `never` here) — an export
+                       never carries credential material. File Upload Safety #8 — storage key is server-controlled,
+                       never a raw client path. Signed URL / token / PII never logged.
+- Audit:               structured-JSON completion + failure logs ONLY (shared _validate.log) — NO AuditLog row,
+                       NO AUDIT_ACTIONS vocab change. tenant.export.requested/.ready/.downloaded already exist and
+                       are the router's concern; this worker is storage infra. ExportJobStatus has no `failed`
+                       value → on throw the row stays `processing`, error log + rethrow → DLQ (BullMQ attempts:3 +
+                       backoff); host `failed` listener is the surfaced signal, re-request makes a fresh job.
+- Scope decision:      Email delivery of the link (PRODUCT.md #15) DEFERRED — LOCKED EmailJobData has no `export`
+                       kind / URL field; emailing would edit LOCKED queues.ts + the B2 email worker (out of W5b
+                       scope). The signed URL is delivered IN-APP via ExportJob.signedUrl (column exists for this;
+                       Flow I admin list reads it). Surface-the-gap posture (W5c verify/reset precedent). Dedicated
+                       tenant-exports/ lifecycle bucket (PRODUCT.md) is a deployment-routing concern, not wired.
+- Deps:                +@aws-sdk/s3-request-presigner ^3.700.0 (Apache-2.0/OSS, Rule 14; matches @aws-sdk/client-s3).
+                       queues.ts / _validate.ts / runtime host UNTOUCHED.
+- Validation:          pnpm install ✓ (+1); prettier ✓; jobs typecheck 0 / lint 0; storage typecheck 0 / lint 0;
+                       turbo typecheck+lint 14/14; test 11/11 (web — jobs/storage no test task; gather→upload→
+                       presign needs live MinIO + seeded tenant → flagged W8/S6); `next build` ✓ 2/2 (route table
+                       unchanged — worker runs in @yelli/jobs host, not a web route; only pre-existing non-fatal
+                       @prisma/client `export *` Turbopack warning).
+- Errors encountered/resolved: jobs typecheck flagged `omit` as `never` on the generated Prisma 5.22 client →
+                       resolved by switching the User/Invitation secret-omission to explicit `select`. No thrash.
+- Execution note (Rule 15 / V32.1): authored Opus-inline — standing env-structural swarm fallback (sub-agent
+                       dispatch unreliable in headless `claude -p`; see lessons.md / STATE.md). The worker body
+                       DEPENDS on the two new storage helpers it consumes (sequential dependency, not independent)
+                       = one cohesive unit ⇒ no parallel fan-out warranted regardless; R1 deviation accepted.
+- Hand-off:            W5b body on disk; the live producer (future tenant-export request router) will enqueue real
+                       jobs that now fulfil instead of DLQ-ing. NEXT: W5e (backup pg_dump → S3) — last W5 body →
+                       deferred ScreenTenantSettings → re-dispatch S6 as the real W8 end-to-end validation. Human
+                       reviews branch swarm/rebuild and pushes; worker never pushes.
+- Commit:              feat(phase-4-B4): W5b tenant-export worker body (s3-request-presigner)

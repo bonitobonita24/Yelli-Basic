@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 /**
  * S3 / MinIO object PUT for branding logos. The same S3 API covers MinIO (dev)
@@ -85,4 +86,45 @@ export async function getBrandingObject(
   // AWS SDK v3 streaming blob → bytes (Node, browser, and edge runtimes all support this).
   const bytes = await response.Body.transformToByteArray();
   return { bytes, contentType: response.ContentType };
+}
+
+/**
+ * Upload a tenant data-export bundle (GDPR/DPA JSON) under a deterministic,
+ * tenant-prefixed key (security.md File Upload Safety #5: tenantId path prefix).
+ * Used by the tenant-export worker (@yelli/jobs). Reuses the SAME provisioned
+ * storage creds/bucket as branding uploads (no new credential) — the dedicated
+ * `tenant-exports/` lifecycle bucket is a deployment-routing concern (PRODUCT.md
+ * bucket spec), not wired here. Returns the storage key for presigning.
+ */
+export async function putTenantExport(input: {
+  tenantId: string;
+  exportJobId: string;
+  bytes: Uint8Array;
+}): Promise<{ key: string }> {
+  const { client, bucket } = getStorage();
+  const key = `exports/${input.tenantId}/${input.exportJobId}.json`;
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: input.bytes,
+      ContentType: 'application/json',
+    }),
+  );
+
+  return { key };
+}
+
+/**
+ * Presign a time-limited GET URL for a stored object (S3 SigV4 / MinIO-compatible).
+ * The tenant-export worker uses this to hand the requesting admin a download link
+ * valid 24h (LOCKED signed-URL TTL). `key` is server-controlled (the value returned
+ * by `putTenantExport`) — never a raw client path (security.md File Upload Safety #8).
+ */
+export async function getSignedObjectUrl(key: string, expiresInSeconds: number): Promise<string> {
+  const { client, bucket } = getStorage();
+  return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), {
+    expiresIn: expiresInSeconds,
+  });
 }
