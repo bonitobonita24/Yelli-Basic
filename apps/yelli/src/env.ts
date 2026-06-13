@@ -34,17 +34,32 @@ type Env = z.infer<typeof schema>;
 const skip =
   process.env.SKIP_ENV_VALIDATION === '1' || process.env.SKIP_ENV_VALIDATION === 'true';
 
+// Client-safe subset: only these are inlined into the browser bundle by Next
+// (NEXT_PUBLIC_* + NODE_ENV). The server-only vars (AUTH_SECRET / DATABASE_URL /
+// REDIS_URL / EDITION / …) are absent client-side BY DESIGN, so validating the full
+// schema in a client chunk (e.g. when the useSignaling hook imports `env` for
+// NEXT_PUBLIC_SIGNALING_URL) spuriously threw "Invalid environment variables" in the
+// browser. On the client we validate only the public subset; the server still
+// validates everything.
+const clientSchema = schema.pick({
+  NODE_ENV: true,
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: true,
+  NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY: true,
+  NEXT_PUBLIC_SIGNALING_URL: true,
+});
+
 function load(): Env {
   if (skip) {
     // Build-time: trust the ambient env; runtime container start provides real values.
     return process.env as unknown as Env;
   }
-  const parsed = schema.safeParse(process.env);
+  const isServer = typeof window === 'undefined';
+  const parsed = (isServer ? schema : clientSchema).safeParse(process.env);
   if (!parsed.success) {
     console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
     throw new Error('Invalid environment variables');
   }
-  return parsed.data;
+  return parsed.data as Env;
 }
 
 export const env = load();
