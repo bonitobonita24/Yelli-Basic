@@ -15,7 +15,10 @@ export default defineConfig({
     },
   },
   test: {
+    // Default node env (router/lib unit tests); component tests opt into jsdom via
+    // a per-file `// @vitest-environment jsdom` pragma.
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    setupFiles: ['./src/test-setup.ts'],
   },
 });
