@@ -1,7 +1,43 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B5 W5e backup worker body DONE → all W5 bodies filled · ScreenTenantSettings / S6 W8 e2e NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B6 dependency remediation DONE → 2 HIGH CVEs cleared, Phase 5 audit gate green · ScreenTenantSettings / S6 W8 e2e NEXT, 2026-06-13)
+
+> **B6 DONE (this session, 2026-06-13).** Dependency remediation — cleared the 2 HIGH CVEs blocking the
+> Phase 5 `pnpm audit --audit-level=high` gate on `swarm/rebuild`. 2 manifest edits + the regenerated
+> lockfile; **zero source-code change** (the email worker compiles unchanged against nodemailer 7).
+> • **nodemailer 6→7 MAJOR bump (GHSA-rcmh-qjqh-p98v — addressparser recursive-call DoS).**
+>   `packages/jobs` dep `^6.9.16` → `^7.0.11` + `@types/nodemailer` `^6.4.17` → `^7.0.11` (resolved to
+>   nodemailer 7.0.13). The v7 `createTransport` / `sendMail` / `SentMessageInfo`
+>   (`accepted`/`rejected`/`messageId`) API is UNCHANGED from v6 — the W5c email worker
+>   (`src/workers/email.ts`) compiles + behaves identically, **no worker code edit needed** (verified by
+>   a clean typecheck). The worker passes structured `{from,to,subject,text,html}` options, never raw
+>   address strings, so it never hit the vulnerable recursive-parser path.
+> • **esbuild RCE (GHSA-gv7w-rqvm-qjhr — NPM_CONFIG_REGISTRY binary-integrity bypass).** Added pnpm
+>   override `esbuild: ">=0.28.1"` (the `apps/signaling` transitive toolchain dep; latest published is
+>   exactly the 0.28.1 patched floor → resolved to 0.28.1).
+> • **Second nodemailer path (transitive — beyond the brief's named scope, required by the stated GOAL).**
+>   The first audit pass after the jobs bump still showed 1 HIGH: `apps/signaling > @auth/core >
+>   nodemailer@6.10.1` (an OPTIONAL peer of @auth/core; signaling only consumes `@auth/core/jwt`, never
+>   the email provider, so it is not functionally exercised). The brief's scope item (1) named only the
+>   jobs path, but its stated GOAL is "confirm 0 high / 0 critical" — cleared via the SAME pnpm-override
+>   mechanism the brief prescribed for esbuild: `nodemailer: ">=7.0.11"` forces every nodemailer path to
+>   7.0.13. Same CVE, same package, same fix version — minimal in-scope extension, not a refactor.
+> • **Audit policy:** structured logs only, no AuditLog change (dependency-manifest change, no domain
+>   event). PRODUCT.md NOT touched.
+> Validation all green: `pnpm install` ✓ (only the documented pre-existing tRPC/next-auth/aws-sdk peer
+> warnings), prettier ✓, turbo typecheck 7/7, turbo lint 7/7, turbo test 2/2 (web + signaling),
+> `next build` 2/2 (route table unchanged). **`pnpm audit --audit-level=high`: 0 high / 0 critical**
+> (5 remaining = 2 low + 3 moderate, all below the gate threshold).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, sub-agent dispatch unreliable per lessons.md). Two manifest edits + one lockfile
+> + sequential audit verification = one indivisible unit, no independent fan-out boundary ⇒ no parallel
+> fan-out warranted regardless; R1 deviation accepted per the standing pattern.**
+> **NEXT: Phase 5 audit gate now passes. Remaining: deferred ScreenTenantSettings (Phase-3.3 prototype +
+> `tenants.update`) → the 02:00 backup cron + soft-delete-cron schedulers (await provisioned creds + the
+> schema column) → re-dispatch S6 as the real W8 end-to-end validation.**
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · B5 W5e backup worker body DONE → all W5 bodies filled · ScreenTenantSettings / S6 W8 e2e NEXT, 2026-06-13)
 
 > **B5 DONE (this session, 2026-06-13).** W5e — the backup-worker BODY (`pg_dump`→S3), the LAST
 > unfilled W5 body. The S3 throwing stub in `packages/jobs/src/workers/backup.ts` is now a real, but

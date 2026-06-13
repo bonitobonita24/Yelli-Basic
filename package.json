@@ -35,7 +35,9 @@
       "sharp"
     ],
     "overrides": {
-      "ioredis": "5.10.1"
+      "ioredis": "5.10.1",
+      "esbuild": ">=0.28.1",
+      "nodemailer": ">=7.0.11"
     }
   }
 }
