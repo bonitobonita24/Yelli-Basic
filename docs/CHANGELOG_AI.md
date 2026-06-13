@@ -2,6 +2,46 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-13 — Phase 4 Swarm Session S4 — W1b app shell + nav + role-aware landing + gated admin routes + session-kill listener
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless
+  `claude -p` worker; sub-agent dispatch unreliable in this environment. The shell chrome + the two
+  layouts + the session-kill listener + the gated screen mounts share one `ctx` prop contract + the
+  Clay token surface = one cohesive interdependent app-shell unit, indivisible — no parallel fan-out
+  warranted regardless. R1 deviation accepted per the standing pattern.)
+- Why: Build the app shell the S3a–S3d UI ports deferred ("W1b mounts chrome") — role-aware chrome
+  (tenant brand, nav, footer), a role-aware Directory landing replacing the placeholder `page.tsx`,
+  the gated mounting of the 3 ported admin screens as real routes, and the root Step 6 session-kill
+  PUSH listener (30s SLO).
+- SCOPE RECONCILED FROM AUTHORITATIVE ARTIFACTS (no escalation): the brief named `trpc.brand.get`
+  (does not exist — `brand` router only has `update`; brand lives on `Tenant`, via `tenants.get`) and
+  a tenant resolver in `middleware.ts` (Next 16 renamed it `proxy.ts`, ALREADY built in W3 — the
+  `ƒ Proxy (Middleware)`). Resolved by S3c-class precedent: brand resolved SERVER-side and passed as
+  a prop (`tenants.get` is auth-gated and blind to LAN-anonymous admins); proxy.ts NOT recreated. The
+  attached q-S4-01/03 S4a/S4b answers describe the original scaffold (S0–S4b, already built).
+- Files added: `apps/yelli/src/components/shell/AppShell.tsx` (Clay-token chrome + role-aware nav +
+  mobile bottom nav + user dropdown sign-out + footer), `…/shell/SessionKillListener.tsx` (useSignaling
+  onSessionKill → signOut, idle-until-ready), `apps/yelli/src/lib/device-id.ts` (localStorage deviceId),
+  `apps/yelli/src/lib/server/app-context.ts` (`resolveAppShellContext` — Cloud + LAN admin role + brand),
+  `app/(app)/layout.tsx` + `app/(app)/page.tsx` (shell-wrapped role-aware Directory landing),
+  `app/admin/layout.tsx` (admin gate + shell) + `app/admin/{members,invitations,audit}/page.tsx`
+  (mount the S3c/S3d-ported screens — resolves the live S3a `/admin/members` 404).
+- Files deleted: `apps/yelli/src/app/page.tsx` (placeholder; replaced by `app/(app)/page.tsx`).
+- Files modified: none (governance docs excepted).
+- Schema/migrations: none.
+- Deps: none added.
+- Reconciliations / deferrals (documented, non-blocking): device-home call-engine (peer directory +
+  RTCPeerConnection + CALL); `/api/auth/ws-token` + device↔user binding (q-W2b-04 — lights up the
+  session-kill PUSH; PULL path already covers the SLO); LAN-admin sign-out route `/api/admin/logout`
+  (Cloud signOut works); ScreenTenantSettings (awaits a Phase-3.3 prototype pass).
+- Errors encountered/resolved: eslint flagged an `eslint-disable @next/next/no-img-element` comment
+  for a rule not configured in this project ("rule not found") — removed the disable (the `<img>`
+  lints clean without it, the rule being inactive). A `git mv`/route change left stale `.next/types`
+  → `rm -rf apps/yelli/.next` before typecheck/build (known S3a gotcha).
+- Validation: prettier ✓, prisma generate ✓, web typecheck 0, web lint 0/0, web test 2/2, `next build`
+  ✓ (route table: `ƒ /`, `ƒ /admin/{members,invitations,audit}`, `ƒ /admin/login`, `ƒ Proxy (Middleware)`
+  — no collision), turbo typecheck+lint 14/14. Only the pre-existing non-fatal @prisma `export *` warning.
+
 ### 2026-06-13 — Phase 4 Swarm Session S3d — Port ScreenAdminAudit (Flow H audit view); ScreenTenantSettings DEFERRED
 
 - Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural swarm fallback — headless

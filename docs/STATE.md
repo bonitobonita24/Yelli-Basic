@@ -1,7 +1,71 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S3d audit-view UI port complete → W1b app-shell / W5b-e / W6b / deferred ScreenTenantSettings NEXT, 2026-06-13)
+## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S4 app-shell DONE → device-home call-engine / W5b-e / W6b / deferred ScreenTenantSettings NEXT, 2026-06-13)
+
+> **S4 DONE (this session, 2026-06-13).** W1b app-shell — the chrome + role-aware
+> landing + role-aware nav + footer that the S3a–S3d ports deferred ("W1b mounts chrome"),
+> the gated mounting of the 3 admin screens as real routes, and the root session-kill PUSH
+> listener (Step 6, 30s SLO). 10 files (8 NEW + delete old `app/page.tsx` + edit), all green,
+> zero new deps.
+> • **SCOPE RECONCILIATION (resolved from authoritative artifacts — no escalation):** the brief
+>   named `trpc.brand.get` (does not exist — the `brand` router only has `update`; the brand lives
+>   on `Tenant`, exposed by `tenants.get`) and "tenant resolver in `middleware.ts`" (Next 16 renamed
+>   it `proxy.ts`, ALREADY built in W3 — the `ƒ Proxy (Middleware)` in every build). Both resolved
+>   by precedent (S3c-class brief-vs-reality): the brand is resolved **server-side** and passed as a
+>   prop (see below) and the resolver is NOT recreated. The stale q-S4-01/03 S4a/S4b answers describe
+>   the original scaffold (committed 1eb2ae4 / S0–S4b) and are already built — this session is the
+>   W1b app-shell the brief TITLE names.
+> • **AppShell** (`apps/yelli/src/components/shell/AppShell.tsx`, NEW): the Clay-token chrome —
+>   tenant top bar (brand + slug host + lucide/logo), role-aware top nav (md+) + mobile bottom nav,
+>   user `DropdownMenu` with Sign out, footer (Powerbyte credit, MOCKUP verbatim). Pure
+>   presentational client component; role + brand arrive as a `ctx` prop. Zero raw hex — every
+>   MOCKUP hex mapped to a Clay semantic token (ui-rules Rule 3): `#fffaf0`→`bg-canvas`,
+>   `#1a3a3a`→`bg-brand-teal`, `#e5e5e5`→`border-border`, `#0a0a0a`→`text-text-primary`,
+>   `#6a6a6a`→`text-text-muted`, `#b8a4ed`→`bg-brand-lavender`. Nav links DERIVED from `isAdmin`
+>   (Directory always; Members/Invitations/Audit admin-only) → mounts the existing S3 routes.
+> • **`resolveAppShellContext`** (`src/lib/server/app-context.ts`, NEW): server-side resolver of
+>   `{ isAdmin, tenantId, userLabel, brand }`. **Why server-side (the brand reconciliation):**
+>   `tenants.get` is a `protectedProcedure` → throws UNAUTHORIZED for LAN-anonymous admins (cookie,
+>   no Auth.js user), and `useSession()` is blind to LAN admins entirely. So role is resolved from
+>   BOTH `auth()` (Cloud `role:'admin'`) AND `getLanAdminSession()` (LAN cookie), and the brand from
+>   a base-client `tenant.findUnique` self-lookup by id (no cross-tenant exposure). Works in both
+>   editions, no client flash.
+> • **`(app)` route group** (`app/(app)/layout.tsx` + `app/(app)/page.tsx`, NEW; old `app/page.tsx`
+>   deleted): the layout wraps the Directory landing in `AppShell`; the page is the role-aware shared
+>   home (PROTOTYPE.md §3 "same screen serves LAN/Cloud/account") — idle CALL hero for all + admin
+>   quick-link cards when `isAdmin`. The live peer directory + RTCPeerConnection CALL action are the
+>   **device-home call-engine session** (the broader W1b engine, out of this app-shell title's scope).
+> • **Gated admin area** (`app/admin/layout.tsx` + `members|invitations|audit/page.tsx`, NEW): server
+>   gate (`!isAdmin → redirect('/admin/login')`) + `AppShell`; the 3 pages are trivial wrappers of the
+>   S3c/S3d-ported `ScreenAdmin{Members,Invitations,Audit}`. **This resolves the live S3a gap** — the
+>   Flow E login pushed to `/admin/members`, which 404'd until now. `/admin/login` stays in `(public)`
+>   (outside this subtree) → ungated. No route collision (build route table confirms distinct paths).
+> • **SessionKillListener** (`src/components/shell/SessionKillListener.tsx`, NEW) + **`useDeviceId`**
+>   (`src/lib/device-id.ts`, NEW): root-mounted Step 6 PUSH listener — `useSignaling` `onSessionKill`
+>   → `signOut`. **Idle-until-ready posture (S1/W6a precedent):** the socket only connects with a
+>   configured `NEXT_PUBLIC_SIGNALING_URL` (absent in LAN/dev) + a resolved localStorage deviceId;
+>   `getToken` fetches `/api/auth/ws-token` which **lands with the device-session model (q-W2b-04)**,
+>   so until then it returns null and the PUSH path stays dormant — the already-live PULL path (jwt/
+>   session DB-revalidate, config.ts) keeps covering the 30s SLO. No crash, no behaviour change.
+> • **Loading states (ui-rules Rule 11):** chrome brand is a server prop (no client fetch) ⇒ no
+>   Skeleton/phantom needed; the mounted S3 screens carry their own PATH-A skeletons.
+> Validation all green: prettier ✓, prisma generate ✓, web typecheck 0, web lint 0/0, web test 2/2,
+> `next build` ✓ (route table now lists `ƒ /`, `ƒ /admin/{members,invitations,audit}`, `ƒ /admin/login`,
+> `ƒ Proxy (Middleware)` — no collision), turbo typecheck+lint 14/14. Only the pre-existing non-fatal
+> @prisma/client `export *` Turbopack warning (S2).
+> **DEFERRED (documented, non-blocking):** device-home call-engine (peer directory + RTCPeerConnection +
+> CALL); `/api/auth/ws-token` + device↔user binding (q-W2b-04, lights up the session-kill PUSH);
+> LAN-admin sign-out route (`/api/admin/logout` — Cloud signOut works; LAN cookie clear is a small
+> follow-up); ScreenTenantSettings (branding/org — still awaits a Phase-3.3 prototype pass).
+> **Dispatch note (Rule 15): authored Opus-inline — standing V32.1 env-structural swarm fallback
+> (headless `claude -p`, subagent dispatch unreliable per lessons.md). The shell chrome + the two
+> layouts + the session-kill listener + the gated screen mounts share the `ctx` prop contract + the
+> Clay token surface = one cohesive interdependent app-shell unit ⇒ no fan-out warranted regardless;
+> R1 deviation accepted per the standing pattern.**
+> **NEXT: device-home call-engine (wire the Directory peer list to `devices.list` + the
+> RTCPeerConnection media engine, driving OverlayIncomingCall/ScreenActiveCall via the single
+> `useSignaling` instance) → W5b-e queue bodies → W6b PWA UI.**
 
 > **S3d DONE (this session, 2026-06-13).** Flow H audit-view UI port — ScreenAdminAudit from
 > the Phase 3.3 signed-off prototype (INHERIT-not-REPLACE), wired to the real `audit` router.
