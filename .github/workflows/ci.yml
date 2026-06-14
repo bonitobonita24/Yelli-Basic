@@ -24,9 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+      - run: corepack enable  # CI runner is Linux root — safe here (WSL2 dev uses npm install -g pnpm instead)
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: "pnpm" }
-      - run: corepack enable  # CI runner is Linux root — safe here (WSL2 dev uses npm install -g pnpm instead)
       - run: pnpm install --frozen-lockfile
       - run: pnpm tools:validate-inputs
       - run: pnpm tools:check-env
@@ -44,9 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+      - run: corepack enable  # safe on CI — Linux root (WSL2 dev uses npm install -g pnpm)
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: "pnpm" }
-      - run: corepack enable  # safe on CI — Linux root (WSL2 dev uses npm install -g pnpm)
       - run: pnpm install --frozen-lockfile
       # Prisma client must exist before typecheck/build (@yelli/db consumers import it).
       - run: pnpm --filter @yelli/db run db:generate
@@ -67,9 +67,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
+      - run: corepack enable
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: "pnpm" }
-      - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - name: Audit for high and critical vulnerabilities
         run: pnpm audit --audit-level=high

@@ -98,6 +98,35 @@ if (!requiredKeys) {
   process.exit(1);
 }
 
+// In CI the generated .env.<env> is gitignored (holds real secrets) and never
+// exists, so validate that the committed .env.example template DECLARES every
+// required key instead. Placeholder values (e.g. "⏳ …") are expected and
+// allowed here — CI only enforces that the contract is documented, not filled.
+const inCI = process.env.CI === "true" || process.env.CI === "1";
+if (inCI) {
+  const exampleFile = resolve(ROOT, ".env.example");
+  if (!existsSync(exampleFile)) {
+    console.error(`❌ .env.example not found — required to validate the env contract in CI.`);
+    process.exit(1);
+  }
+  const declared = parseEnvFile(readFileSync(exampleFile, "utf8"));
+  let missingDecl = 0;
+  for (const key of requiredKeys) {
+    if (key in declared) {
+      console.log(`  ✅ ${key} (declared)`);
+    } else {
+      console.error(`  ❌ ${key} — not declared in .env.example`);
+      missingDecl++;
+    }
+  }
+  if (missingDecl > 0) {
+    console.error(`\n❌ ${missingDecl} required key(s) not declared in .env.example`);
+    process.exit(1);
+  }
+  console.log(`\n✅ .env.example declares all ${requiredKeys.length} required keys for APP_ENV=${appEnv}`);
+  process.exit(0);
+}
+
 const envFile = resolve(ROOT, `.env.${appEnv}`);
 let loadedEnv = {};
 
