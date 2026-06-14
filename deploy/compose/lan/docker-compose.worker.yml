@@ -1,0 +1,24 @@
+networks:
+  app_network:
+    name: ${COMPOSE_PROJECT_NAME}_network
+    external: true
+
+services:
+  worker:
+    # LAN edition uses pre-built images only — no build: key.
+    image: yelli-worker:lan
+    container_name: ${COMPOSE_PROJECT_NAME}_worker
+    hostname: ${COMPOSE_PROJECT_NAME}_worker
+    env_file: ../../../.env.lan
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL_INTERNAL}
+      REDIS_URL: ${REDIS_URL_INTERNAL}
+    # No ports — BullMQ worker, internal only.
+    networks: [app_network]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped

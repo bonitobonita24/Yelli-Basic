@@ -1,0 +1,19 @@
+{
+	# LAN edition — local CA via mkcert, no ACME, no internet.
+	auto_https off
+	admin off
+}
+
+https://${LAN_IP}, https://localhost {
+	tls /certs/lan.pem /certs/lan-key.pem
+
+	# WebSocket signaling — must come before the catch-all reverse_proxy.
+	@ws path /ws*
+	reverse_proxy @ws ${COMPOSE_PROJECT_NAME}_signaling:3001
+
+	reverse_proxy ${COMPOSE_PROJECT_NAME}_app:3000
+}
+
+http://${LAN_IP}, http://localhost {
+	redir https://{host}{uri} permanent
+}

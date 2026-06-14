@@ -1,0 +1,36 @@
+networks:
+  app_network:
+    name: ${COMPOSE_PROJECT_NAME}_network
+    external: true
+
+volumes:
+  minio_data:
+    name: ${COMPOSE_PROJECT_NAME}_minio_data
+
+services:
+  minio:
+    # NOTE: minio/minio:latest is used for consistency with other compose targets.
+    # For production-grade LAN deployments, pin to a specific digest for reproducibility:
+    #   docker inspect --format '{{index .RepoDigests 0}}' minio/minio:latest
+    # and replace `:latest` with `@sha256:<digest>`.
+    image: minio/minio:latest
+    container_name: ${COMPOSE_PROJECT_NAME}_minio
+    hostname: ${COMPOSE_PROJECT_NAME}_minio
+    env_file: ../../../.env.lan
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY}
+    command: server /data --console-address ':9001'
+    volumes:
+      - minio_data:/data
+    # No host ports in LAN mode — MinIO is accessed only by the app container.
+    # To access the MinIO console from localhost for debugging, uncomment below:
+    # ports:
+    #   - "127.0.0.1:9001:9001"
+    networks: [app_network]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,0 +1,32 @@
+networks:
+  app_network:
+    name: ${COMPOSE_PROJECT_NAME}_network
+    external: true
+
+services:
+  app:
+    # LAN edition uses pre-built images only — no build: key.
+    # Load the image before starting: docker load -i dist/yelli-lan-images.tar.gz
+    image: yelli:lan
+    container_name: ${COMPOSE_PROJECT_NAME}_app
+    hostname: ${COMPOSE_PROJECT_NAME}_app
+    env_file: ../../../.env.lan
+    environment:
+      EDITION: lan
+      DATABASE_URL: ${DATABASE_URL_INTERNAL}
+      REDIS_URL: ${REDIS_URL_INTERNAL}
+      NEXTAUTH_URL: https://${LAN_IP}
+      NEXT_PUBLIC_SIGNALING_URL: wss://${LAN_IP}/ws
+    # No host ports — Caddy is the only internet-facing service (ports 80+443).
+    networks: [app_network]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

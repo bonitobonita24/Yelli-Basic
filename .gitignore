@@ -35,6 +35,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.lan.example
 
 # ─── Credentials master list ───
 CREDENTIALS.md

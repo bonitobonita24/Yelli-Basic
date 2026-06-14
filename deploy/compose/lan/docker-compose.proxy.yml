@@ -1,0 +1,41 @@
+networks:
+  app_network:
+    name: ${COMPOSE_PROJECT_NAME}_network
+    external: true
+
+volumes:
+  caddy_data:
+    name: ${COMPOSE_PROJECT_NAME}_caddy_data
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}_caddy
+    hostname: ${COMPOSE_PROJECT_NAME}_caddy
+    # Caddy is the ONLY service that publishes ports to the host.
+    # All other LAN services are internal-only for a minimal attack surface.
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Caddyfile is rendered from Caddyfile.template by install.sh (LAN_IP substituted).
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # mkcert-minted certs live at repo root/certs/ (gitignored).
+      # Path is relative to this compose file location: ../../.. = repo root.
+      - ../../../certs:/certs:ro
+      # Caddy data dir for its internal state.
+      - caddy_data:/data
+    networks: [app_network]
+    depends_on:
+      app:
+        condition: service_healthy
+      signaling:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      # Caddy is healthy when the app returns 200 through it.
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
