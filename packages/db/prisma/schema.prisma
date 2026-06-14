@@ -145,7 +145,8 @@ model Device {
 model Invitation {
   id              String    @id @default(cuid())
   tenantId        String    @map("tenant_id")
-  invitedByUserId String    @map("invited_by_user_id")
+  /// Nullable: LAN-admin invites have no `users` row (synthetic `__lan_admin__` actor → null)
+  invitedByUserId String?   @map("invited_by_user_id")
   email           String
   tokenHash       String    @unique @map("token_hash")
   expiresAt       DateTime  @map("expires_at")
@@ -153,7 +154,7 @@ model Invitation {
   createdAt       DateTime  @default(now()) @map("created_at")
 
   tenant    Tenant @relation(fields: [tenantId], references: [id])
-  invitedBy User   @relation(fields: [invitedByUserId], references: [id])
+  invitedBy User?  @relation(fields: [invitedByUserId], references: [id])
 
   @@index([tenantId])
   @@map("invitations")

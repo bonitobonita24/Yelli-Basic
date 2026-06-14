@@ -84,7 +84,10 @@ export const invitationsRouter = router({
         const inv = await tx.invitation.create({
           data: {
             tenantId: ctx.tenantId,
-            invitedByUserId: ctx.user.id,
+            // FK-safe: the LAN-admin synthetic actor (`__lan_admin__`) has no `users`
+            // row, so collapse the sentinel → null — the same mapping the audit layer
+            // uses (resolveAuditActorId). Real Auth.js user ids pass through unchanged.
+            invitedByUserId: resolveAuditActorId(ctx.user.id),
             email: input.email,
             tokenHash,
             expiresAt,

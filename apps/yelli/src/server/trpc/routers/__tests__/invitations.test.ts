@@ -26,11 +26,12 @@ vi.mock('@yelli/db', () => ({
 vi.mock('@/server/jobs/email-queue', () => ({ enqueueInvitationEmail: h.enqueue }));
 
 const { invitationsRouter } = await import('@/server/trpc/routers/invitations');
+const { LAN_ADMIN_ACTOR_ID } = await import('@/server/trpc/audit-actor');
 
-function caller(role: 'admin' | 'member') {
+function caller(role: 'admin' | 'member', userId = 'caller1') {
   return invitationsRouter.createCaller({
     session: {
-      user: { id: 'caller1', email: 'a@x.test', name: 'A', tenantId: 't1', role, securityVersion: 0 },
+      user: { id: userId, email: 'a@x.test', name: 'A', tenantId: 't1', role, securityVersion: 0 },
       expires: '2099-01-01',
     },
   } as never);
@@ -63,6 +64,19 @@ describe('invitationsRouter', () => {
     );
     expect(h.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'invitee@x.test', token: expect.any(String) }),
+    );
+  });
+
+  it('create from the LAN admin writes invitedByUserId null (FK-safe, no users row)', async () => {
+    h.invitation.create.mockResolvedValue({ ...row, invitedByUserId: null });
+
+    await caller('admin', LAN_ADMIN_ACTOR_ID).create({ email: 'invitee@x.test' });
+
+    expect(h.invitation.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ invitedByUserId: null }) }),
+    );
+    expect(h.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ actorUserId: null }) }),
     );
   });
 
