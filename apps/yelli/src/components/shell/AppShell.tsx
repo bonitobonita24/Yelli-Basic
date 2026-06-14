@@ -76,11 +76,21 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
   const brandHost = ctx.brand ? `${ctx.brand.slug}.yelli-basic.powerbyte.app` : 'Dual-mode calling';
   const brandLetter = (ctx.brand?.displayName ?? 'Y').charAt(0).toUpperCase();
 
-  // Top-bar identity. Admins/Cloud users carry a server-resolved `userLabel`. The
-  // LAN-anonymous device-user has none server-side, so we fall back to the chosen
-  // device name (localStorage, Flow 6) instead of the old indistinguishable "Guest".
-  const { name: deviceName } = useDeviceName();
-  const displayLabel = ctx.userLabel ?? deviceName ?? 'Guest';
+  // Top-bar identity. Admins/Cloud users carry a server-resolved `userLabel` (no
+  // client dependency — identical on server and client). The LAN-anonymous
+  // device-user has none server-side, so we fall back to the chosen device name
+  // (localStorage, Flow 6) instead of the old indistinguishable "Guest".
+  //
+  // HYDRATION CONTRACT: `deviceName` is localStorage-derived and therefore
+  // client-only. `useDeviceName()` returns `name: null` until `ready` (its effect
+  // has read localStorage), so the FIRST client render matches the server exactly —
+  // both resolve to the static `'Guest'` baseline (server `userLabel` is null for a
+  // LAN guest). We must NOT read `deviceName` before `ready`, or the SSR markup
+  // ("Guest"/"GU") would differ from the client's stored value ("Swift Heron"/"SH")
+  // and React would throw a recoverable hydration error. Once mounted, the label
+  // updates to the stored name as an ordinary post-hydration state change.
+  const { name: deviceName, ready: deviceNameReady } = useDeviceName();
+  const displayLabel = ctx.userLabel ?? (deviceNameReady ? deviceName : null) ?? 'Guest';
 
   return (
     <div className="flex min-h-screen flex-col bg-canvas pb-16 md:pb-0">
