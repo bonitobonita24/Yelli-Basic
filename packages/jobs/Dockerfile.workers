@@ -52,5 +52,7 @@ COPY --from=builder --chown=yelli:nodejs /repo /repo
 USER yelli
 
 # No port — this is a background worker, not an HTTP server.
+# tsx is a devDependency of @yelli/jobs; pnpm uses an isolated (non-hoisted) node_modules,
+# so its bin lives in the package's own node_modules/.bin, NOT the repo root.
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["node_modules/.bin/tsx", "packages/jobs/src/runtime/main.ts"]
+CMD ["packages/jobs/node_modules/.bin/tsx", "packages/jobs/src/runtime/main.ts"]
