@@ -44,11 +44,20 @@ type Props = {
   onClose?: () => void;
   /** Parent mutation in-flight — disables the actions to prevent double-submit. */
   saving?: boolean;
+  /**
+   * Optional first-launch pre-fill (PRODUCT.md Flow 6 owner refinement): seeds the
+   * input with a generated readable default (e.g. "Swift Heron") WITHOUT changing the
+   * first-join baseline. The "changed" check still compares against `initialName`, so
+   * with an empty `initialName` + a `seedValue`, accepting the default as-is already
+   * counts as a save-able value (the user need not retype it). Has no effect in rename
+   * mode (where `initialName` is the current name).
+   */
+  seedValue?: string;
 };
 
 export default function OverlayNamePicker(props: Props): React.JSX.Element {
-  const { initialName, onSave, onClose, saving = false } = props;
-  const [value, setValue] = useState(initialName);
+  const { initialName, onSave, onClose, saving = false, seedValue } = props;
+  const [value, setValue] = useState(seedValue ?? initialName);
 
   const trimmed = value.trim();
   const isFirstJoin = initialName.trim().length === 0;

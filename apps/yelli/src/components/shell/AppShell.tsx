@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useDeviceName } from '@/lib/device-name';
 import type { AppShellContext } from '@/lib/server/app-context';
 
 /**
@@ -75,6 +76,12 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
   const brandHost = ctx.brand ? `${ctx.brand.slug}.yelli-basic.powerbyte.app` : 'Dual-mode calling';
   const brandLetter = (ctx.brand?.displayName ?? 'Y').charAt(0).toUpperCase();
 
+  // Top-bar identity. Admins/Cloud users carry a server-resolved `userLabel`. The
+  // LAN-anonymous device-user has none server-side, so we fall back to the chosen
+  // device name (localStorage, Flow 6) instead of the old indistinguishable "Guest".
+  const { name: deviceName } = useDeviceName();
+  const displayLabel = ctx.userLabel ?? deviceName ?? 'Guest';
+
   return (
     <div className="flex min-h-screen flex-col bg-canvas pb-16 md:pb-0">
       {/* Session-kill PUSH listener moved into <CallEngineProvider> (B1 — ONE
@@ -120,10 +127,10 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
         <DropdownMenu>
           <DropdownMenuTrigger className="flex h-11 items-center gap-2 rounded-[12px] px-2 hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-lavender text-xs font-semibold text-text-primary">
-              {initials(ctx.userLabel)}
+              {initials(displayLabel)}
             </div>
             <span className="hidden text-sm font-medium text-text-primary sm:inline">
-              {ctx.userLabel ?? 'Guest'}
+              {displayLabel}
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -131,6 +138,12 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
               {ctx.isAdmin ? 'Admin' : 'Member'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => void signOutBothSessions()}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign out

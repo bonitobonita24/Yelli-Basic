@@ -2,6 +2,7 @@ import { Phone } from 'lucide-react';
 import Link from 'next/link';
 
 import { PeerDirectory } from '@/components/call/PeerDirectory';
+import { DeviceNamePrompt } from '@/components/device/DeviceNamePrompt';
 import { Card } from '@/components/ui/card';
 import { resolveAppShellContext } from '@/lib/server/app-context';
 
@@ -29,6 +30,11 @@ export default async function DirectoryPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1280px] px-4 py-8 md:px-12 md:py-12">
+      {/* First-launch display-name prompt (Flow 6 / Page 5) — pre-filled with a
+          generated readable name on a device that has never been named; never
+          re-prompts once saved. Self-gating client component. */}
+      <DeviceNamePrompt />
+
       <section className="relative grid min-h-[260px] place-items-center overflow-hidden rounded-[24px] bg-brand-teal p-8 text-white md:min-h-[280px] md:p-12">
         <div className="absolute inset-0 bg-gradient-to-br from-brand-teal to-primary opacity-90" />
         <div className="relative z-10 text-center">
