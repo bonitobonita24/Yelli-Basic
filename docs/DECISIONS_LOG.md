@@ -1,5 +1,20 @@
 # Decisions Log
 
+## DEV-credential standard + first DB seed — 2026-06-14
+Decision (owner directive, DEV environment ONLY): standardized weak local-review credentials.
+- App login (by EMAIL): admin `admin@mail.com` / `admin` (role `admin`); user `user@mail.com` / `user`
+  (role `member` — lowest-privilege normal role). bcryptjs @ 12 rounds (matches `auth/config.ts`).
+- LAN admin passphrase (`Tenant.adminPassphraseHash`, Argon2id) = `admin`.
+The pre-existing `webmaster` (`bonitobonita24@gmail.com`, admin) dev account is left intact.
+Made durable by the **first real DB seed**: `packages/db/prisma/seed.ts` (wired via the prisma
+`seed` config + `db:seed` script; added `bcryptjs`/`@node-rs/argon2`/`tsx` to `@yelli/db`). Prior to
+this, CREDENTIALS.md referenced a `pnpm db:seed` that did not exist — no seed file was present.
+Gating: the weak block is hard-refused unless `NODE_ENV` is `development`/`test`
+(`devCredsAllowed()`); `production` and `staging` NEVER receive these values. The webmaster is only
+(re)written when `WEBMASTER_PASSWORD` is provided — the seed invents no weak default for it.
+Applied + verified live against the dev `_pwbt` tenant; gate verified by running the seed under
+`NODE_ENV=production` and `=staging` (both skip the dev block). DEV-ONLY; no staging/prod change.
+
 ## LOCKED: @yelli/api-client factory pattern — generic + @ts-expect-error (Part 2)
 Decision: packages/api-client exports `createYelliTrpcClient<TRouter extends AnyRouter>` rather than a concrete typed client. The tRPC v11 link transformer constraint requires `@ts-expect-error` on the httpBatchLink line — documented rationale, Rule 12 compliant (not `as any`).
 Rationale: api-client must not depend on apps/yelli (circular). Generic factory defers concrete typing to consumption site. Bootstrap Step 19 phantom-ui pin (^0.10.1 → 0.10.1 exact) also locked here.
