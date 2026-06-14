@@ -92,4 +92,32 @@ describe('tenantsRouter — RBAC + guards', () => {
 
     await expect(caller('admin').get()).resolves.toMatchObject({ slug: '_pwbt', displayName: 'Yelli' });
   });
+
+  // LAN bridge: a synthesized LAN-admin session (createContext LAN BRIDGE, synthetic
+  // actor id, role 'admin', tenantId from the verified cookie) drives the SAME
+  // protected chain → get() resolves the tenant. Mirrors the live 200 on tenants.get.
+  it('get() resolves for a LAN-bridged admin session (cookie-only, synthetic actor)', async () => {
+    const profile = { id: 'lanTenant', slug: '_pwbt', displayName: 'Yelli', logoUrl: null, isSuspended: false, createdAt: new Date() };
+    h.tenant.findUnique.mockResolvedValue(profile);
+
+    const lanCaller = tenantsRouter.createCaller({
+      session: {
+        user: {
+          id: '__lan_admin__',
+          role: 'admin',
+          tenantId: 'lanTenant',
+          tenantSlug: '',
+          securityVersion: 0,
+          name: 'LAN Admin',
+          email: null,
+        },
+        expires: '2099-01-01',
+      },
+    } as never);
+
+    await expect(lanCaller.get()).resolves.toMatchObject({ slug: '_pwbt', displayName: 'Yelli' });
+    expect(h.tenant.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'lanTenant' } }),
+    );
+  });
 });
