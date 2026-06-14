@@ -10,9 +10,19 @@
 # Options:
 #   --ip <addr>          Override auto-detected LAN IP.
 #   --bundle <path>      Path to the image bundle tarball.
-#                        Default: dist/yelli-lan-images.tar.gz
+#                        Default: auto-detected from dist/yelli-lan-*.tar.gz
+#   --pubkey <path>      Path to the public key used to verify the bundle signature.
+#                        minisign: path to yelli-lan.pub
+#                        GPG:      path to exported .asc / .gpg public key
+#                        Default: deploy/lan/yelli-lan.pub (if present)
+#   --skip-verify        SKIP signature and checksum verification.
+#                        DEV / CI ONLY — never use for production installs.
 #   --skip-load          Skip loading Docker images (use already-loaded images).
 #   --force              Regenerate .env.lan and certs even if they exist.
+#   --refresh-cert       Re-check the LAN IP, regenerate the cert if it changed,
+#                        re-render the Caddyfile, and reload Caddy — without a
+#                        full reinstall.  Safe to run any time the host IP may
+#                        have changed (e.g. after a DHCP reassignment).
 #   --down               Stop and remove the LAN stack (does not remove volumes).
 #   -h, --help           Show this help message.
 
@@ -27,28 +37,43 @@ source "$SCRIPT_DIR/lib.sh"
 
 # ─── Defaults ────────────────────────────────────────────────────────────────
 
-BUNDLE_PATH="$REPO_ROOT/dist/yelli-lan-images.tar.gz"
+BUNDLE_PATH=""          # auto-detected below if not set via --bundle
+PUBKEY_PATH="$SCRIPT_DIR/yelli-lan.pub"
+SKIP_VERIFY=false
 SKIP_LOAD=false
 FORCE=false
 DO_DOWN=false
+REFRESH_CERT=false
 IP_OVERRIDE=""
 
 # ─── Arg parsing ─────────────────────────────────────────────────────────────
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --ip)         IP_OVERRIDE="$2"; shift 2 ;;
-    --bundle)     BUNDLE_PATH="$2"; shift 2 ;;
-    --skip-load)  SKIP_LOAD=true; shift ;;
-    --force)      FORCE=true; shift ;;
-    --down)       DO_DOWN=true; shift ;;
+    --ip)           IP_OVERRIDE="$2"; shift 2 ;;
+    --bundle)       BUNDLE_PATH="$2"; shift 2 ;;
+    --pubkey)       PUBKEY_PATH="$2"; shift 2 ;;
+    --skip-verify)  SKIP_VERIFY=true; shift ;;
+    --skip-load)    SKIP_LOAD=true; shift ;;
+    --force)        FORCE=true; shift ;;
+    --refresh-cert) REFRESH_CERT=true; SKIP_LOAD=true; shift ;;
+    --down)         DO_DOWN=true; shift ;;
     -h|--help)
-      sed -n '2,20p' "$0" | sed 's/^# \?//'
+      sed -n '2,30p' "$0" | sed 's/^# \?//'
       exit 0
       ;;
     *) err "Unknown flag: $1  (run with --help for usage)"; exit 1 ;;
   esac
 done
+
+# Auto-detect bundle path: pick the newest yelli-lan-*.tar.gz in dist/.
+if [ -z "$BUNDLE_PATH" ]; then
+  BUNDLE_PATH=$(ls -t "$REPO_ROOT/dist/yelli-lan-"*.tar.gz 2>/dev/null | head -1 || true)
+  if [ -z "$BUNDLE_PATH" ]; then
+    # Fallback to legacy name (pre-signed-archive builds).
+    BUNDLE_PATH="$REPO_ROOT/dist/yelli-lan-images.tar.gz"
+  fi
+fi
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +103,135 @@ info "Running preflight checks..."
 bash "$SCRIPT_DIR/preflight.sh"
 # preflight exits nonzero on failure — errexit will stop us here.
 
+# ─── Step (a2): Verify bundle signature and checksum ─────────────────────────
+
+# Helper: verify the archive and abort on failure.
+_verify_bundle() {
+  local archive="$1"
+  local sha256_file="${archive}.sha256"
+  local sig_file="${archive}.sig"
+  local pubkey="$PUBKEY_PATH"
+  local ok_checksum=false
+  local ok_sig=false
+  local sig_tool=""
+
+  info "Verifying bundle: $(basename "$archive") ..."
+
+  # --- SHA-256 checksum ---
+  if [ ! -f "$sha256_file" ]; then
+    err "Checksum file not found: $sha256_file"
+    err "Cannot verify bundle integrity. Aborting."
+    err "Pass --skip-verify to bypass (dev only — NOT safe for production)."
+    exit 1
+  fi
+
+  # Verify checksum from inside the archive's directory so the filename matches.
+  local archive_dir
+  archive_dir="$(dirname "$archive")"
+  if command -v sha256sum >/dev/null 2>&1; then
+    if (cd "$archive_dir" && sha256sum -c "$(basename "$sha256_file")" --status 2>/dev/null); then
+      ok "SHA-256 checksum: PASS"
+      ok_checksum=true
+    fi
+  elif command -v shasum >/dev/null 2>&1; then
+    local expected_hash
+    expected_hash=$(awk '{print $1}' "$sha256_file")
+    local actual_hash
+    actual_hash=$(shasum -a 256 "$archive" | awk '{print $1}')
+    if [ "$expected_hash" = "$actual_hash" ]; then
+      ok "SHA-256 checksum: PASS"
+      ok_checksum=true
+    fi
+  else
+    warn "sha256sum / shasum not available — cannot verify checksum."
+    warn "Install coreutils (Linux) or shasum (macOS) for integrity checking."
+  fi
+
+  if [ "$ok_checksum" = false ] && command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1; then
+    err "SHA-256 checksum MISMATCH — archive may be corrupted or tampered."
+    err "Archive: $archive"
+    err "Expected: $(awk '{print $1}' "$sha256_file")"
+    exit 1
+  fi
+
+  # --- Signature verification ---
+  if [ ! -f "$sig_file" ]; then
+    warn "Signature file not found: $sig_file"
+    warn "Bundle authenticity cannot be verified."
+    warn "If this is a dev/test bundle without signing, pass --skip-verify."
+    exit 1
+  fi
+
+  # Detect signing format from the first byte (minisign sigs start with "untrusted comment").
+  if head -1 "$sig_file" 2>/dev/null | grep -q '^untrusted comment:'; then
+    sig_tool="minisign"
+  else
+    sig_tool="gpg"
+  fi
+
+  if [ "$sig_tool" = "minisign" ]; then
+    if ! command -v minisign >/dev/null 2>&1; then
+      err "Signature is a minisign signature but 'minisign' is not installed."
+      err "Install minisign: https://jedisct1.github.io/minisign/"
+      exit 1
+    fi
+    if [ ! -f "$pubkey" ]; then
+      err "Public key file not found: $pubkey"
+      err "Pass --pubkey <path> pointing to the yelli-lan.pub distributed with the bundle."
+      exit 1
+    fi
+    if minisign -Vm "$archive" -p "$pubkey" -x "$sig_file" >/dev/null 2>&1; then
+      ok "Signature (minisign): VALID"
+      ok_sig=true
+    else
+      err "Signature INVALID (minisign). Archive may have been tampered with."
+      exit 1
+    fi
+  else
+    # GPG armored detached signature.
+    if ! command -v gpg >/dev/null 2>&1; then
+      err "Signature appears to be a GPG signature but 'gpg' is not installed."
+      exit 1
+    fi
+    # Import the public key if a keyfile was provided and isn't already in the keyring.
+    if [ -f "$pubkey" ] && { [[ "$pubkey" == *.asc ]] || [[ "$pubkey" == *.gpg ]]; }; then
+      gpg --batch --import "$pubkey" >/dev/null 2>&1 || true
+    fi
+    if gpg --batch --verify "$sig_file" "$archive" >/dev/null 2>&1; then
+      ok "Signature (GPG): VALID"
+      ok_sig=true
+    else
+      err "Signature INVALID (GPG). Archive may have been tampered with."
+      err "Ensure the signer's public key is in your GPG keyring, or pass --pubkey <key.asc>."
+      exit 1
+    fi
+  fi
+
+  if [ "$ok_sig" = false ]; then
+    err "Bundle verification failed. Aborting installation."
+    exit 1
+  fi
+
+  ok "Bundle verified — checksum and signature are valid."
+}
+
+if [ "$SKIP_LOAD" = true ]; then
+  # Nothing to verify if we're not loading a bundle at all.
+  true
+elif [ "$SKIP_VERIFY" = true ]; then
+  warn "╔══════════════════════════════════════════════════════╗"
+  warn "║  WARNING: --skip-verify  —  signature check SKIPPED ║"
+  warn "║  NEVER use --skip-verify for production installs.   ║"
+  warn "╚══════════════════════════════════════════════════════╝"
+else
+  if [ ! -f "$BUNDLE_PATH" ]; then
+    err "Image bundle not found: $BUNDLE_PATH"
+    err "Pass --bundle <path> or run deploy/lan/bundle.sh first."
+    exit 1
+  fi
+  _verify_bundle "$BUNDLE_PATH"
+fi
+
 # ─── Step (b): Load images ───────────────────────────────────────────────────
 
 if [ "$SKIP_LOAD" = true ]; then
@@ -103,16 +257,32 @@ else
   info "Detected LAN IP: $LAN_IP"
 fi
 
-# ─── Step (d): mkcert ────────────────────────────────────────────────────────
+# ─── Step (d): mkcert + IP-change detection ──────────────────────────────────
 
 CERTS_DIR="$REPO_ROOT/certs"
 CERT_FILE="$CERTS_DIR/lan.pem"
 KEY_FILE="$CERTS_DIR/lan-key.pem"
+CERT_STATE="$CERTS_DIR/.cert-state"   # persists the IP the cert was last issued for
 
+# _read_cert_state — echoes the IP stored in .cert-state, or empty string.
+_read_cert_state() {
+  if [ -f "$CERT_STATE" ]; then
+    grep -E '^CERT_IP=' "$CERT_STATE" 2>/dev/null | cut -d= -f2 || true
+  fi
+}
+
+# _write_cert_state — records the current LAN_IP + a timestamp.
+_write_cert_state() {
+  mkdir -p "$CERTS_DIR"
+  printf 'CERT_IP=%s\nCERT_ISSUED_AT=%s\n' "$LAN_IP" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$CERT_STATE"
+}
+
+# _need_new_cert — returns 0 (regenerate) or 1 (reuse).
 _need_new_cert() {
-  [ "$FORCE" = true ] && return 0
-  [ ! -f "$CERT_FILE" ] && return 0
-  [ ! -f "$KEY_FILE" ] && return 0
+  [ "$FORCE" = true ]        && return 0
+  [ "$REFRESH_CERT" = true ] && return 0
+  [ ! -f "$CERT_FILE" ]      && return 0
+  [ ! -f "$KEY_FILE" ]       && return 0
   # If the cert exists but doesn't cover the current LAN_IP, regenerate.
   if command -v openssl >/dev/null 2>&1; then
     if ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$LAN_IP"; then
@@ -123,7 +293,29 @@ _need_new_cert() {
   return 1
 }
 
-if _need_new_cert; then
+# ── IP-change detection ──────────────────────────────────────────────────────
+PREV_CERT_IP="$(_read_cert_state)"
+IP_CHANGED=false
+
+if [ -n "$PREV_CERT_IP" ] && [ "$PREV_CERT_IP" != "$LAN_IP" ]; then
+  IP_CHANGED=true
+  printf '\n'
+  printf '%s╔══════════════════════════════════════════════════════════════╗%s\n' "$YLW" "$RST"
+  printf '%s║  ⚠  LAN IP CHANGED — TLS CERTIFICATE WILL BE REGENERATED   ║%s\n' "$YLW" "$RST"
+  printf '%s║                                                              ║%s\n' "$YLW" "$RST"
+  printf '%s║  Previous IP:  %-44s ║%s\n' "$YLW" "$PREV_CERT_IP" "$RST"
+  printf '%s║  New IP:       %-44s ║%s\n' "$YLW" "$LAN_IP" "$RST"
+  printf '%s║                                                              ║%s\n' "$YLW" "$RST"
+  printf '%s║  The old cert is no longer valid.  A new mkcert certificate  ║%s\n' "$YLW" "$RST"
+  printf '%s║  will be issued for the new IP.  If other LAN devices        ║%s\n' "$YLW" "$RST"
+  printf '%s║  trusted the previous cert, they may see a browser warning   ║%s\n' "$YLW" "$RST"
+  printf '%s║  until the mkcert root CA is re-distributed.                 ║%s\n' "$YLW" "$RST"
+  printf '%s╚══════════════════════════════════════════════════════════════╝%s\n' "$YLW" "$RST"
+  printf '\n'
+fi
+
+# ── Issue or reuse the cert ──────────────────────────────────────────────────
+if _need_new_cert || [ "$IP_CHANGED" = true ]; then
   info "Installing local CA with mkcert..."
   mkcert -install
   mkdir -p "$CERTS_DIR"
@@ -132,9 +324,10 @@ if _need_new_cert; then
     -cert-file "$CERT_FILE" \
     -key-file  "$KEY_FILE"  \
     "$LAN_IP" localhost 127.0.0.1
-  ok "Cert written to certs/ (gitignored)."
+  _write_cert_state
+  ok "Cert written to certs/ (gitignored).  State recorded in certs/.cert-state."
 else
-  ok "Existing cert covers $LAN_IP — skipping mkcert. (Use --force to regenerate.)"
+  ok "Existing cert covers $LAN_IP — skipping mkcert. (Use --force or --refresh-cert to regenerate.)"
 fi
 
 # ─── Step (e): Generate .env.lan ─────────────────────────────────────────────
@@ -220,6 +413,28 @@ else
     "$CADDYFILE_TPL" > "$CADDYFILE"
 fi
 ok "Caddyfile rendered to deploy/compose/lan/Caddyfile."
+
+# ─── --refresh-cert fast path ────────────────────────────────────────────────
+# When called with --refresh-cert (or from refresh-cert.sh), we stop here:
+# cert + Caddyfile are already up to date; just reload Caddy in-place.
+
+if [ "$REFRESH_CERT" = true ]; then
+  info "Reloading Caddy to pick up the new certificate ..."
+  # docker compose exec caddy caddy reload is the clean way; fall back to
+  # a container restart if exec is unavailable (older Docker versions).
+  if "${COMPOSE_CMD[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null; then
+    ok "Caddy reloaded — new certificate is active."
+  else
+    warn "caddy reload not available; restarting the caddy container instead ..."
+    "${COMPOSE_CMD[@]}" restart caddy
+    ok "Caddy restarted — new certificate is active."
+  fi
+  echo ""
+  ok "IP-change cert refresh complete.  New IP: ${LAN_IP}"
+  printf '  Access URL:  %shttps://%s%s\n' "$GRN" "$LAN_IP" "$RST"
+  echo ""
+  exit 0
+fi
 
 # ─── Step (g): Bring the stack up ────────────────────────────────────────────
 

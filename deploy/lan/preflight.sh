@@ -2,7 +2,8 @@
 # deploy/lan/preflight.sh — verify prerequisites for the Yelli LAN installer.
 #
 # Checks: docker, docker compose v2, mkcert.
-# Exits nonzero if any prerequisite is missing.
+# Advisory check (non-fatal): minisign or gpg for bundle verification.
+# Exits nonzero if any REQUIRED prerequisite is missing.
 #
 # Usage:
 #   bash deploy/lan/preflight.sh
@@ -164,6 +165,45 @@ else
   _mkcert_hint
   echo ""
   FAILED=1
+fi
+
+# 4. Bundle verification tool (advisory — non-fatal, but strongly recommended)
+printf '  Checking: minisign or gpg (bundle verification) ... '
+if command -v minisign >/dev/null 2>&1; then
+  SIGN_VERSION=$(minisign --version 2>/dev/null | head -1 || echo "unknown version")
+  printf '%s\n' "${GRN}FOUND${RST} (minisign — $SIGN_VERSION)"
+elif command -v gpg >/dev/null 2>&1; then
+  GPG_VERSION=$(gpg --version 2>/dev/null | head -1 || echo "unknown version")
+  printf '%s\n' "${GRN}FOUND${RST} (gpg — $GPG_VERSION)"
+else
+  printf '%s\n' "${YLW}MISSING${RST}"
+  echo ""
+  warn "  Neither 'minisign' nor 'gpg' found."
+  warn "  Bundle signature cannot be verified before loading images."
+  warn "  This is REQUIRED for production installs. Install one:"
+  case "$OS" in
+    linux|wsl)
+      echo "    minisign: https://jedisct1.github.io/minisign/ (single binary)"
+      echo "    gpg:      sudo apt install gnupg  OR  sudo dnf install gnupg2"
+      ;;
+    macos)
+      echo "    minisign: brew install minisign"
+      echo "    gpg:      brew install gnupg"
+      ;;
+    windows-gitbash)
+      echo "    gpg:      bundled with Git for Windows (check git-bash shell)"
+      echo "    minisign: https://jedisct1.github.io/minisign/#downloads"
+      ;;
+    *)
+      echo "    minisign: https://jedisct1.github.io/minisign/"
+      echo "    gpg:      https://gnupg.org/download/"
+      ;;
+  esac
+  echo ""
+  warn "  To bypass (dev only): bash deploy/lan/install.sh --skip-verify"
+  echo ""
+  # Advisory only — do NOT set FAILED=1 here.
+  # The installer will enforce verification (or --skip-verify) at runtime.
 fi
 
 echo ""

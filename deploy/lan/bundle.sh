@@ -2,7 +2,17 @@
 # deploy/lan/bundle.sh — build an offline installer tarball for the Yelli LAN edition.
 #
 # Run this on a machine WITH internet access (and Docker).
-# The output is: dist/yelli-lan-images.tar.gz  +  dist/yelli-lan-images.manifest.txt
+# The output is:
+#   dist/yelli-lan-<date>.tar.gz        — distributable archive
+#   dist/yelli-lan-<date>.tar.gz.sha256 — SHA-256 checksum file
+#   dist/yelli-lan-<date>.tar.gz.sig    — detached signature (minisign or GPG)
+#   dist/yelli-lan-<date>.manifest.txt  — image manifest
+#
+# Signing requires an owner-held private key (never generated here):
+#   minisign: export YELLI_LAN_MINISIGN_KEY=/path/to/minisign.key
+#   GPG:      export YELLI_LAN_GPG_KEY_ID=<key-id-or-fingerprint>
+# If neither var is set, signing is skipped with a warning.
+# To disable signing entirely (dev only): export YELLI_LAN_SKIP_SIGN=1
 #
 # Prerequisites:
 #   - Docker (with internet)
@@ -10,12 +20,14 @@
 #       yelli:lan           (Next.js app)
 #       yelli-signaling:lan (signaling server)
 #       yelli-worker:lan    (BullMQ worker)
+#   - minisign OR gpg (for signed releases)
 #
 # Usage:
-#   bash deploy/lan/bundle.sh [--skip-pull] [--out-dir <dir>]
+#   bash deploy/lan/bundle.sh [--skip-pull] [--out-dir <dir>] [--skip-sign]
 #
 #   --skip-pull   Skip pulling third-party images (use local cache only).
 #   --out-dir     Output directory (default: dist/).
+#   --skip-sign   Skip signing step (dev/CI use only; NOT for distribution).
 
 set -euo pipefail
 
@@ -27,6 +39,7 @@ source "$SCRIPT_DIR/lib.sh"
 # ─── Defaults ────────────────────────────────────────────────────────────────
 
 SKIP_PULL=false
+SKIP_SIGN=false
 OUT_DIR="$REPO_ROOT/dist"
 
 # ─── Arg parsing ─────────────────────────────────────────────────────────────
@@ -35,16 +48,21 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-pull) SKIP_PULL=true; shift ;;
     --out-dir)   OUT_DIR="$2"; shift 2 ;;
+    --skip-sign) SKIP_SIGN=true; shift ;;
     -h|--help)
-      echo "Usage: $0 [--skip-pull] [--out-dir <dir>]"
+      echo "Usage: $0 [--skip-pull] [--out-dir <dir>] [--skip-sign]"
       echo ""
       echo "  --skip-pull   Do not pull third-party images (use local cache)."
       echo "  --out-dir     Output directory (default: dist/)."
+      echo "  --skip-sign   Skip signing (dev only — NOT for distribution)."
       exit 0
       ;;
     *) err "Unknown flag: $1"; exit 1 ;;
   esac
 done
+
+# Also honour env-var escape hatch.
+[ "${YELLI_LAN_SKIP_SIGN:-}" = "1" ] && SKIP_SIGN=true
 
 mkdir -p "$OUT_DIR"
 
@@ -120,9 +138,13 @@ fi
 
 # ─── Save all images to tarball ──────────────────────────────────────────────
 
-TAR_PATH="$OUT_DIR/yelli-lan-images.tar"
+BUNDLE_DATE="$(date -u '+%Y%m%d')"
+BUNDLE_STEM="yelli-lan-${BUNDLE_DATE}"
+TAR_PATH="$OUT_DIR/${BUNDLE_STEM}.tar"
 GZ_PATH="${TAR_PATH}.gz"
-MANIFEST_PATH="$OUT_DIR/yelli-lan-images.manifest.txt"
+SHA256_FILE="${GZ_PATH}.sha256"
+SIG_FILE="${GZ_PATH}.sig"
+MANIFEST_PATH="$OUT_DIR/${BUNDLE_STEM}.manifest.txt"
 
 info "Saving ${#ALL_IMAGES[@]} images to $TAR_PATH ..."
 docker save "${ALL_IMAGES[@]}" -o "$TAR_PATH"
@@ -131,7 +153,7 @@ info "Compressing → $GZ_PATH ..."
 gzip -f "$TAR_PATH"
 ok "Saved: $GZ_PATH"
 
-# ─── Compute SHA256 ──────────────────────────────────────────────────────────
+# ─── Compute SHA256 and write checksum file ──────────────────────────────────
 
 info "Computing SHA256 ..."
 if command -v sha256sum >/dev/null 2>&1; then
@@ -143,14 +165,19 @@ else
 fi
 ok "SHA256: $SHA256"
 
+# Write a standalone checksum file (sha256sum-compatible format).
+printf '%s  %s\n' "$SHA256" "$(basename "$GZ_PATH")" > "$SHA256_FILE"
+ok "Checksum file: $SHA256_FILE"
+
 # ─── Write manifest ──────────────────────────────────────────────────────────
 
 {
   echo "# Yelli LAN Image Bundle Manifest"
   echo "# Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   echo ""
-  echo "bundle: yelli-lan-images.tar.gz"
-  echo "sha256: $SHA256"
+  echo "bundle:  $(basename "$GZ_PATH")"
+  echo "sha256:  $SHA256"
+  echo "sig:     $(basename "$SIG_FILE")  (detached signature over the archive)"
   echo ""
   echo "# Images included:"
   echo "# ─────────────────────────────────────────────────────────────────────"
@@ -172,21 +199,76 @@ ok "SHA256: $SHA256"
   echo "# not change unless the upstream image is republished."
   echo ""
   echo "# To verify the bundle on the target machine:"
-  echo "#   sha256sum dist/yelli-lan-images.tar.gz"
-  echo "#   # Compare with the sha256 line above."
+  echo "#   sha256sum -c $(basename "$SHA256_FILE")"
+  echo "#   minisign -Vm $(basename "$GZ_PATH") -p yelli-lan.pub"
+  echo "#   # OR, if signed with GPG:"
+  echo "#   gpg --verify $(basename "$SIG_FILE") $(basename "$GZ_PATH")"
 } > "$MANIFEST_PATH"
 
 ok "Manifest: $MANIFEST_PATH"
+
+# ─── Sign the archive ────────────────────────────────────────────────────────
+
+_do_sign() {
+  local target="$1"  # file to sign (the .tar.gz)
+
+  # Prefer minisign (dependency-light, purpose-built for file signing).
+  if command -v minisign >/dev/null 2>&1 && [ -n "${YELLI_LAN_MINISIGN_KEY:-}" ]; then
+    info "Signing with minisign (key: $YELLI_LAN_MINISIGN_KEY) ..."
+    minisign -Sm "$target" -s "$YELLI_LAN_MINISIGN_KEY" -x "${target}.sig"
+    ok "Signature: ${target}.sig  (minisign)"
+    return 0
+  fi
+
+  # Fall back to GPG armored detached signature.
+  if command -v gpg >/dev/null 2>&1 && [ -n "${YELLI_LAN_GPG_KEY_ID:-}" ]; then
+    info "Signing with GPG (key id: $YELLI_LAN_GPG_KEY_ID) ..."
+    gpg --batch --yes \
+        --local-user "$YELLI_LAN_GPG_KEY_ID" \
+        --armor \
+        --detach-sign \
+        --output "${target}.sig" \
+        "$target"
+    ok "Signature: ${target}.sig  (GPG armored)"
+    return 0
+  fi
+
+  # Neither tool/key is available.
+  if command -v minisign >/dev/null 2>&1 || command -v gpg >/dev/null 2>&1; then
+    warn "Signing tool found but no key configured."
+    warn "  For minisign: export YELLI_LAN_MINISIGN_KEY=/path/to/minisign.key"
+    warn "  For GPG:      export YELLI_LAN_GPG_KEY_ID=<key-id-or-fingerprint>"
+  else
+    warn "Neither 'minisign' nor 'gpg' is installed. Install one to enable signing."
+  fi
+  warn "Bundle is UNSIGNED. Do not distribute this archive for production use."
+  return 1
+}
+
+SIGNED=false
+if [ "$SKIP_SIGN" = true ]; then
+  warn "Signing skipped (--skip-sign / YELLI_LAN_SKIP_SIGN=1). NOT for distribution."
+else
+  if _do_sign "$GZ_PATH"; then
+    SIGNED=true
+  fi
+fi
 
 echo ""
 printf '══════════════════════════════════════════════════════\n'
 ok " Bundle complete."
 printf '\n'
-printf '  Bundle:   %s\n' "$GZ_PATH"
-printf '  Manifest: %s\n' "$MANIFEST_PATH"
-printf '  SHA256:   %s\n' "$SHA256"
+printf '  Archive:      %s\n' "$GZ_PATH"
+printf '  Checksum:     %s\n' "$SHA256_FILE"
+if [ "$SIGNED" = true ]; then
+  printf '  Signature:    %s\n' "$SIG_FILE"
+else
+  printf '  Signature:    %s[UNSIGNED]%s\n' "$YLW" "$RST"
+fi
+printf '  Manifest:     %s\n' "$MANIFEST_PATH"
+printf '  SHA256:       %s\n' "$SHA256"
 printf '\n'
-printf '  Transfer dist/yelli-lan-images.tar.gz and this repo to the\n'
-printf '  target (offline) PC, then run:\n'
+printf '  Transfer the archive, checksum, and signature files, plus\n'
+printf '  this repo, to the target (offline) PC, then run:\n'
 printf '    bash deploy/lan/install.sh\n'
 printf '══════════════════════════════════════════════════════\n\n'
