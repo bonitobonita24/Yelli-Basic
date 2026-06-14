@@ -4,16 +4,16 @@
 
 ## Key Decisions Summary (Step 9 closeout — read this first)
 
-- **Editions:** dual LAN (self-hosted, single implicit tenant) + Cloud (managed multi-tenant on `*.yelli.app`); one codebase; feature parity is non-negotiable (`@dual-mode-exception` required for any exception)
+- **Editions:** dual LAN (self-hosted, single implicit tenant) + Cloud (managed multi-tenant on `*.yelli-basic.powerbyte.app`); one codebase; feature parity is non-negotiable (`@dual-mode-exception` required for any exception)
 - **Calling model:** 1-on-1 WebRTC peer-to-peer media; signaling-only server; default role = receiver; CALL action hidden + server-rejected for non-caller roles
 - **Roles:** anonymous device (LAN default) / member / admin; peer admin promote/demote; last-admin guard; LAN anonymous admin gated by Argon2id passphrase + `yelli_admin_session` HttpOnly cookie
-- **Tenancy (Cloud):** subdomain routing `<slug>.yelli.app`; slug `^[a-z][a-z0-9-]*[a-z0-9]$`, immutable, 18 reserved names; tenant-scoped via `tenantId` on every entity; V25 cross-check `session.tenantId === resolved.slug.tenantId`
+- **Tenancy (Cloud):** subdomain routing `<slug>.yelli-basic.powerbyte.app`; slug `^[a-z][a-z0-9-]*[a-z0-9]$`, immutable, 18 reserved names; tenant-scoped via `tenantId` on every entity; V25 cross-check `session.tenantId === resolved.slug.tenantId`
 - **Deployment:** Komodo + Docker Compose; semver `:vX.Y.Z` immutable + floating `:prod` pointer; rollback = re-tag, no rebuild; daily 02:00 UTC `pg_dump` → S3 30d / Glacier IR 7d
 - **Async infra:** WebSocket + Valkey pub/sub for role broadcast + session-kill (30s SLO); BullMQ for tenant export + device-archive cron (daily 03:00 UTC, 90-day offline threshold)
 - **Mobile:** PWA only (no native); install banner on 2nd visit, 30d snooze; Web Push tap-to-open; cached shell + UUIDv7 replay queue (24h Valkey dedup); **mobile-first global contract** — every page (including admin) designed from 375px baseline up, never desktop-down (locked Step 10)
 - **Design system:** Clay aesthetic; single `tokens.css` source for shadcn + Tailwind; Vitest token-parity test catches drift
 - **Security:** 5-step tRPC middleware chain (session → freshness → tenant-match → role → procedure guard); Super-Admin `/_pwbt/` runs isolated chain + dedicated Prisma client per V25
-- **Operations (Step 9):** GlitchTip + Docker JSON logs + Komodo log viewer; UptimeRobot 5-min probes → email + Telegram; static status page at `status.yelli.app`; k6 perf harness run on-demand pre-`:prod` (regression block at p95 signaling >150ms or p95 call-setup >3s)
+- **Operations (Step 9):** GlitchTip + Docker JSON logs + Komodo log viewer; UptimeRobot 5-min probes → email + Telegram; static status page at `status.powerbyte.app`; k6 perf harness run on-demand pre-`:prod` (regression block at p95 signaling >150ms or p95 call-setup >3s)
 - **Out of scope for MVP:** group calls, recording, screen share, Xendit self-serve billing, multi-region failover, hosted statuspage, central log aggregator, APM
 
 For step-by-step lock decisions, see `DECISIONS_LOG guidance for Claude Code (Brownfield Adoption)` at the end of this document.
@@ -217,7 +217,7 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 - **MinIO (dev) / S3 (prod)** — logo + branding asset storage — OSS dev → AWS prod
 - **Google STUN** (`stun.l.google.com`) — NAT discovery — public/free
 - **coturn (self-hosted)** — TURN relay for users behind strict NAT (Cloud only) — OSS
-- **Cloudflare DNS + Wildcard SSL** — `yelli.app` + `*.yelli.app` (Cloud only) — free tier
+- **Cloudflare DNS + Wildcard SSL** — `powerbyte.app` wildcard zone (Cloud only; subdomains `yelli-basic.powerbyte.app` + `yelli-basic-staging.powerbyte.app`) — existing zone shared with Marine-Guardian — free tier
 - **Cloudflare Turnstile** — bot protection on signup, login, password reset (Cloud only; framework V27 default) — free tier
 - **Resend** — transactional email (verify, magic link, password reset, member invitation) for Cloud — paid (~$20/mo for 50k emails)
 - **SMTP (customer-configured)** — LAN account mode admins configure own SMTP (Gmail App Password, custom relay, or skip) — per-deployment
@@ -299,8 +299,8 @@ Compliance:     PH DPA (RA 10173) primary. GDPR opt-in (export + delete on reque
 Accessibility:  WCAG 2.1 AA — framework V23 default; enforced by `a11y` skill pre-delivery checklist. Set `accessibility: wcag_aa` in inputs.yml.
 Encryption:     HTTPS in transit everywhere (Let's Encrypt via Cloudflare + Traefik in Cloud; self-signed cert for LAN). WebRTC media DTLS-SRTP end-to-end (peer-to-peer, never decryptable by signaling server). At-rest filesystem-level encryption on host (Komodo-managed) for Cloud.
 Observability:  GlitchTip self-hosted (Sentry-compatible SDK) for errors + Docker JSON-file log driver for structured app logs, tailed via Komodo's per-container log viewer. No central log aggregator (Loki, ELK) and no APM (OpenTelemetry, Datadog) in MVP — added only when error volume or SLO breaches justify the infra cost. Every log line is structured JSON (`{ts, level, msg, tenantId?, userId?, requestId, ...}`) so future Loki/OTel adoption is a transport swap, not a rewrite.
-Uptime monitoring: UptimeRobot free tier polls `https://yelli.app/` and `https://yelli.app/_pwbt/health` every 5 minutes from multiple regions. Alerts route to `oncall@powerbyteitsolutions.com` + a dedicated Telegram channel. LAN deployments are NOT monitored (customer-owned infra). Health endpoint returns `{ok, db, valkey, signaling}` with 200/503 status — no auth required (no PII; rate-limited 60/min/IP).
-Status page:    Static page at `status.yelli.app` (separate Cloudflare Pages site, single Markdown source in `status-page/` repo). MVP shows current state (operational / degraded / outage) + last 3 incidents with timestamps. Manually updated by Powerbyte on-call during incidents — no auto-population from UptimeRobot in MVP. Hosted-statuspage migration (Atlassian Statuspage, Instatus) deferred until customer contract requires SLA reporting.
+Uptime monitoring: UptimeRobot free tier polls `https://yelli-basic.powerbyte.app/` and `https://yelli-basic.powerbyte.app/_pwbt/health` every 5 minutes from multiple regions. Alerts route to `oncall@powerbyteitsolutions.com` + a dedicated Telegram channel. LAN deployments are NOT monitored (customer-owned infra). Health endpoint returns `{ok, db, valkey, signaling}` with 200/503 status — no auth required (no PII; rate-limited 60/min/IP).
+Status page:    Static page at `status.powerbyte.app` (separate Cloudflare Pages site, single Markdown source in `status-page/` repo). MVP shows current state (operational / degraded / outage) + last 3 incidents with timestamps. Manually updated by Powerbyte on-call during incidents — no auto-population from UptimeRobot in MVP. Hosted-statuspage migration (Atlassian Statuspage, Instatus) deferred until customer contract requires SLA reporting.
 Perf testing:   k6 scenario at `tests/perf/signaling.k6.js` simulates 200 concurrent WebSocket peers issuing `call.invite` + `signal.relay` at sustained 1 req/s/peer for 5 minutes. Run on-demand by the release engineer before every `:prod` tag promotion against the staging environment. Baseline numbers (p50/p95/p99 of signaling latency, call-setup wall-clock) are checked into `perf-baselines/<git-sha>.json`. No CI gate in MVP — release engineer reads the report and decides; regression threshold is documented as "p95 signaling > 150ms or p95 call-setup > 3s = block release". Automated weekly cron + Slack regression report is a documented Phase 5 enhancement.
 
 **Feature parity (architectural rule, NON-NEGOTIABLE):** every feature must work in both Yelli LAN and Yelli Cloud editions from the same codebase. Phase 2.7 spec stress-test checks every workflow against both modes before code generation. PRs that introduce Cloud-only or LAN-only features without explicit `@dual-mode-exception` annotation MUST be rejected during review.
@@ -308,7 +308,7 @@ Perf testing:   k6 scenario at `tests/perf/signaling.k6.js` simulates 200 concur
 ## Tenancy Model
 
 Mode:                  multi (Cloud) + single (LAN — implicit single-tenant per deployment)
-Routing (Cloud):       subdomain — `<slug>.yelli.app`
+Routing (Cloud):       subdomain — `<slug>.yelli-basic.powerbyte.app`
 Shared global data:    none — every entity is tenant-scoped via tenantId
 DB isolation exception: none (no payroll/banking/medical data in MVP)
 
@@ -325,7 +325,7 @@ Single codebase serves both. LAN deployment creates one implicit tenant row at f
 
 ## User-Facing URLs
 
-**Yelli Cloud (root domain — `yelli.app`):**
+**Yelli Cloud (root domain — `yelli-basic.powerbyte.app`):**
 - `/`                            landing page (public marketing)
 - `/pricing`                     pricing page (public)
 - `/legal/privacy`               privacy policy (public)
@@ -340,7 +340,7 @@ Single codebase serves both. LAN deployment creates one implicit tenant row at f
 - `/_pwbt/tenants`               tenant list + suspension toggle (Super-Admin only)
 - `/_pwbt/import`                LAN-tenant import (Super-Admin only) — accepts `export-lan-tenant.sh` bundle, provisions a new tenant + slug, replays data
 
-**Yelli Cloud (tenant subdomain — `<slug>.yelli.app`):**
+**Yelli Cloud (tenant subdomain — `<slug>.yelli-basic.powerbyte.app`):**
 - `/`                            redirects to `/app`
 - `/app`                         idle / directory (authenticated)
 - `/admin/members`               members management (Tenant Admin)
@@ -357,8 +357,8 @@ Single codebase serves both. LAN deployment creates one implicit tenant row at f
 ## Access Control
 
 Public routes:    `/`, `/pricing`, `/legal/*`, `/signup`, `/login`, `/forgot-password`, `/reset-password`, `/verify-email`, `/invite`
-Protected routes: `<slug>.yelli.app/app`, `<slug>.yelli.app/settings` — require authenticated Member or Admin session in matching tenant
-Admin-only:       `<slug>.yelli.app/admin/*` — require Tenant Admin role
+Protected routes: `<slug>.yelli-basic.powerbyte.app/app`, `<slug>.yelli-basic.powerbyte.app/settings` — require authenticated Member or Admin session in matching tenant
+Admin-only:       `<slug>.yelli-basic.powerbyte.app/admin/*` — require Tenant Admin role
 Super-Admin only: `/_pwbt/*` — require Powerbyte Super-Admin role (separate tRPC router + dedicated Prisma client per V25)
 LAN anonymous:    device-facing routes (`/`, `/settings`) accessible without login; `/admin/*` + `/setup` gated by the `yelli_admin_session` HttpOnly cookie issued by `/admin/login` (passphrase-based, set during first-run wizard); `/admin/login` itself is public but rate-limited 5/min/IP
 Server enforcement: see "Server-side enforcement (tRPC middleware order)" under Roles + Permissions — every authenticated procedure runs the 5-step middleware chain (session → freshness → tenant-match → role → procedure guard); Super-Admin router runs its own isolated chain.
@@ -374,7 +374,7 @@ GDPR/compliance:  yes — Tenant Admin can request data export (JSON of own tena
 ## Security Requirements
 
 Rate limiting:    public 30/min, auth (login/reset) 10/min, signup 5/hour/IP, password reset 3/hour/email, api 120/min, upload 20/min
-CORS origins:     dev: `localhost:*` | staging: `https://*.yelli-staging.app` | prod: `https://*.yelli.app`
+CORS origins:     dev: `localhost:*` | staging: `https://*.yelli-basic-staging.powerbyte.app` | prod: `https://*.yelli-basic.powerbyte.app`
 Security layers:  L3 RBAC + L5 AuditLog + L6 Prisma guardrails always active. L1+L2+L4 active in Cloud (multi-tenant); dormant in LAN single-tenant (no migration needed if a LAN deployment ever upgrades to multi-tenant).
 Anti-enumeration: signup, login, password-reset, invitation flows return generic responses per V25 Secure Code Generation
 Tenant guard:     V25 cross-check — `session.tenantId === URL.slug.tenantId` on every Cloud request
@@ -406,8 +406,8 @@ Yelli LAN:    single environment (customer's box)
 
 **Yelli Cloud:**
 - Dev:     `http://localhost:[port assigned by Phase 3 — do not specify a number here]`
-- Stage:   `https://yelli-staging.app` (+ wildcard `*.yelli-staging.app` for tenant subdomains)
-- Prod:    `https://yelli.app` (+ wildcard `*.yelli.app` for tenant subdomains)
+- Stage:   `https://yelli-basic-staging.powerbyte.app` (+ wildcard `*.yelli-basic-staging.powerbyte.app` for tenant subdomains)
+- Prod:    `https://yelli-basic.powerbyte.app` (+ wildcard `*.yelli-basic.powerbyte.app` for tenant subdomains)
 
 **Yelli LAN:**
 - All envs: `http://<lan-ip>:[port assigned by Phase 3]` (HTTPS via self-signed cert when `./scripts/gen-cert.sh` is run)
@@ -530,7 +530,7 @@ Reference:          https://ui.shadcn.com/docs/theming · Dark mode docs: https:
 **Tenancy / billing:**
 - Self-serve subscription + billing via Xendit (manual invoicing in MVP)
 - Seat-limit enforcement (display only — enforcement is v2 billing concern)
-- Custom domains beyond `*.yelli.app` (e.g. `intercom.acme.com` reverse-mapped) — v2
+- Custom domains beyond `*.yelli-basic.powerbyte.app` (e.g. `intercom.acme.com` reverse-mapped) — v2
 - Cross-deployment federation (Yelli Cloud user calling a Yelli LAN user across deployments)
 
 **Admin / ops:**
@@ -576,12 +576,12 @@ The existing Yelli LAN MVP (now at the project root, promoted from `AlphaTest/` 
 - Per-device display names (replaces hex IDs)
 - Per-tenant branding (header text + logo)
 - Powerbyte footer immutable (text + link locked, year auto-updates)
-- Tenant URL routing = subdomain (`*.yelli.app`)
+- Tenant URL routing = subdomain (`*.yelli-basic.powerbyte.app`)
 - Super-admin console = minimal `/_pwbt/` only (defer full console to v2)
 - TURN server = self-hosted coturn (Cloud)
 - SMTP = Resend (Cloud), customer-configured (LAN account mode)
 - Cloudflare Turnstile = enabled (Cloud public endpoints)
-- Domains: `yelli.app` (prod), `yelli-staging.app` (staging)
+- Domains: `yelli-basic.powerbyte.app` (prod), `yelli-basic-staging.powerbyte.app` (staging)
 - LAN distribution = Docker image only
 - LAN license = MIT (public repo)
 - Push notifications = Web Push + PWA service worker
@@ -614,7 +614,7 @@ The existing Yelli LAN MVP (now at the project root, promoted from `AlphaTest/` 
 - MOCKUP.jsx was rewritten in lockstep so every Tier 1 screen renders correctly at 375px without horizontal scroll.
 
 **Step 9 lock (Operational quality attributes — final NFR closeout, 2026-05-31):**
-- Status page = static `status.yelli.app` (Cloudflare Pages, Markdown source in `status-page/` repo); manual updates by Powerbyte on-call; current state + last 3 incidents; hosted-statuspage migration deferred
+- Status page = static `status.powerbyte.app` (Cloudflare Pages, Markdown source in `status-page/` repo); manual updates by Powerbyte on-call; current state + last 3 incidents; hosted-statuspage migration deferred
 - Observability = GlitchTip (errors) + Docker JSON-file log driver + Komodo per-container log viewer; structured JSON log lines (`{ts, level, msg, tenantId?, userId?, requestId, ...}`) so future Loki/OTel adoption is a transport swap; no central aggregator or APM in MVP
 - Uptime monitoring = UptimeRobot free tier, 5-min interval, multi-region; probes `/` + `/_pwbt/health`; alerts to `oncall@powerbyteitsolutions.com` + Telegram channel; LAN deployments not monitored (customer infra); `/_pwbt/health` returns `{ok, db, valkey, signaling}` with 200/503, no auth, rate-limited 60/min/IP
 - Perf testing = `tests/perf/signaling.k6.js` (k6) simulates 200 concurrent WS peers at 1 req/s/peer for 5 minutes; release engineer runs against staging before every `:prod` promotion; baselines in `perf-baselines/<git-sha>.json`; regression block threshold `p95 signaling > 150ms` OR `p95 call-setup > 3s`; CI cron + Slack regression report deferred to Phase 5

@@ -23,7 +23,7 @@ function TenantTopBar({ go, currentScreen }: TenantTopBarProps) {
           <div className="w-9 h-9 rounded-[8px] bg-[#1a3a3a] text-white grid place-items-center font-semibold flex-shrink-0">{TENANT.logoLetter}</div>
           <div className="flex flex-col leading-tight min-w-0">
             <span className="text-[14px] font-semibold text-[#0a0a0a] truncate">{TENANT.brandedName}</span>
-            <span className="text-[12px] text-[#6a6a6a] truncate">{TENANT.slug}.yelli.app</span>
+            <span className="text-[12px] text-[#6a6a6a] truncate">{TENANT.slug}.yelli-basic.powerbyte.app</span>
           </div>
         </button>
         <nav className="hidden md:flex items-center gap-1">

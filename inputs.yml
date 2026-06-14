@@ -5,13 +5,13 @@ app:
   purpose: "Dual-mode (LAN + Cloud) peer-to-peer calling for marine ops and small teams"
 
 domains:
-  prod: "yelli.app"
-  staging: "yelli-staging.app"
+  prod: "yelli-basic.powerbyte.app"
+  staging: "yelli-basic-staging.powerbyte.app"
 
 tenancy:
   mode: "multi"
   notes: "Hybrid LAN + Cloud from one codebase. Cloud edition is multi-tenant via subdomain
-    routing (<slug>.yelli.app; tenantId on every entity; V25 cross-check). LAN edition runs
+    routing (<slug>.yelli-basic.powerbyte.app; tenantId on every entity; V25 cross-check). LAN edition runs
     single-tenant (single implicit tenant row, slug=default) from the same codebase. Feature
     parity between editions is non-negotiable."
 
@@ -146,11 +146,11 @@ security:
       - "http://localhost:46848"
       - "http://127.0.0.1:46848"
     staging:
-      - "https://yelli-staging.app"
-      - "https://*.yelli-staging.app"
+      - "https://yelli-basic-staging.powerbyte.app"
+      - "https://*.yelli-basic-staging.powerbyte.app"
     prod:
-      - "https://yelli.app"
-      - "https://*.yelli.app"
+      - "https://yelli-basic.powerbyte.app"
+      - "https://*.yelli-basic.powerbyte.app"
   # Audit action prefixes — grounded in PRODUCT.md AuditLog.action enum (Data Entities)
   audit_events:
     - "member.*"

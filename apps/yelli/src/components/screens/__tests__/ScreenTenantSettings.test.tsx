@@ -51,7 +51,7 @@ describe('ScreenTenantSettings', () => {
     // Slug is rendered read-only/disabled with the immutability helper.
     const slug = screen.getByDisplayValue('acme');
     expect(slug).toBeDisabled();
-    expect(screen.getByText('.yelli.app')).toBeInTheDocument();
+    expect(screen.getByText('.yelli-basic.powerbyte.app')).toBeInTheDocument();
     expect(screen.getByText(/Your address is permanent/i)).toBeInTheDocument();
     // Save is disabled until the form is dirty.
     expect(screen.getByRole('button', { name: /Save changes/i })).toBeDisabled();

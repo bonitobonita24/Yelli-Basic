@@ -170,7 +170,7 @@ function OrgSettingsForm({
                 className="flex-1 cursor-not-allowed border-0 bg-transparent font-mono text-text-muted focus-visible:ring-0"
               />
               <span className="grid place-items-center whitespace-nowrap border-l border-border bg-surface px-3 font-mono text-sm text-text-muted">
-                .yelli.app
+                .yelli-basic.powerbyte.app
               </span>
             </div>
             <p id="tenant-slug-help" className="text-[0.8rem] text-text-muted">

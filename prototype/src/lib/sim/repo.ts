@@ -588,7 +588,7 @@ export const tenantExports = {
     const { sizeBytes } = buildExportPayload(target.tenantId);
     const readyAt = now();
     const expiresAt = new Date(Date.now() + EXPORT_TTL_MS).toISOString();
-    const signedUrl = `https://exports.yelli.app/sim/${id}.json?expires=${encodeURIComponent(expiresAt)}&sig=stub-${id.slice(0, 8)}`;
+    const signedUrl = `https://exports.yelli-basic.powerbyte.app/sim/${id}.json?expires=${encodeURIComponent(expiresAt)}&sig=stub-${id.slice(0, 8)}`;
     const next = rows.map((r) =>
       r.id === id
         ? { ...r, status: 'ready' as const, readyAt, expiresAt, signedUrl, payloadBytes: sizeBytes }

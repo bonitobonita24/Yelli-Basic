@@ -30,7 +30,7 @@ BROWNFIELD ADOPTION: project existed before Spec-Driven Platform V31. Existing s
 **Migration plan:** Phase 4 Part 1 REWRITES the signaling layer (not retrofit). `inputs.yml` declares `migration.brownfield: true`. Existing `public/index.html` is the visual reference for Next.js + shadcn rebuild.
 
 ## LOCKED: Tenancy Model
-[Step 1] Dual editions: LAN (self-hosted, MIT OSS) + Cloud (managed SaaS). Single codebase, non-negotiable feature parity (`@dual-mode-exception` required for any exception). LAN: single implicit tenant (slug="default", subdomain router disabled, anonymous admin mode default). Cloud: multi-tenant subdomain routing (`<slug>.yelli.app`).
+[Step 1] Dual editions: LAN (self-hosted, MIT OSS) + Cloud (managed SaaS). Single codebase, non-negotiable feature parity (`@dual-mode-exception` required for any exception). LAN: single implicit tenant (slug="default", subdomain router disabled, anonymous admin mode default). Cloud: multi-tenant subdomain routing (`<slug>.yelli-basic.powerbyte.app`).
 
 ## LOCKED: Calling Model
 [Step 1] 1-on-1 WebRTC peer-to-peer only. Group calls deferred. Signaling-only server (no media). Default device role = `receiver`. CALL button hidden + server-rejects `forbidden_by_role` for non-caller roles (defense in depth). 30s no-answer auto-dismiss. Role change during active call does not disrupt call; new role takes effect after call ends.
@@ -81,7 +81,7 @@ BROWNFIELD ADOPTION: project existed before Spec-Driven Platform V31. Existing s
 Every page (incl all admin pages) designed from 375px portrait baseline FIRST. `md:` (768px) and `lg:` (1024px) ADD desktop affordances. No `max-md:` fallback anti-pattern. Touch targets ≥44×44px at <md viewports. Tables render as card lists at <md; `<table>` only at `md:`+; no horizontal scroll. Tenant top bar collapses to hamburger + bottom-nav at <md. Hero illustrations stack BELOW headline at <md.
 
 ## LOCKED: Operations (Step 9)
-**Status page:** static `status.yelli.app` (Cloudflare Pages, Markdown source in `status-page/` repo). Manual updates by Powerbyte on-call. Current state + last 3 incidents. Hosted statuspage deferred.
+**Status page:** static `status.powerbyte.app` (Cloudflare Pages, Markdown source in `status-page/` repo). Manual updates by Powerbyte on-call. Current state + last 3 incidents. Hosted statuspage deferred.
 
 **Observability:** GlitchTip self-hosted (errors) + Docker JSON-file log driver + Komodo per-container log viewer. Structured JSON `{ts, level, msg, tenantId?, userId?, requestId, ...}`. No central aggregator or APM in MVP. Future Loki/OTel = transport swap only.
 
@@ -113,7 +113,7 @@ Active: socraticode (Qdrant + Ollama codebase search) + context7 (live library d
 [Phase 2 Op 2026-06-01] Random base 46838 in 40000-49999 range (Rule 22). Service offsets: db=+0, pgbouncer=+1, valkey=+2, minio=+3, minio_console=+4, mailhog=+5, mailhog_ui=+6, pgadmin=+7, app=+10, worker=+11, prisma_studio=+20. Stored in inputs.yml ports.dev. App dev port = 46848. Never reused across projects on same machine. Staging/prod use standard ports.
 
 ## LOCKED: CORS origin source
-[Phase 2 Op 2026-06-01] CORS origins derived strictly from PRODUCT.md Step 7 domain locks. Prod: yelli.app + *.yelli.app. Staging: yelli-staging.app + *.yelli-staging.app. Dev: localhost:46848 + localhost:3000 + 127.0.0.1:46848. Excludes legacy yelli-maes.powerbyte.app (migration cutover domain — not part of permanent CORS).
+[Phase 2 Op 2026-06-01] CORS origins derived strictly from PRODUCT.md Step 7 domain locks. Prod: yelli-basic.powerbyte.app + *.yelli-basic.powerbyte.app. Staging: yelli-basic-staging.powerbyte.app + *.yelli-basic-staging.powerbyte.app. Dev: localhost:46848 + localhost:3000 + 127.0.0.1:46848. Excludes legacy yelli-maes.powerbyte.app (migration cutover domain — not part of permanent CORS). [Domain updated 2026-06-14: yelli.app/yelli-staging.app → powerbyte.app subdomains per owner decision.]
 
 ## LOCKED: Platform tenant slug — `_pwbt`
 

@@ -213,7 +213,7 @@ function TenantTopBar({ go, currentScreen }) {
           <div className="w-9 h-9 rounded-[8px] bg-[#1a3a3a] text-white grid place-items-center font-semibold flex-shrink-0">{TENANT.logoLetter}</div>
           <div className="flex flex-col leading-tight min-w-0">
             <span className="text-[14px] font-semibold text-[#0a0a0a] truncate">{TENANT.brandedName}</span>
-            <span className="text-[12px] text-[#6a6a6a] truncate">{TENANT.slug}.yelli.app</span>
+            <span className="text-[12px] text-[#6a6a6a] truncate">{TENANT.slug}.yelli-basic.powerbyte.app</span>
           </div>
         </button>
         <nav className="hidden md:flex items-center gap-1">
@@ -344,7 +344,7 @@ function ScreenLanding({ go }) {
             <div className="mt-6 rounded-[16px] bg-white text-[#0a0a0a] p-4 text-[12px] font-mono break-all">
               <span className="text-[#6a6a6a]">https://</span>
               <span className="font-semibold">your-org</span>
-              <span className="text-[#6a6a6a]">.yelli.app</span>
+              <span className="text-[#6a6a6a]">.yelli-basic.powerbyte.app</span>
             </div>
           </article>
 
@@ -424,7 +424,7 @@ function ScreenSignup({ go }) {
                   maxLength={30}
                   className="flex-1 min-w-0 h-11 px-4 rounded-l-[12px] bg-[#fffaf0] border border-[#e5e5e5] focus:border-[#0a0a0a] focus:outline-none text-[16px] text-[#0a0a0a] font-mono"
                 />
-                <span className="h-11 px-3 inline-flex items-center rounded-r-[12px] bg-[#f5f0e0] border border-l-0 border-[#e5e5e5] text-[13px] text-[#3a3a3a] font-mono whitespace-nowrap">.yelli.app</span>
+                <span className="h-11 px-3 inline-flex items-center rounded-r-[12px] bg-[#f5f0e0] border border-l-0 border-[#e5e5e5] text-[13px] text-[#3a3a3a] font-mono whitespace-nowrap">.yelli-basic.powerbyte.app</span>
               </div>
               <div className="mt-2 text-[12px] text-[#6a6a6a] leading-[1.5]">
                 3–30 chars · lowercase letters, digits, hyphens · must start with a letter ·{" "}
@@ -437,7 +437,7 @@ function ScreenSignup({ go }) {
                 <div className="mt-2 text-[12px] text-[#b91c1c] font-medium">Doesn't match the format — letters/digits/hyphens only.</div>
               )}
               {isValid && (
-                <div className="mt-2 text-[12px] text-[#15803d] font-medium">✓ {slug}.yelli.app is available</div>
+                <div className="mt-2 text-[12px] text-[#15803d] font-medium">✓ {slug}.yelli-basic.powerbyte.app is available</div>
               )}
             </div>
 
@@ -1318,14 +1318,14 @@ export default function Mockup() {
       {screen === "branding"    && <ScreenAdminBranding go={go} />}
       {screen === "settings"    && <ScreenSettings    go={go} />}
 
-      {screen === "pricing"         && <ScreenStub go={go} lanContext breadcrumb="yelli.app / pricing"          title="Pricing"               note="3-tier card grid: Starter (free for LAN OSS) · Cloud Starter · Cloud Growth. Stacks 1-up on mobile." />}
-      {screen === "legalPrivacy"    && <ScreenStub go={go} lanContext breadcrumb="yelli.app / legal / privacy"  title="Privacy policy"        note="Long-form privacy doc. Single-column 720px body, mobile-first reading column. PH DPA-aligned + GDPR opt-in." />}
-      {screen === "legalTerms"      && <ScreenStub go={go} lanContext breadcrumb="yelli.app / legal / terms"    title="Terms of service"      note="Standard B2B SaaS terms. Same layout as privacy. Sibling page — both under /legal/." />}
-      {screen === "forgot"          && <ScreenStub go={go} lanContext breadcrumb="yelli.app / forgot-password"  title="Forgot password"       note="Single-field email input + Turnstile. V25 anti-enumeration: always returns 'check your inbox'." />}
-      {screen === "reset"           && <ScreenStub go={go} lanContext breadcrumb="yelli.app / reset-password"   title="Reset password"        note="Token-gated landing. New password + confirm. Token-expiry banner past 1h." />}
-      {screen === "verify"          && <ScreenStub go={go} lanContext breadcrumb="yelli.app / verify-email"     title="Verify email"          note="Token-gated success/error page. Redirects to /app on success." />}
-      {screen === "invite"          && <ScreenStub go={go} lanContext breadcrumb="yelli.app / invite"           title="Accept invitation"     note="Shows inviting org + role being assigned. CTA: 'Set password & join'." />}
-      {screen === "tenantSuspended" && <ScreenStub go={go} lanContext breadcrumb="<slug>.yelli.app / suspended" title="Org is suspended"      note="Shown when Tenant.isSuspended=true. All authenticated routes redirect here. Contact billing CTA + Powerbyte support email." />}
+      {screen === "pricing"         && <ScreenStub go={go} lanContext breadcrumb="yelli-basic.powerbyte.app / pricing"          title="Pricing"               note="3-tier card grid: Starter (free for LAN OSS) · Cloud Starter · Cloud Growth. Stacks 1-up on mobile." />}
+      {screen === "legalPrivacy"    && <ScreenStub go={go} lanContext breadcrumb="yelli-basic.powerbyte.app / legal / privacy"  title="Privacy policy"        note="Long-form privacy doc. Single-column 720px body, mobile-first reading column. PH DPA-aligned + GDPR opt-in." />}
+      {screen === "legalTerms"      && <ScreenStub go={go} lanContext breadcrumb="yelli-basic.powerbyte.app / legal / terms"    title="Terms of service"      note="Standard B2B SaaS terms. Same layout as privacy. Sibling page — both under /legal/." />}
+      {screen === "forgot"          && <ScreenStub go={go} lanContext breadcrumb="yelli-basic.powerbyte.app / forgot-password"  title="Forgot password"       note="Single-field email input + Turnstile. V25 anti-enumeration: always returns 'check your inbox'." />}
+      {screen === "reset"           && <ScreenStub go={go} lanContext breadcrumb="yelli-basic.powerbyte.app / reset-password"   title="Reset password"        note="Token-gated landing. New password + confirm. Token-expiry banner past 1h." />}
+      {screen === "verify"          && <ScreenStub go={go} lanContext breadcrumb="yelli-basic.powerbyte.app / verify-email"     title="Verify email"          note="Token-gated success/error page. Redirects to /app on success." />}
+      {screen === "invite"          && <ScreenStub go={go} lanContext breadcrumb="yelli-basic.powerbyte.app / invite"           title="Accept invitation"     note="Shows inviting org + role being assigned. CTA: 'Set password & join'." />}
+      {screen === "tenantSuspended" && <ScreenStub go={go} lanContext breadcrumb="<slug>.yelli-basic.powerbyte.app / suspended" title="Org is suspended"      note="Shown when Tenant.isSuspended=true. All authenticated routes redirect here. Contact billing CTA + Powerbyte support email." />}
       {screen === "pwbtRoot"        && <ScreenStub go={go} breadcrumb="_pwbt"                                   title="Powerbyte Super-Admin" note="Root landing for /_pwbt/. Quick links to Tenants and Import. Separate tRPC router + dedicated Prisma client (V25). Mobile-first card list, same as Members." />}
       {screen === "pwbtTenants"     && <ScreenStub go={go} breadcrumb="_pwbt / tenants"                         title="Powerbyte: Tenants"    note="Super-Admin tenant list. Mobile-first card list at <md; table at md:+." />}
       {screen === "pwbtImport"      && <ScreenStub go={go} breadcrumb="_pwbt / import"                          title="LAN tenant import"     note="Upload yelli-lan-export-*.tar.gz, pick target slug, preview entities, confirm. Single Prisma transaction; full rollback on failure." />}

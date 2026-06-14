@@ -19,8 +19,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.SMTP_HOST = 'localhost';
   process.env.SMTP_PORT = '1025';
-  process.env.SMTP_FROM = 'no-reply@yelli.app';
-  process.env.APP_URL = 'https://acme.yelli.app';
+  process.env.SMTP_FROM = 'no-reply@yelli-basic.powerbyte.app';
+  process.env.APP_URL = 'https://acme.yelli-basic.powerbyte.app';
 });
 afterEach(() => {
   delete process.env.SMTP_HOST;
@@ -49,7 +49,7 @@ describe('processEmail', () => {
     const arg = h.sendMail.mock.calls[0]![0] as { to: string; subject: string; text: string; html: string };
     expect(arg.to).toBe('invitee@x.test');
     expect(arg.subject).toBe("You're invited to join Yelli");
-    expect(arg.text).toContain('https://acme.yelli.app/invite?token=raw-token-123');
+    expect(arg.text).toContain('https://acme.yelli-basic.powerbyte.app/invite?token=raw-token-123');
     expect(arg.html).toContain('/invite?token=raw-token-123');
   });
 

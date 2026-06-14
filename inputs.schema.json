@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://yelli.app/inputs.schema.json",
+  "$id": "https://yelli-basic.powerbyte.app/inputs.schema.json",
   "title": "Yelli inputs.yml schema (V3)",
   "type": "object",
   "additionalProperties": false,

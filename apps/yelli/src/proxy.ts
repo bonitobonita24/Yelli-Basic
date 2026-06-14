@@ -12,7 +12,7 @@ import { isReservedSlug } from '@yelli/shared';
  *
  * Cloud edition only: cross-check the request subdomain slug against the signed-in
  * `token.tenantSlug` and redirect on mismatch — this is what stops a user typing
- * `other-tenant.yelli.app` to reach a tenant that is not theirs (DECISIONS [Step 6]:
+ * `other-tenant.yelli-basic.powerbyte.app` to reach a tenant that is not theirs (DECISIONS [Step 6]:
  * `session.tenantId === URL.slug.tenantId` on every Cloud request). LAN is single-
  * tenant and disables the subdomain router entirely (DECISIONS [Step 1]).
  *
@@ -22,7 +22,7 @@ import { isReservedSlug } from '@yelli/shared';
  * domain is configured (LAN / dev), the proxy is a transparent pass-through.
  */
 function extractTenantSlug(host: string, baseDomain: string): string | null {
-  if (!host || host === baseDomain) return null; // apex (e.g. yelli.app) → not a tenant.
+  if (!host || host === baseDomain) return null; // apex (e.g. yelli-basic.powerbyte.app) → not a tenant.
   const suffix = '.' + baseDomain;
   if (!host.endsWith(suffix)) return null; // localhost / IP / foreign host → not Cloud-routed.
   const label = host.slice(0, host.length - suffix.length);

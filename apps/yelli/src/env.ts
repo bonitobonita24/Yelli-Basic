@@ -17,13 +17,13 @@ const schema = z.object({
   // proxy reads these off process.env directly (edge-light); declared here so the
   // Node server validates/documents them.
   EDITION: z.enum(['lan', 'cloud']).default('lan'),
-  // Cloud registrable base domain (e.g. `yelli.app`) — required for V25 subdomain
+  // Cloud registrable base domain (e.g. `yelli-basic.powerbyte.app`) — required for V25 subdomain
   // slug resolution when EDITION=cloud; ignored on LAN.
   APP_BASE_DOMAIN: z.string().optional(),
   // Public (client-exposed) — optional until the relevant features are wired.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY: z.string().optional(),
-  // WS URL the client useSignaling hook connects to (e.g. `wss://yelli.app/ws`
+  // WS URL the client useSignaling hook connects to (e.g. `wss://yelli-basic.powerbyte.app/ws`
   // in prod via the Traefik reverse proxy, `ws://localhost:46849/ws` in dev).
   // Optional until W1b wires the calling screens; absent ⇒ the hook stays idle.
   NEXT_PUBLIC_SIGNALING_URL: z.string().url().optional(),

@@ -55,7 +55,7 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
   const pathname = usePathname();
   const items = navItems(ctx.isAdmin);
   const brandName = ctx.brand?.displayName ?? 'Yelli';
-  const brandHost = ctx.brand ? `${ctx.brand.slug}.yelli.app` : 'Dual-mode calling';
+  const brandHost = ctx.brand ? `${ctx.brand.slug}.yelli-basic.powerbyte.app` : 'Dual-mode calling';
   const brandLetter = (ctx.brand?.displayName ?? 'Y').charAt(0).toUpperCase();
 
   return (
