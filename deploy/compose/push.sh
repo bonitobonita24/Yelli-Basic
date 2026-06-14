@@ -15,6 +15,8 @@ set -euo pipefail
 IMAGE_BASE="${DOCKERHUB_USERNAME:?'DOCKERHUB_USERNAME env var is required. Run: export DOCKERHUB_USERNAME=powerbyteit'}/${IMAGE_NAME:-yelli}"
 # Background BullMQ worker host (W5-runtime) — a separate image from the app.
 WORKER_IMAGE_BASE="${DOCKERHUB_USERNAME}/${WORKER_IMAGE_NAME:-yelli-worker}"
+# WebSocket signaling server — a separate image from the app.
+SIGNALING_IMAGE_BASE="${DOCKERHUB_USERNAME}/${SIGNALING_IMAGE_NAME:-yelli-signaling}"
 SHORT_SHA=$(git rev-parse --short HEAD)
 
 # ── Guard: docker.publish ────────────────────────────────────────────────────
@@ -51,6 +53,14 @@ case "$TARGET" in
       --platform linux/amd64 \
       .
 
+    echo "🔨  Building signaling image from source…"
+    docker build \
+      --file apps/signaling/Dockerfile \
+      --tag "${SIGNALING_IMAGE_BASE}:dev-latest" \
+      --tag "${SIGNALING_IMAGE_BASE}:dev-sha-${SHORT_SHA}" \
+      --platform linux/amd64 \
+      .
+
     echo "🧪  Starting dev stack for tests…"
     bash deploy/compose/start.sh dev up -d
     sleep 8
@@ -71,6 +81,8 @@ case "$TARGET" in
     docker push "${IMAGE_BASE}:dev-sha-${SHORT_SHA}"
     docker push "${WORKER_IMAGE_BASE}:dev-latest"
     docker push "${WORKER_IMAGE_BASE}:dev-sha-${SHORT_SHA}"
+    docker push "${SIGNALING_IMAGE_BASE}:dev-latest"
+    docker push "${SIGNALING_IMAGE_BASE}:dev-sha-${SHORT_SHA}"
 
     echo ""
     echo "✅  Dev images pushed:"
@@ -78,6 +90,8 @@ case "$TARGET" in
     echo "     ${IMAGE_BASE}:dev-sha-${SHORT_SHA}"
     echo "     ${WORKER_IMAGE_BASE}:dev-latest"
     echo "     ${WORKER_IMAGE_BASE}:dev-sha-${SHORT_SHA}"
+    echo "     ${SIGNALING_IMAGE_BASE}:dev-latest"
+    echo "     ${SIGNALING_IMAGE_BASE}:dev-sha-${SHORT_SHA}"
     echo ""
     echo "▶   To promote to staging: bash deploy/compose/push.sh staging"
     ;;
@@ -97,12 +111,20 @@ case "$TARGET" in
     docker push "${WORKER_IMAGE_BASE}:staging-latest"
     docker push "${WORKER_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
 
+    docker pull "${SIGNALING_IMAGE_BASE}:dev-latest"
+    docker tag  "${SIGNALING_IMAGE_BASE}:dev-latest" "${SIGNALING_IMAGE_BASE}:staging-latest"
+    docker tag  "${SIGNALING_IMAGE_BASE}:dev-latest" "${SIGNALING_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
+    docker push "${SIGNALING_IMAGE_BASE}:staging-latest"
+    docker push "${SIGNALING_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
+
     echo ""
     echo "✅  Staging images pushed:"
     echo "     ${IMAGE_BASE}:staging-latest"
     echo "     ${IMAGE_BASE}:staging-sha-${SHORT_SHA}"
     echo "     ${WORKER_IMAGE_BASE}:staging-latest"
     echo "     ${WORKER_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
+    echo "     ${SIGNALING_IMAGE_BASE}:staging-latest"
+    echo "     ${SIGNALING_IMAGE_BASE}:staging-sha-${SHORT_SHA}"
     echo ""
     echo "📋  On your staging server, run:"
     echo "     docker compose -f deploy/compose/stage/docker-compose.app.yml pull"
@@ -126,12 +148,20 @@ case "$TARGET" in
     docker push "${WORKER_IMAGE_BASE}:prod"
     docker push "${WORKER_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
 
+    docker pull "${SIGNALING_IMAGE_BASE}:staging-latest"
+    docker tag  "${SIGNALING_IMAGE_BASE}:staging-latest" "${SIGNALING_IMAGE_BASE}:prod"
+    docker tag  "${SIGNALING_IMAGE_BASE}:staging-latest" "${SIGNALING_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
+    docker push "${SIGNALING_IMAGE_BASE}:prod"
+    docker push "${SIGNALING_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
+
     echo ""
     echo "✅  Production images pushed:"
     echo "     ${IMAGE_BASE}:prod"
     echo "     ${IMAGE_BASE}:prod-sha-${SHORT_SHA}"
     echo "     ${WORKER_IMAGE_BASE}:prod"
     echo "     ${WORKER_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
+    echo "     ${SIGNALING_IMAGE_BASE}:prod"
+    echo "     ${SIGNALING_IMAGE_BASE}:prod-sha-${SHORT_SHA}"
     echo ""
     echo "📋  On your production server, run:"
     echo "     docker compose -f deploy/compose/prod/docker-compose.app.yml pull"

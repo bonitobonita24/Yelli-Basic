@@ -15,11 +15,19 @@ case "$ENV" in
   *) echo "❌  Unknown environment: '$ENV'. Valid: dev | stage | prod" >&2; exit 1 ;;
 esac
 
+# Env-file suffix mapping. The compose dir keyword is `stage`, but the env file is
+# `.env.staging` (and the stage compose files hardcode `env_file: ../../../.env.staging`).
+# Map the keyword → the actual env-file suffix so --env-file and env_file: agree.
+case "$ENV" in
+  stage) ENV_SUFFIX="staging" ;;
+  *)     ENV_SUFFIX="$ENV" ;;
+esac
+
 # Guard: env file must exist so YAML variable substitution works at compose-parse time.
 # Absolute path so --env-file resolves correctly regardless of CWD inside docker compose.
-ENV_FILE="$(pwd)/.env.$ENV"
+ENV_FILE="$(pwd)/.env.$ENV_SUFFIX"
 if [ ! -f "$ENV_FILE" ]; then
-  echo "❌  .env.$ENV not found. Copy .env.example → .env.$ENV and fill values first." >&2
+  echo "❌  .env.$ENV_SUFFIX not found. Copy .env.example → .env.$ENV_SUFFIX and fill values first." >&2
   echo "   (Or run: bash scripts/sync-credentials-to-env.sh)" >&2
   exit 1
 fi

@@ -1,11 +1,17 @@
 # .github/workflows/docker-publish.yml
-# Builds and pushes a production Docker image to Docker Hub on every push to main.
-# Two primary tags pushed per run:
+# Builds and pushes THREE Docker images to Docker Hub on every push to main:
+#   - app (yelli):        apps/yelli/Dockerfile         → ${DOCKERHUB_USERNAME}/${DOCKER_IMAGE_NAME}
+#   - signaling:          apps/signaling/Dockerfile     → ${DOCKERHUB_USERNAME}/yelli-signaling
+#   - worker:             packages/jobs/Dockerfile.workers → ${DOCKERHUB_USERNAME}/yelli-worker
+# Two primary tags pushed per run per image:
 #   :staging-latest — Komodo auto-update polls for this tag (staging auto-redeploy)
 #   :latest         — used for manual production deploy from Komodo UI
 # Requires two GitHub repository secrets:
 #   DOCKERHUB_USERNAME — your Docker Hub username
 #   DOCKERHUB_TOKEN    — Docker Hub access token (not your password — create at hub.docker.com → Account Settings → Security)
+# Requires one GitHub repository variable:
+#   DOCKER_IMAGE_NAME  — base image name for the app image (e.g. yelli)
+#   (repo → Settings → Secrets and variables → Variables → New variable)
 
 name: Docker Build & Publish
 
@@ -18,20 +24,29 @@ concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.DOCKER_IMAGE_NAME }}
-  # ⚠️ BEFORE FIRST PUSH: add DOCKER_IMAGE_NAME as a GitHub Actions variable
-  # (repo → Settings → Secrets and variables → Variables → New variable)
-  # Value = the image_name from your inputs.yml docker section (e.g. yelli)
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-and-push:
-    name: Build & push image
+    name: Build & push ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: app
+            image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.DOCKER_IMAGE_NAME }}
+            dockerfile: ./apps/yelli/Dockerfile
+          - name: signaling
+            image: ${{ secrets.DOCKERHUB_USERNAME }}/yelli-signaling
+            dockerfile: ./apps/signaling/Dockerfile
+          - name: worker
+            image: ${{ secrets.DOCKERHUB_USERNAME }}/yelli-worker
+            dockerfile: ./packages/jobs/Dockerfile.workers
 
     steps:
       - name: Checkout
@@ -53,21 +68,21 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ matrix.image }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=staging-latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
 
-      - name: Build and push
+      - name: Build and push ${{ matrix.name }}
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./apps/yelli/Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
