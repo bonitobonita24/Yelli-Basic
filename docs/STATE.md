@@ -1,7 +1,45 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S6 PARTIAL static-only validation DONE → 9/9 static checks GREEN, phase-4-complete NOT tagged · live §3 flow-walk + Visual QA DEFERRED to post-merge deploy session, 2026-06-13)
+## Current State — LAN admin first-run `/setup` + reset script (swarm/rebuild · the two lan-admin.ts TODO mechanisms now BUILT + tested, 2026-06-14)
+
+> **LAN-admin-setup DONE (this session, 2026-06-14).** Closed the two gaps that
+> `apps/yelli/src/server/auth/lan-admin.ts` referenced as the intended set/reset
+> mechanisms but were never built: the `/setup` first-run flow (was 404) and
+> `scripts/reset-admin-passphrase.sh` (did not exist).
+> • **`/setup` first-run flow.** `setLanAdminPassphrase()` + `lanAdminConfigured()`
+>   added to `lan-admin.ts` (Argon2id via `@node-rs/argon2` `hash`, shared
+>   `mintLanAdminCookie` helper with `signInLanAdmin`). New Route Handler
+>   `app/api/admin/setup/route.ts` mirrors `/api/admin/login` exactly (Zod body
+>   `{passphrase,confirm}`, 8-char floor, 5/min/IP rate limit, generic `{ok:false}`
+>   on every failure — no setup-state leak). Sets the hash ONLY on first-run via an
+>   atomic `updateMany(where adminPassphraseHash:null)` race-guard, audits
+>   `lan.admin.setup.success|fail` through the L6-excluded base client (tenantId
+>   explicit, security.md #10), then mints `yelli_admin_session` and the page routes
+>   to `/admin/settings`. Page `app/(public)/setup/page.tsx` (server-gated → redirects
+>   to `/admin/login` when already configured) + `SetupForm.tsx` (shadcn Card/Input/
+>   Label/Button + Clay tokens, visual twin of the login page — INHERIT-not-REPLACE).
+> • **Admin guard redirect.** `app/admin/layout.tsx` now sends non-admins to `/setup`
+>   when NO passphrase is configured and `/admin/login` when one is (one extra
+>   `lanAdminConfigured()` read on the unauthenticated path only).
+> • **`scripts/reset-admin-passphrase.sh`.** Host operator reset. Mirrors
+>   `sync-credentials-to-env.sh` conventions; arg or hidden-prompt passphrase (+confirm),
+>   loads `DATABASE_URL` from `.env.dev` (or `--env-file`). pnpm isolates workspace
+>   deps, so it hashes via `pnpm --filter @yelli/web exec node` (owns `@node-rs/argon2`)
+>   then updates the earliest tenant + audits `lan.admin.reset` via
+>   `pnpm --filter @yelli/db exec node` (owns `@prisma/client`); temp helper files in
+>   each package, trap-cleaned. **Verified live against the dev `_pwbt` tenant** (reset
+>   → hash verifies → restored to `admin`; dev env left exactly as found).
+> • **Tests + checks GREEN:** new `lan-admin-setup.test.ts` (8) + setup
+>   `route.test.ts` (5) = 13 new, all pass; **full web suite 19 files / 73 tests pass**;
+>   `pnpm --filter @yelli/web typecheck` clean.
+> • **Dispatch note (Rule 15 / V32.1):** authored Opus-inline (headless architect,
+>   standing env-structural swarm fallback). Single coherent feature on shared files
+>   (lan-admin.ts ↔ route ↔ page ↔ guard) — no independent fan-out boundary.
+> **NEXT unchanged:** S6 real-W8 e2e + the 3 deferred items below still gate
+> phase-4-complete; this session adds no new blockers (it removes two).
+
+## Prior State — Clean-Slate Scaffold-then-Wire (swarm/rebuild · S6 PARTIAL static-only validation DONE → 9/9 static checks GREEN, phase-4-complete NOT tagged · live §3 flow-walk + Visual QA DEFERRED to post-merge deploy session, 2026-06-13)
 
 > **S6 DONE (this session, 2026-06-13) — PARTIAL static-only validation, NO phase-4-complete tag.**
 > Per resolved human queue (q-91..94-S6-01 [A]): S6 ran ONLY the Phase 5 STATIC suite on `swarm/rebuild`

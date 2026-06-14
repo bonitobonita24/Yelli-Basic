@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-import { verify as argon2Verify } from '@node-rs/argon2';
+import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2';
 import { cookies } from 'next/headers';
 
 import { prisma } from '@yelli/db';
@@ -9,7 +9,9 @@ import { prisma } from '@yelli/db';
  * LAN Anonymous Admin (LOCKED, Step 6). The LAN edition has no Accounts — a single
  * Argon2id passphrase on `Tenant.adminPassphraseHash` gates `/admin/*` + `/setup`
  * via the HttpOnly `yelli_admin_session` cookie (30-day rolling, SameSite=Lax,
- * Secure on HTTPS). Reset runs via `./scripts/reset-admin-passphrase.sh` on the host.
+ * Secure on HTTPS). First-run sets the passphrase via the `/setup` flow
+ * (`setLanAdminPassphrase`); reset runs via `./scripts/reset-admin-passphrase.sh`
+ * on the host.
  *
  * Session token format: `${tenantId}.${issuedAtMs}.${hmacSHA256(tenantId.issuedAtMs, AUTH_SECRET)}`.
  * No DB hit on every request — the HMAC is the integrity proof; issuance recency
@@ -132,7 +134,15 @@ export async function signInLanAdmin(
 
   if (!ok) return { ok: false };
 
-  const token = signSessionToken(tenant.id, Date.now());
+  await mintLanAdminCookie(tenant.id);
+  return { ok: true, tenantId: tenant.id, role: 'admin' };
+}
+
+/** Mint + set the 30-day signed `yelli_admin_session` cookie for a tenant. Shared
+ *  by the login (`signInLanAdmin`) and first-run setup (`setLanAdminPassphrase`)
+ *  success paths so the cookie shape stays identical across both. */
+async function mintLanAdminCookie(tenantId: string): Promise<void> {
+  const token = signSessionToken(tenantId, Date.now());
   const store = await cookies();
   store.set(LAN_ADMIN_COOKIE, token, {
     httpOnly: true,
@@ -141,7 +151,115 @@ export async function signInLanAdmin(
     path: '/',
     maxAge: SESSION_TTL_MS / 1000,
   });
-  return { ok: true, tenantId: tenant.id, role: 'admin' };
+}
+
+/**
+ * First-run state probe for the route guard. Returns `true` when ANY tenant
+ * already carries an `adminPassphraseHash` (setup complete → `/setup` must refuse),
+ * `false` when none do (first-run → `/admin/*` must route to `/setup`). Read-only;
+ * no cookie, no audit. Cloud editions return `false` (all hashes null), which is
+ * correct — Cloud never routes to `/setup` (its guard is the Auth.js layout).
+ */
+export async function lanAdminConfigured(): Promise<boolean> {
+  const tenant = await resolveLanTenant();
+  return tenant !== null;
+}
+
+/**
+ * First-run LAN admin setup. Sets `Tenant.adminPassphraseHash` (Argon2id via
+ * `@node-rs/argon2`) ONLY when no LAN tenant has a passphrase yet, then logs the
+ * operator in (mints `yelli_admin_session`, identical to `signInLanAdmin` success).
+ *
+ * Refuses (`{ ok: false }`) when a passphrase already exists — the caller must NOT
+ * surface WHY (already-configured vs no-tenant-to-bind), satisfying security.md's
+ * "never reveal setup-state" AUTH rule. AuditLog is L6-excluded so we write through
+ * the base client with `tenantId` passed explicitly (security.md #10), mirroring
+ * `signInLanAdmin`'s `lan.admin.login.*` events.
+ *
+ * The target tenant for a first-run set is the earliest-created tenant overall
+ * (LAN runs a single tenant per deployment — Step 1); on a fresh LAN deploy that is
+ * the bootstrapped tenant whose `adminPassphraseHash` is still null.
+ */
+export async function setLanAdminPassphrase(
+  passphrase: string,
+): Promise<{ ok: true; tenantId: string; role: 'admin' } | { ok: false }> {
+  // Already configured → refuse. Generic failure; never reveal the reason.
+  if (await lanAdminConfigured()) {
+    await prisma.auditLog
+      .create({
+        data: {
+          tenantId: null,
+          actorUserId: null,
+          action: 'lan.admin.setup.fail',
+          targetType: 'Tenant',
+          targetId: null,
+          payload: { reason: 'already_configured' },
+        },
+      })
+      .catch(() => {});
+    return { ok: false };
+  }
+
+  // First-run target: the implicit LAN tenant (earliest-created), whose hash is null.
+  const target = await prisma.tenant.findFirst({
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+  if (!target) {
+    // No tenant to bind to — nothing was bootstrapped. Best-effort audit, generic fail.
+    await prisma.auditLog
+      .create({
+        data: {
+          tenantId: null,
+          actorUserId: null,
+          action: 'lan.admin.setup.fail',
+          targetType: 'Tenant',
+          targetId: null,
+          payload: { reason: 'no_tenant' },
+        },
+      })
+      .catch(() => {});
+    return { ok: false };
+  }
+
+  const adminPassphraseHash = await argon2Hash(passphrase);
+  // Race guard: only set if STILL null, so two concurrent first-run POSTs can't both
+  // win. `updateMany` with the null filter is atomic; count === 0 means a passphrase
+  // was set between the probe and here → refuse exactly as the already-configured path.
+  const updated = await prisma.tenant.updateMany({
+    where: { id: target.id, adminPassphraseHash: null },
+    data: { adminPassphraseHash },
+  });
+  if (updated.count === 0) {
+    await prisma.auditLog
+      .create({
+        data: {
+          tenantId: target.id,
+          actorUserId: null,
+          action: 'lan.admin.setup.fail',
+          targetType: 'Tenant',
+          targetId: target.id,
+          payload: { reason: 'already_configured' },
+        },
+      })
+      .catch(() => {});
+    return { ok: false };
+  }
+
+  await prisma.auditLog
+    .create({
+      data: {
+        tenantId: target.id,
+        actorUserId: null,
+        action: 'lan.admin.setup.success',
+        targetType: 'Tenant',
+        targetId: target.id,
+      },
+    })
+    .catch(() => {});
+
+  await mintLanAdminCookie(target.id);
+  return { ok: true, tenantId: target.id, role: 'admin' };
 }
 
 /** Clear the LAN admin cookie + emit `lan.admin.logout` (best-effort). */
