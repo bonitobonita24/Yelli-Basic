@@ -5,6 +5,7 @@ import { Prisma, type Role } from '@yelli/db';
 
 import { publishSessionInvalidate } from '@/server/realtime/bus';
 
+import { resolveAuditActorId } from '../audit-actor';
 import { protectedProcedure } from '../procedures';
 import { router } from '../trpc';
 
@@ -113,7 +114,7 @@ export const tenantsRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'user.role.promote',
           targetType: 'User',
           targetId: next.id,
@@ -150,7 +151,7 @@ export const tenantsRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'user.role.demote',
           targetType: 'User',
           targetId: next.id,
@@ -188,7 +189,7 @@ export const tenantsRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'user.suspend',
           targetType: 'User',
           targetId: next.id,
@@ -248,7 +249,7 @@ export const tenantsRouter = router({
         data: [
           {
             tenantId: ctx.tenantId,
-            actorUserId: ctx.user.id,
+            actorUserId: resolveAuditActorId(ctx.user.id),
             action: 'user.role.promote',
             targetType: 'User',
             targetId: promoted.id,
@@ -256,7 +257,7 @@ export const tenantsRouter = router({
           },
           {
             tenantId: ctx.tenantId,
-            actorUserId: ctx.user.id,
+            actorUserId: resolveAuditActorId(ctx.user.id),
             action: 'user.role.demote',
             targetType: 'User',
             targetId: demoted.id,

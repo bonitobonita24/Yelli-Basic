@@ -3,6 +3,13 @@ import type { Session } from 'next-auth';
 import { auth } from '@/server/auth/config';
 import { getLanAdminSession } from '@/server/auth/lan-admin';
 
+import { LAN_ADMIN_ACTOR_ID, resolveAuditActorId } from './audit-actor';
+
+// Re-exported from the next-auth-free leaf module (audit-actor.ts) so router unit
+// tests and audit choke points can import the mapping without pulling in the Auth.js
+// runtime. Kept exported here for the established import path (`@/server/trpc/context`).
+export { LAN_ADMIN_ACTOR_ID, resolveAuditActorId };
+
 /**
  * Stable synthetic actor id for the LAN anonymous admin. The LAN edition has no
  * Accounts (no `users` row) — admins authenticate purely via the signed
@@ -16,8 +23,6 @@ import { getLanAdminSession } from '@/server/auth/lan-admin';
  * sentinel → `null` (system/anonymous actor — the same shape lan-admin.ts uses
  * for its own `lan.admin.*` events). The read path (tenants.get) is unaffected.
  */
-export const LAN_ADMIN_ACTOR_ID = '__lan_admin__';
-
 /**
  * Per-request tRPC context. The Auth.js v5 universal `auth()` reads the JWT
  * session from cookies — no DB hit here; the jwt callback already DB-validates

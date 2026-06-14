@@ -3,7 +3,6 @@
 import { LogOut, Mail, ScrollText, Settings, UserCog, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import type { ReactNode } from 'react';
 
 import {
@@ -49,6 +48,24 @@ function initials(label: string | null): string {
   const parts = label.trim().split(/\s+/);
   const chars = parts.length >= 2 ? parts[0]![0]! + parts[1]![0]! : label.slice(0, 2);
   return chars.toUpperCase();
+}
+
+/**
+ * Sign out of BOTH admin sessions. The `/api/admin/logout` POST clears the LAN
+ * `yelli_admin_session` cookie AND the Auth.js session server-side (the prior
+ * client-only `signOut()` cleared only Auth.js, leaving the LAN cookie live so the
+ * admin guard silently re-logged the user in on the next navigation). A hard
+ * `window.location` navigation — not a client router push — guarantees the server
+ * re-reads the now-cleared cookies and the RSC cache can't replay a stale admin
+ * shell. We land on `/admin/login` even if the POST throws, so a transient failure
+ * never traps the user in an authenticated-looking shell.
+ */
+async function signOutBothSessions(): Promise<void> {
+  try {
+    await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
+  } finally {
+    window.location.assign('/admin/login');
+  }
 }
 
 export function AppShell({ ctx, children }: { ctx: AppShellContext; children: ReactNode }) {
@@ -114,7 +131,7 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
               {ctx.isAdmin ? 'Admin' : 'Member'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => void signOut({ callbackUrl: '/admin/login' })}>
+            <DropdownMenuItem onClick={() => void signOutBothSessions()}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
             </DropdownMenuItem>

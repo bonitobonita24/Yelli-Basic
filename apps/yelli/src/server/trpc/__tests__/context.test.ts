@@ -14,7 +14,9 @@ const h = vi.hoisted(() => ({
 vi.mock('@/server/auth/config', () => ({ auth: h.auth }));
 vi.mock('@/server/auth/lan-admin', () => ({ getLanAdminSession: h.getLanAdminSession }));
 
-const { createContext, LAN_ADMIN_ACTOR_ID } = await import('@/server/trpc/context');
+const { createContext, LAN_ADMIN_ACTOR_ID, resolveAuditActorId } = await import(
+  '@/server/trpc/context'
+);
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -54,5 +56,20 @@ describe('createContext — LAN bridge', () => {
     const ctx = await createContext();
 
     expect(ctx.session).toBeNull();
+  });
+});
+
+describe('resolveAuditActorId — FK-safe audit actor mapping', () => {
+  it('maps the LAN-admin sentinel → null (no users row → no FK violation)', () => {
+    expect(resolveAuditActorId(LAN_ADMIN_ACTOR_ID)).toBeNull();
+  });
+
+  it('maps null/undefined → null', () => {
+    expect(resolveAuditActorId(null)).toBeNull();
+    expect(resolveAuditActorId(undefined)).toBeNull();
+  });
+
+  it('passes a real Auth.js user id through unchanged', () => {
+    expect(resolveAuditActorId('u123')).toBe('u123');
   });
 });

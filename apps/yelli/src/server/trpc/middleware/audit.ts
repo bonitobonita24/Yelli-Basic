@@ -1,6 +1,7 @@
 import { Prisma, prisma } from '@yelli/db';
 import type { AuditAction } from '@yelli/shared';
 
+import { resolveAuditActorId } from '../audit-actor';
 import { middleware } from '../trpc';
 
 /**
@@ -33,7 +34,8 @@ export type RecordAudit = (
  * the recorder writes through the base client with tenantId passed explicitly.
  */
 export const auditMiddleware = middleware(async ({ ctx, next }) => {
-  const actorUserId = ctx.session?.user?.id ?? null;
+  // Map the LAN-admin sentinel → null (no `users` row → FK-safe). Real user ids pass through.
+  const actorUserId = resolveAuditActorId(ctx.session?.user?.id);
   const tenantId = ctx.session?.user?.tenantId ?? null;
 
   const recordAudit: RecordAudit = async (action, target, payload) => {

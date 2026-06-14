@@ -9,6 +9,7 @@ import { emailSchema } from '@yelli/shared';
 
 import { enqueueInvitationEmail } from '@/server/jobs/email-queue';
 
+import { resolveAuditActorId } from '../audit-actor';
 import { protectedProcedure, publicProcedure } from '../procedures';
 import { router } from '../trpc';
 
@@ -93,7 +94,7 @@ export const invitationsRouter = router({
         await tx.auditLog.create({
           data: {
             tenantId: ctx.tenantId,
-            actorUserId: ctx.user.id,
+            actorUserId: resolveAuditActorId(ctx.user.id),
             action: 'invitation.create',
             targetType: 'Invitation',
             targetId: inv.id,
@@ -129,7 +130,7 @@ export const invitationsRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'invitation.revoke',
           targetType: 'Invitation',
           targetId: invitation.id,
@@ -159,7 +160,7 @@ export const invitationsRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'invitation.resend',
           targetType: 'Invitation',
           targetId: invitation.id,

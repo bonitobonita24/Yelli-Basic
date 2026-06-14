@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { Prisma } from '@yelli/db';
 import { browserFingerprintSchema, callRoleSchema, deviceDisplayNameSchema } from '@yelli/shared';
 
+import { resolveAuditActorId } from '../audit-actor';
 import { protectedProcedure } from '../procedures';
 import { router } from '../trpc';
 
@@ -93,7 +94,7 @@ export const devicesRouter = router({
         await tx.auditLog.create({
           data: {
             tenantId: ctx.tenantId,
-            actorUserId: ctx.user.id,
+            actorUserId: resolveAuditActorId(ctx.user.id),
             action: 'device.create',
             targetType: 'Device',
             targetId: device.id,
@@ -126,7 +127,7 @@ export const devicesRouter = router({
         await tx.auditLog.create({
           data: {
             tenantId: ctx.tenantId,
-            actorUserId: ctx.user.id,
+            actorUserId: resolveAuditActorId(ctx.user.id),
             action: firstJoin ? 'device.first_join' : 'device.rename',
             targetType: 'Device',
             targetId: device.id,
@@ -155,7 +156,7 @@ export const devicesRouter = router({
         await tx.auditLog.create({
           data: {
             tenantId: ctx.tenantId,
-            actorUserId: ctx.user.id,
+            actorUserId: resolveAuditActorId(ctx.user.id),
             action: 'device.role.assign',
             targetType: 'Device',
             targetId: device.id,
@@ -193,7 +194,7 @@ export const devicesRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'device.archive',
           targetType: 'Device',
           targetId: device.id,
@@ -218,7 +219,7 @@ export const devicesRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'device.unarchive',
           targetType: 'Device',
           targetId: device.id,
@@ -239,7 +240,7 @@ export const devicesRouter = router({
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
-          actorUserId: ctx.user.id,
+          actorUserId: resolveAuditActorId(ctx.user.id),
           action: 'device.delete',
           targetType: 'Device',
           targetId: prior.id,
