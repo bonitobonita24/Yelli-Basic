@@ -214,7 +214,7 @@ The installer performs these steps automatically:
 6. **Generate `.env.lan`** — copies `.env.lan.example`, substitutes your LAN IP, and generates a unique random secret for every `__generated_at_install__` placeholder (DB password, Redis password, MinIO secret key, S3 secret key, Auth.js secret). The real `.env.lan` is gitignored and never leaves this machine.
 7. **Render Caddyfile** — substitutes `${LAN_IP}` and `${COMPOSE_PROJECT_NAME}` into `deploy/compose/lan/Caddyfile.template` → `deploy/compose/lan/Caddyfile` (also gitignored).
 8. **Start the stack** — runs `docker compose up -d` with all seven compose files in dependency order (db → cache → storage → worker → signaling → app → proxy).
-9. **Health check** — polls `https://127.0.0.1/api/health` until the app responds 200.
+9. **Health check** — polls `https://127.0.0.1/_pwbt/health` until the app responds 200.
 
 ### Installer flags
 

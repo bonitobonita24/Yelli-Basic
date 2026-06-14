@@ -445,7 +445,7 @@ ok "Stack started."
 # ─── Step (h): Wait for app health ───────────────────────────────────────────
 
 info "Waiting for app to become healthy (up to 120s) ..."
-HEALTH_URL="https://127.0.0.1/api/health"
+HEALTH_URL="https://127.0.0.1/_pwbt/health"
 RETRIES=24
 INTERVAL=5
 HEALTHY=false

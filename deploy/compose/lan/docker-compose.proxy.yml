@@ -34,7 +34,7 @@ services:
     restart: unless-stopped
     healthcheck:
       # Caddy is healthy when the app returns 200 through it.
-      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1/api/health"]
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1/_pwbt/health"]
       interval: 30s
       timeout: 10s
       retries: 5
