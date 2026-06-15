@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * asserted here were also confirmed live in the S6 walk (see docs/S6_VALIDATION_REPORT.md).
  */
 const h = vi.hoisted(() => {
-  const user = { findUnique: vi.fn(), update: vi.fn(), count: vi.fn() };
+  const user = { findUnique: vi.fn(), update: vi.fn(), count: vi.fn(), delete: vi.fn() };
   const auditLog = { create: vi.fn(), createMany: vi.fn() };
   const tenant = { findUnique: vi.fn() };
   const models = { user, auditLog, tenant };
@@ -44,6 +44,7 @@ const member = {
   displayName: 'Member',
   role: 'member' as const,
   isSuspended: false,
+  removedAt: null,
   createdAt: new Date('2026-01-01T00:00:00Z'),
   securityVersion: 0,
 };
@@ -91,6 +92,56 @@ describe('tenantsRouter — RBAC + guards', () => {
     h.tenant.findUnique.mockResolvedValue(profile);
 
     await expect(caller('admin').get()).resolves.toMatchObject({ slug: '_pwbt', displayName: 'Yelli' });
+  });
+
+  it('removeMember soft-deletes a member (sets removedAt, emits user.delete audit, fires bus)', async () => {
+    h.user.findUnique.mockResolvedValue(member);
+    const now = new Date();
+    h.user.update.mockResolvedValue({ ...member, isSuspended: true, removedAt: now, securityVersion: 1 });
+
+    const result = await caller('admin').removeMember({ userId: 'u2' });
+
+    expect(result.id).toBe('u2');
+    expect(result.removedAt).toBeInstanceOf(Date);
+    expect(h.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'u2' },
+        data: expect.objectContaining({ isSuspended: true, removedAt: expect.any(Date) }),
+      }),
+    );
+    expect(h.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'user.delete' }) }),
+    );
+    expect(h.bus).toHaveBeenCalled();
+  });
+
+  it('removeMember blocks self-removal (BAD_REQUEST)', async () => {
+    await expect(caller('admin').removeMember({ userId: 'caller1' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+    expect(h.user.update).not.toHaveBeenCalled();
+  });
+
+  it('removeMember blocks removing an already-pending member (BAD_REQUEST)', async () => {
+    h.user.findUnique.mockResolvedValue({ ...member, removedAt: new Date() });
+    await expect(caller('admin').removeMember({ userId: 'u2' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+  });
+
+  it('removeMember blocks removing the last admin (CONFLICT)', async () => {
+    h.user.findUnique.mockResolvedValue({ ...member, role: 'admin' as const });
+    h.user.count.mockResolvedValue(0);
+    await expect(caller('admin').removeMember({ userId: 'u2' })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+    expect(h.user.update).not.toHaveBeenCalled();
+  });
+
+  it('removeMember rejects a non-admin caller (FORBIDDEN)', async () => {
+    await expect(caller('member').removeMember({ userId: 'u2' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   // LAN bridge: a synthesized LAN-admin session (createContext LAN BRIDGE, synthetic

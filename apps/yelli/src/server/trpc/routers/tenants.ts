@@ -27,11 +27,6 @@ import { router } from '../trpc';
  * never returned on member rows (security.md #13) — MEMBER_SELECT omits it.
  *
  * DEFERRED:
- *   - removeMember (hard User delete): the current locked schema has no soft-delete
- *     column, and a hard delete collides with FK integrity (Invitation.invitedByUserId
- *     NOT NULL) + AuditLog immutability (actorUserId provenance). Needs a schema/policy
- *     decision (soft-delete column or cascade strategy); suspend is the MVP deactivation
- *     path. Surfaced as a non-blocking question.
  *   - tenant.export.* (request/list/markDownloaded): a `tenant-export` queue-worker
  *     concern (S3 signed URL + status→ready) — rides with the BullMQ-wiring/storage
  *     session alongside the worker that fulfils it, not W3.
@@ -220,6 +215,83 @@ export const tenantsRouter = router({
     });
     await invalidate(ctx.tenantId, updated.id, updated.securityVersion);
     return toMember(updated);
+  }),
+
+  /**
+   * Soft-delete a member — begins the 7-day grace period before hard-delete.
+   *
+   * Immediately: sets isSuspended=true + removedAt=now(), bumps securityVersion
+   * (kills stale JWTs), fires session-invalidate bus (live session drop ≤30s SLO),
+   * emits `user.delete` audit (DECISIONS_LOG q-W5-01, AUDIT_ACTIONS §11-canonical).
+   *
+   * Hard delete: the `soft-delete-cron` BullMQ worker sweeps users where
+   * removedAt < now()-7d per tenant (DECISIONS_LOG q-W5-01).
+   *
+   * FK cascade on hard-delete (handled by the cron, not here):
+   *   Invitation.invitedByUserId → DELETE (NOT NULL FK, standalone rows have no value)
+   *   AuditLog.actorUserId      → SET NULL (nullable; 7yr audit retention must survive)
+   *
+   * Self-remove is blocked (same pattern as suspend's last-admin guard).
+   * Last-admin guard: cannot remove the sole remaining unsuspended admin.
+   */
+  removeMember: protectedProcedure.input(userIdInput).mutation(async ({ ctx, input }) => {
+    requireAdmin(ctx.user.role);
+    if (input.userId === ctx.user.id) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Cannot remove yourself. Transfer admin role first.',
+      });
+    }
+    const updated = await ctx.db.$transaction(async (tx) => {
+      const target = await tx.user.findUnique({ where: { id: input.userId } });
+      if (!target) throw new TRPCError({ code: 'NOT_FOUND', message: 'Member not found.' });
+      if (target.removedAt !== null) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Member is already pending removal.' });
+      }
+      // Last-admin guard: cannot remove the last unsuspended admin.
+      if (target.role === 'admin' && !target.isSuspended) {
+        const others = await tx.user.count({
+          where: {
+            tenantId: ctx.tenantId,
+            role: 'admin',
+            isSuspended: false,
+            removedAt: null,
+            id: { not: target.id },
+          },
+        });
+        if (others === 0) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: 'Cannot remove the last admin. Transfer admin role first.',
+          });
+        }
+      }
+      const next = await tx.user.update({
+        where: { id: input.userId },
+        data: {
+          isSuspended: true,
+          removedAt: new Date(),
+          securityVersion: { increment: 1 },
+        },
+      });
+      // AuditLog — user.delete is the §11-canonical action for member removal
+      // (AUDIT_ACTIONS vocab; soft-delete cron emits nothing further on hard-delete).
+      // AuditLog is excluded from L6 guard (security.md #10) → write through base client.
+      await tx.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          actorUserId: resolveAuditActorId(ctx.user.id),
+          action: 'user.delete',
+          targetType: 'User',
+          targetId: next.id,
+          payload: { userId: next.id, gracePeriodDays: 7 },
+        },
+      });
+      return next;
+    });
+    // Best-effort session-kill — same pattern as suspendMember.
+    await invalidate(ctx.tenantId, updated.id, updated.securityVersion);
+    return { id: updated.id, removedAt: updated.removedAt };
   }),
 
   /** Atomic admin transfer (DECISIONS [Step 6] = single promote+demote transaction):

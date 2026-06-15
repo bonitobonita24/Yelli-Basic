@@ -101,6 +101,9 @@ model User {
   /// blanks the session when the JWT-embedded version differs (security.md §AUTH #6).
   securityVersion Int       @default(0) @map("security_version")
   lastLoginAt     DateTime? @map("last_login_at")
+  /// Set by removeMember alongside isSuspended=true. The 7-day soft-delete cron
+  /// hard-deletes users where removedAt < now()-7d (DECISIONS_LOG q-W5-01).
+  removedAt       DateTime? @map("removed_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
