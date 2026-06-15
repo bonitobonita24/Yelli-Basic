@@ -42,5 +42,6 @@ services:
       - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.rule=Host(`${APP_DOMAIN}`) && PathPrefix(`/ws`)"
       - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.priority=100"
       - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.entrypoints=websecure"
-      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.tls.certresolver=letsEncrypt"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.tls=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}_signaling.tls.certresolver=letsencrypt"
       - "traefik.http.services.${COMPOSE_PROJECT_NAME}_signaling.loadbalancer.server.port=3001"
