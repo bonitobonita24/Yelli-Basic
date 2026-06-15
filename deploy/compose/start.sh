@@ -65,7 +65,12 @@ if [ ${#FILES[@]} -eq 0 ]; then
   exit 1
 fi
 
-PROJECT_NAME="yelli_$ENV"
+# Project name must match COMPOSE_PROJECT_NAME in the env file so that the
+# `-p` override and the `${COMPOSE_PROJECT_NAME}`-derived network/container/
+# hostname names agree. Use the env-file suffix (stage→staging), not the raw
+# compose-dir keyword, otherwise `-p yelli_stage` would clash with the env's
+# `yelli_staging` and the external app_network ("<proj>_network") is never found.
+PROJECT_NAME="yelli_$ENV_SUFFIX"
 
 # Dev up: add --build so app image rebuilds from source every time
 EXTRA_ARGS=()
