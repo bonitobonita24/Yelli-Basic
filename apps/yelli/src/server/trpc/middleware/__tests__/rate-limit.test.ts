@@ -42,7 +42,10 @@ function makeRouter(tier: import('../rate-limit').RateLimitTier, sessionUserId?:
     transformer: superjson,
   });
   const mw = createRateLimitMiddleware(tier);
-  const proc = t.procedure.use(mw).query(() => ({ ok: true }));
+  // mw is bound to the app Context; cast to this test harness's narrower context shape.
+  const proc = t.procedure
+    .use(mw as unknown as Parameters<typeof t.procedure.use>[0])
+    .query(() => ({ ok: true }));
   const r = t.router({ ping: proc });
   return r.createCaller({ session: sessionUserId ? { user: { id: sessionUserId } } : null });
 }
@@ -50,7 +53,10 @@ function makeRouter(tier: import('../rate-limit').RateLimitTier, sessionUserId?:
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function mockCount(count: number) {
-  h.pipeline.exec.mockResolvedValue([[null, count], [null, 1]]);
+  h.pipeline.exec.mockResolvedValue([
+    [null, count],
+    [null, 1],
+  ]);
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
@@ -85,7 +91,9 @@ describe('createRateLimitMiddleware — allow / block', () => {
   it('blocks a request when count exceeds the api limit (101 > 100)', async () => {
     mockCount(101);
     const caller = makeRouter('api', 'u1');
-    await expect(caller.ping()).rejects.toMatchObject({ code: 'TOO_MANY_REQUESTS' } satisfies Partial<TRPCError>);
+    await expect(caller.ping()).rejects.toMatchObject({
+      code: 'TOO_MANY_REQUESTS',
+    } satisfies Partial<TRPCError>);
   });
 
   it('blocks at exactly limit+1 for auth tier (11 > 10)', async () => {

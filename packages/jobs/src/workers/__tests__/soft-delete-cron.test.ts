@@ -108,7 +108,7 @@ describe('processSoftDeleteCron', () => {
     await processSoftDeleteCron(job({ tenantId: 't1', userId: 'system' }));
     const after = Date.now();
 
-    const call = h.user.findMany.mock.calls[0][0] as { where: { removedAt: { lt: Date } } };
+    const call = h.user.findMany.mock.calls[0]![0] as { where: { removedAt: { lt: Date } } };
     const cutoff = call.where.removedAt.lt.getTime();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 

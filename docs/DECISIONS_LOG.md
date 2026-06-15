@@ -1,5 +1,22 @@
 # Decisions Log
 
+## Phase-8 sweep: typecheck-only test regressions fixed — 2026-06-16
+Phase-8 completeness sweep (architect, AUTONOMOUS). Compared docs/PRODUCT.md §3 flows + S6 report
+against current `swarm/rebuild` code. Result: the build is complete — all PRODUCT.md modules,
+8 tRPC routers, the 6 BullMQ workers (incl. live-validated email pipeline), call-engine, and
+ScreenTenantSettings (Page-18, `/admin/settings` via `brand.update`) are present and runtime-green.
+The 2026-06-13 "S6 premature" entry was superseded by the later S6 Live Validation Report (92/92).
+
+Gap found + fixed (clear-autonomous, test-only): the full gate had drifted red on `tsc --noEmit`
+while vitest stayed green (vitest does not typecheck), and a stale turbo cache had masked it.
+Three test files failed strict typecheck — zero production-code changes:
+- `packages/jobs/.../soft-delete-cron.test.ts` — `mock.calls[0][0]` → `mock.calls[0]![0]` (TS2532).
+- `apps/yelli/.../middleware/__tests__/error.test.ts` — same `mock.calls[0]!` guard (5×); `process.env.NODE_ENV` assignment (read-only, TS2540) → `vi.stubEnv`/`vi.unstubAllEnvs`; `.use(errorMiddleware)` app-Context↔TestCtx mismatch (TS2345) → cast to `Parameters<typeof t.procedure.use>[0]`.
+- `apps/yelli/.../middleware/__tests__/rate-limit.test.ts` — same `.use(mw)` cast (TS2345).
+Post-fix full gate GREEN: typecheck 7/7, lint 7/7, build 2/2, tests 161 (signaling 10 · jobs 34 · web 117).
+No schema/migration/product change. Only the 2 human gates remain (ScreenTenantSettings Phase-3.3
+design sign-off; LAN signing keypair / infra).
+
 ## DEV-credential standard + first DB seed — 2026-06-14
 Decision (owner directive, DEV environment ONLY): standardized weak local-review credentials.
 - App login (by EMAIL): admin `admin@mail.com` / `admin` (role `admin`); user `user@mail.com` / `user`
