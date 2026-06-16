@@ -1,6 +1,7 @@
 # Yelli
 
 > **Spec status — V31 framework lock complete (2026-05-31).** All 9 planning steps closed. Phase 2 (architecture spec) may begin.
+> **Phase 3.3 design gate — CLOSED (2026-06-17).** Owner approved ScreenTenantSettings (`/admin/settings`) design sign-off. Phase-4-complete tag authorised.
 
 ## Key Decisions Summary (Step 9 closeout — read this first)
 
