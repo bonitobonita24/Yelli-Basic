@@ -1,5 +1,38 @@
 # Decisions Log
 
+## LOCKED: LAN signing keypair — 2026-06-16
+
+**Decision:** Generate the production minisign keypair for LAN bundle signing.
+
+**Context:** The LAN distribution flow (`deploy/lan/bundle.sh` → `install.sh`) signs the
+distributable tarball with a detached minisign signature and verifies it before loading any Docker
+images. The flow was fully wired but blocked on a committed public key at `deploy/lan/yelli-lan.pub`.
+
+**What was done:**
+- minisign 0.12 installed to `~/.local/bin/minisign` (APT `minisign` 0.11-1 available as
+  alternative; chosen method: portable binary from upstream).
+- Keypair generated **non-interactively with no password** (`minisign -G -W`) for unattended
+  signing from CI/scripts. This is an intentional tradeoff: the secret key file itself is the
+  security boundary — keep it in a permissions-restricted location (e.g. `chmod 600`).
+- **Public key committed** to `deploy/lan/yelli-lan.pub` (minisign format, key ID `18572C31CA69B095`).
+- **Private key NOT committed** — gitignore extended with `deploy/lan/*.key` and `deploy/lan/*.sec`.
+- `install.sh` already hard-wires `PUBKEY_PATH="$SCRIPT_DIR/yelli-lan.pub"` at line 41 — no
+  wiring change needed; the public key slot was waiting for this commit.
+
+**Verification performed (evidence):**
+```
+sign:   minisign -Sm test-bundle.txt  → exit 0  (signature written)
+verify: minisign -Vm test-bundle.txt  → "Signature and comment signature verified" / exit 0
+tamper: append byte, verify again     → "Signature verification failed" / exit 1  ✓
+```
+
+**Custody:**
+- **Public key** — committed at `deploy/lan/yelli-lan.pub`; distributed with every bundle.
+- **Private key** — owner credential; stored in
+  `Server-Setups/Powerbyte-Hostinger/secrets/` (SOPS+age encrypted). Never in this repo.
+- Key ID: `18572C31CA69B095`
+- Signing command: `export YELLI_LAN_MINISIGN_KEY=/path/to/yelli-lan.key && bash deploy/lan/bundle.sh`
+
 ## Phase-8 sweep: typecheck-only test regressions fixed — 2026-06-16
 Phase-8 completeness sweep (architect, AUTONOMOUS). Compared docs/PRODUCT.md §3 flows + S6 report
 against current `swarm/rebuild` code. Result: the build is complete — all PRODUCT.md modules,

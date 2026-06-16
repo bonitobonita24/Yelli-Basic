@@ -82,10 +82,16 @@ Operators receive all four files. `install.sh` checks the checksum then the sign
 
 The **private signing key is an owner-held credential**. It is never generated or embedded by the tooling.
 
+> **Status (2026-06-16):** The production minisign keypair has been generated. The public key
+> (`deploy/lan/yelli-lan.pub`, key ID `18572C31CA69B095`) is committed. The private key is stored
+> in `Server-Setups/Powerbyte-Hostinger/secrets/` (SOPS+age encrypted) — not in this repo.
+> The "generate a keypair" step below is reference documentation for key rotation only.
+
 **minisign (recommended):**
 ```bash
 # One-time: generate a keypair (run on the owner's air-gapped or secure machine).
-minisign -G -p deploy/lan/yelli-lan.pub -s /secure/path/minisign.key
+# -W = no password (passwordless for unattended/CI signing; secret key file is the security boundary).
+minisign -G -W -p deploy/lan/yelli-lan.pub -s /secure/path/minisign.key
 
 # Export the private key path for bundle.sh:
 export YELLI_LAN_MINISIGN_KEY=/secure/path/minisign.key

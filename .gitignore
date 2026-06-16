@@ -40,6 +40,13 @@ build/
 # ─── Credentials master list ───
 CREDENTIALS.md
 
+# ─── LAN signing keys — private key is NEVER committed ───
+# Public key (yelli-lan.pub) IS committed; only the secret key is excluded.
+deploy/lan/*.key
+deploy/lan/*.sec
+# Safety net: any stray minisign secret key anywhere in the tree
+*.minisign.key
+
 # ─── AI Artifacts: Machine-Local Only (never commit) ───
 .specstory/
 project.memory.md
