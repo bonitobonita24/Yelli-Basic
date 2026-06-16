@@ -80,9 +80,14 @@ async function main(): Promise<void> {
   console.log(`Hydrating demo data for tenant ${PLATFORM_TENANT_SLUG} (${tenantId})…`);
 
   // ── Branding (so the app chrome shows a real name/logo) ──────────────────────
+  // logoUrl uses a data: URI (a minimal teal SVG placeholder) so it satisfies the
+  // app's CSP `img-src 'self' data: blob:` without any external network request.
+  // The previous https://placehold.co/… URL was blocked by CSP in dev review.
+  const DEMO_LOGO_DATA_URI =
+    'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22128%22%20height%3D%22128%22%20viewBox%3D%220%200%20128%20128%22%3E%3Crect%20width%3D%22128%22%20height%3D%22128%22%20rx%3D%2216%22%20fill%3D%22%230d9488%22%2F%3E%3Ctext%20x%3D%2264%22%20y%3D%2278%22%20font-family%3D%22system-ui%2Csans-serif%22%20font-size%3D%2248%22%20font-weight%3D%22700%22%20fill%3D%22%23fff%22%20text-anchor%3D%22middle%22%3EPB%3C%2Ftext%3E%3C%2Fsvg%3E';
   await prisma.tenant.update({
     where: { id: tenantId },
-    data: { displayName: 'Powerbyte Demo Org', logoUrl: 'https://placehold.co/128x128/0d9488/fff?text=PB' },
+    data: { displayName: 'Powerbyte Demo Org', logoUrl: DEMO_LOGO_DATA_URI },
   });
 
   // ── Members (Users) — varied roles. Upsert on (tenantId, email). ─────────────
