@@ -13,11 +13,15 @@ export type Processor<N extends QueueName> = (job: Job<JobDataMap[N]>) => Promis
 /**
  * Static registry: queue name → its processor.
  *
- * `device-archive` carries the real W5a body; the other five are the S3 guard-wired
- * STUBS (they `throw NotImplemented` until their own W5b–W5e sessions fill them).
- * Registering Workers against the stubs is deliberate (Brain q-80-S2-01): an enqueued
- * job fails fast + lands in the failed set (the de-facto DLQ) rather than piling up
- * silently — surfacing the missing implementation instead of hiding it.
+ * All six processors now carry their real worker bodies (W5a device-archive,
+ * W5b tenant-export, W5c email, W5d logo-image, W5e backup, plus soft-delete-cron).
+ * Two of them still fail fast by design when their runtime prerequisites are
+ * absent rather than fabricating behaviour (Brain q-80-S2-01 posture): `backup`
+ * throws when `BACKUP_S3` is unconfigured (owner-deferred — see DECISIONS_LOG),
+ * and `email` throws for the `verify`/`reset` kinds that have no producer yet
+ * (Phase-7 magic-link / email-link providers — DECISIONS_LOG line 204). Such a
+ * job lands in the failed set (the de-facto DLQ), surfacing the gap instead of
+ * hiding it. The `invitation` email path and every other worker run for real.
  */
 export const PROCESSORS: { [N in QueueName]: Processor<N> } = {
   [QUEUE_NAMES.deviceArchive]: processDeviceArchive,

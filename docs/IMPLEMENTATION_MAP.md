@@ -124,7 +124,16 @@ Branch: scaffold/part-8 (pending squash-merge)
 - ✅ src/index.ts (barrel)
 - NOTE: NO shadcn primitives in this package yet — Phase 4 Part 5 will run `npx shadcn@latest init` + add base components (button, card, dialog, input, label, select, textarea, toast, sonner, skeleton, form, sidebar, sheet) targeting packages/ui per shadcn monorepo pattern. tokens.css single source lives in apps/yelli/src/styles/tokens.css per DECISIONS_LOG "LOCKED: Design Tokens".
 
-**packages/jobs — BullMQ queue infrastructure (workers are STUBS)**
+**packages/jobs — BullMQ queue infrastructure (scaffold snapshot; worker bodies since filled — see UPDATE below)**
+
+> **UPDATE (post-scaffold, W5a–W5e + soft-delete-cron landed):** every worker body is now a real
+> implementation — files are `{tenant-export,device-archive,soft-delete-cron,backup,email,logo-image}.ts`
+> (the `.worker.ts` names and "stubs / TODO Phase 5 marker" notes below are the as-scaffolded snapshot,
+> superseded). Two paths fail fast by design rather than fabricating behaviour: `backup` throws when
+> `BACKUP_S3` is unconfigured (owner-deferred per DECISIONS_LOG), and `email` throws for the `verify`/`reset`
+> kinds that have no producer yet (Phase-7 magic-link / email-link providers — DECISIONS_LOG line 204).
+> The `invitation` email path and all other workers run for real. Registry: `src/runtime/processors.ts`.
+
 - ✅ package.json (bullmq ^5.34, ioredis 5.10.1 exact pin to match bullmq's bundled version)
 - ✅ tsconfig.json
 - ✅ src/connection.ts (getConnection singleton + createWorkerConnection per-worker + closeAllConnections graceful shutdown; maxRetriesPerRequest: null for blocking commands)
