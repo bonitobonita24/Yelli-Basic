@@ -26,7 +26,13 @@ if ! grep -q "publish: true" inputs.yml 2>/dev/null; then
 fi
 
 # ── Guard: docker login ───────────────────────────────────────────────────────
-if ! docker info 2>/dev/null | grep -q "Username"; then
+# `docker info | grep Username` is the primary check, but it yields a false
+# negative when credentials live in an external credsStore (e.g. Docker Desktop's
+# `desktop.exe` on WSL), where Username is not printed inline. Fall back to a real
+# auth probe: an authenticated manifest inspect of a private repo only succeeds
+# when logged in. Either signal passing means we are logged in.
+if ! docker info 2>/dev/null | grep -q "Username" \
+   && ! docker manifest inspect "${DOCKERHUB_USERNAME}/${IMAGE_NAME:-yelli}:staging-latest" >/dev/null 2>&1; then
   echo "❌  Not logged in to Docker Hub. Run: docker login" >&2
   exit 1
 fi
