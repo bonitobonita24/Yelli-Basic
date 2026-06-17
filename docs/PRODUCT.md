@@ -226,6 +226,15 @@ The Super-Admin tRPC router skips steps 2–4 entirely; it runs its own `require
 
 ## Deployment Config
 
+**Production deploy record — 2026-06-17:**
+- Live at:      `https://yelli-basic.powerbyte.app` (Traefik + Cloudflare DNS, A record 72.62.74.203)
+- Images:       built from commit `ee328eb` (`bonitobonita24/yelli:prod`, `bonitobonita24/yelli-signaling:prod`, `bonitobonita24/yelli-worker:prod`)
+- Komodo stack: `yelli-prod` (id `6a31e6c1a5ea0d1e36d0ff08`) — `files_on_host: true`, dir `/etc/komodo/stacks/yelli-prod/`, `auto_update: false`
+- Migrations:   0001_init + 0002_user_security_version applied via SSH tunnel to prod postgres (port 5436)
+- Verified:     containers healthy, webmaster login at `https://yelli-basic.powerbyte.app/login` (tenant `_pwbt`) E2E-confirmed
+- Secrets:      `Server-Setups/Powerbyte-Hostinger/secrets/yelli-prod-app.enc.yaml` (SOPS+age)
+- Required env: `AUTH_TRUST_HOST=true` (Auth.js v5 behind Traefik); `DATABASE_URL` via pgbouncer (port 6436); `REDIS_URL_INTERNAL` inside app network; `COMPOSE_PROJECT_NAME=yelli_prod`; `APP_DOMAIN=yelli-basic.powerbyte.app`; `TRAEFIK_NETWORK=proxy`
+
 **Yelli Cloud:**
 - Environments: dev / staging / prod
 - Hosting:      VPS + Komodo orchestration + Traefik reverse proxy (V27 stack)
