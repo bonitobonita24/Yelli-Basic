@@ -65,9 +65,15 @@ case "$TARGET" in
     bash deploy/compose/start.sh dev up -d
     sleep 8
 
-    echo "🧪  Running tests inside container…"
-    if ! docker compose -f deploy/compose/dev/docker-compose.app.yml \
-        exec -T app pnpm test --passWithNoTests; then
+    # Tests run on the HOST against the source tree (pnpm + dev deps + test
+    # files), NOT inside the pruned production app image — that image ships
+    # only the Next.js standalone output and has no pnpm/vitest/test sources.
+    # The dev stack stays up to provide postgres/valkey for any integration
+    # tests. (Prior versions ran `docker compose exec app pnpm test`, which
+    # failed two ways: single -f file left `postgres` dependency undefined,
+    # and `pnpm` is absent from the production runtime image.)
+    echo "🧪  Running tests on host (pnpm test)…"
+    if ! pnpm test -- --passWithNoTests; then
       echo "❌  Tests failed. Tearing down dev stack. Fix tests before pushing." >&2
       bash deploy/compose/start.sh dev down
       exit 1

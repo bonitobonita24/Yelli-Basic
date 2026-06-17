@@ -25,6 +25,15 @@ out
 .turbo
 **/.turbo
 
+# Standalone Phase-2.8 mockup app — NOT part of the pnpm workspace (workspace
+# globs only apps/* and packages/*). Its own prototype/node_modules ships an old
+# next@14.2.15 (CVE-2025-29927, Next.js middleware auth-bypass) plus Next's bundled
+# Go-based SWC/turbo helper binaries (old Go stdlib CVEs). `COPY . .` in all three
+# Dockerfiles was slurping it into the runtime images even though no image needs it.
+# Excluding it from the build context clears those CVEs at the source — the worker
+# (and app/signaling) no longer bundle a vulnerable next.
+prototype
+
 # VCS metadata
 .git
 
