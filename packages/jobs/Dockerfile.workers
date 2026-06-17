@@ -49,6 +49,17 @@ RUN addgroup --system --gid 1001 nodejs && \
 # bullmq, ioredis, tsx) + every package's source. tsx runs the TS entrypoint directly.
 COPY --from=builder --chown=yelli:nodejs /repo /repo
 
+# Security: the whole-workspace copy drags in dev-only Git-hook tooling that the
+# background worker never executes at runtime but whose prebuilt Go binaries trip
+# the Trivy CVE gate. lefthook-* ships a Go binary (currently built with an
+# unpatched Go stdlib → CVE-2026-42504, no fixed lefthook release available yet),
+# so its only remediation is to not ship it. Drop the lefthook platform packages
+# from the runtime image — they have no worker-runtime role. (app/signaling images
+# are unaffected: they copy only their build artifacts, not the whole /repo.)
+RUN rm -rf /repo/node_modules/.pnpm/lefthook* \
+           /repo/node_modules/lefthook \
+           /repo/node_modules/.bin/lefthook
+
 USER yelli
 
 # No port — this is a background worker, not an HTTP server.
