@@ -1,7 +1,9 @@
 # Spec-Driven Platform V31 — Phase Details
 
+> **V32.7 LOAD INSTRUCTION:** This file is no longer auto-loaded. It lives in `.ai_prompt/`.
+> **`Read .ai_prompt/phases.md`** — then read ONLY the section for the phase you are running.
+> Also: **`Read .ai_prompt/memory-governance.md`** before running any phase pre-flight hooks.
 > Loaded contextually when executing any phase.
-> Read ONLY the section for the phase you are currently running.
 > Contains: Phase 1-8, Phase 2.5/2.6/2.7/2.8 sub-phases, Phase 6.5 triage, Resume, Retro, Gov Sync, Toggles.
 > Note: Phase 2.8 (Clickable Mockup Review) is documented here for reference but executes ONLY in the Planning Assistant chat on Claude.ai — not by Claude Code.
 
@@ -33,7 +35,9 @@ not TODO comments. The completeness check before committing enforces this.
 
 ```
 TOKEN BUDGET REFERENCE (applies to ALL phases):
-  CLAUDE.md + active rules file:      ~5-8K
+  CLAUDE.md (auto-loaded, only file):  ~3K
+  .ai_prompt/phases.md (this file):    ~40K  (read on demand — current phase section only)
+  .ai_prompt/memory-governance.md:     ~6K   (read on demand — at every phase pre-flight)
   Each PRODUCT.md section:            ~2-4K  (full file = 20-40K — NEVER read all at once)
   Each existing source file read:     ~1-3K
   9 governance docs (all):            ~10-15K
@@ -44,6 +48,10 @@ TOKEN BUDGET REFERENCE (applies to ALL phases):
 
 **MANDATORY PRE-FLIGHT (run at the start of EVERY phase/part/batch/task):**
 
+0. **Load governance files (V32.7 — explicit Read required, not auto-loaded):**
+   - `Read .ai_prompt/phases.md` → then find your current phase section below
+   - `Read .ai_prompt/memory-governance.md` → then run the phase hooks (§1 PRE + §2 POST + §4 MODEL)
+0a. **REGISTRY WORK-START CONSULT (V32.8 — Rule 32):** Before writing any file, consult `LESSONS_REGISTRY.md` for fingerprints matching this phase's target surface. If a matching entry has a `standing_check` → run it now. Skip if `LESSONS_REGISTRY.md` does not yet exist.
 1. **Estimate scope** — how many files will you read + create + modify?
 2. **Estimate token cost** — use the reference table above
 3. **If >12 files OR >80K tokens → SPLIT before starting:**
@@ -100,7 +108,7 @@ This step requires a physical action on your machine — no agent can trigger it
 
 > **⚠ CONTEXT BUDGET:** Interview phase — lightweight context. If the interview produces a very large PRODUCT.md (>30K tokens), Phase 3 will handle it with section-by-section reads.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) — classify scope before starting. POST: Run Smart Checkpoint (§2) if any files were created or modified. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(model: "sonnet") per §4. ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
+> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) — classify scope before starting. POST: Run Smart Checkpoint (§2) if any files were created or modified. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(subagent_type: "spec-executor") per §4 (fallback: Agent(model: "sonnet") when a task requires tools/MCPs outside spec-executor's allow-list). ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
 
 Before any files are generated, Claude Code interviews you to understand your app.
 This locks in tech stack, tenancy model, entities, security, and infrastructure.
@@ -293,7 +301,7 @@ IF ANY item fails → output GAP_REPORT only → do not advance to Phase 2.5
 
 > **⚠ CONTEXT BUDGET:** Summary phase — reads PRODUCT.md to produce a condensed review. If PRODUCT.md is >30K tokens, read section-by-section and summarize incrementally.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
 
 Trigger: Say "Start Phase 3"
 
@@ -335,7 +343,7 @@ After confirmation → Phase 2.6 runs automatically (if skill installed + Sectio
 
 > **⚠ CONTEXT BUDGET:** Design system generation reads PRODUCT.md Section K + generates design tokens. Lightweight — but if combined with Phase 2.7 + Phase 3 in one session, estimate total context.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
 
 User says "confirmed" once after Phase 2.5 — Claude Code handles 2.6 then proceeds to Phase 3.
 **Prerequisite:** UI UX Pro Max skill installed + Section K in PRODUCT.md.
@@ -473,7 +481,7 @@ Install the skill and add Section K to PRODUCT.md any time → say "Feature Upda
 
 > **⚠ CONTEXT BUDGET:** Stress-test reads full PRODUCT.md to find gaps. If PRODUCT.md exceeds 30K tokens, read section-by-section and test each independently rather than loading the entire file.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
 
 **Skip condition — CONDITIONAL:** `vibe_test.enabled: false` in inputs.yml → skip entirely → proceed to Phase 3.
 **Default:** Enabled. Costs one LLM call. Prevents entire Phase 4 rebuilds from spec gaps.
@@ -630,7 +638,7 @@ Trigger: User says "confirmed" after Phase 2.5
 
 > **⚠ CONTEXT BUDGET:** Run the Universal Context Budget pre-flight (top of this file) before starting. Phase 3 reads the full PRODUCT.md — if it exceeds 30K tokens, generate spec files in module groups rather than all at once.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
 
 ─────────────────────────────────────────────────────────
 PHASE 3 PRE-FLIGHT — ACCOUNTS & CREDENTIALS CHECKLIST — MANDATORY
@@ -1480,7 +1488,7 @@ Claude.ai in the Planning Assistant — Phase 3.3 runs here, in Claude Code.)
 > output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only
 > the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md ·
 > docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other writes — the prototype, the simulated
-> data layer, `docs/PROTOTYPE.md` — MUST be dispatched via Agent(model: "sonnet"). ≥ 2 independent
+> data layer, `docs/PROTOTYPE.md` — MUST be dispatched via Agent(subagent_type: "spec-executor") (fallback: Agent(model: "sonnet") when a task requires tools/MCPs outside spec-executor's allow-list). ≥ 2 independent
 > dispatches MUST be parallel in ONE Opus response (R7). Each Sonnet task ≤ 12 files / ≤ 80K tokens;
 > split per flow group if large (Output Equivalence Guarantee).
 
@@ -1525,35 +1533,55 @@ without touching the UI.
 ```
 Step 1 — Flow inventory: Opus dispatches a Sonnet Scout to read PRODUCT.md §3 (R6 — non-allow-list, typically >100 lines) → Opus reviews the Scout's output to list every Core User Flow + the entities each touches (from the Phase 3 schema).
 Step 2 — Choose the simulation technique per the table above; record the choice in docs/PROTOTYPE.md.
-Step 3 — Design-system finalization (MOVED here from Phase 4 Parts 5-6 — V32.6). Two sub-actions, in order:
+Step 3 — Design-system finalization (MOVED here from Phase 4 Parts 5-6 — V32.6). Four sub-actions, in order:
            3a. /design-tokens EXPAND docs/DESIGN.md (never regenerate — Rule 1)
-           3b. build prototype screens from MOCKUP.jsx under prototype/, inheriting the expanded tokens
+           3b. COMPILE (V32.8 — Rule 31): run `npm run design:validate` (DTCG check) → `npm run design:build`
+               (Style Dictionary v5, prefix:'sd') → emits `generated-tokens.css` (:root --sd-* vars) +
+               `tokens.d.ts`. The hand-authored `globals.css` bridge aliases the three-layer chain:
+               --sd-color-* → --primary → --color-primary. The default Tailwind palette is disabled by
+               explicit enumeration (not the ignored `--color-*: initial` wildcard). Both files are
+               generated — never hand-edited after this step.
+           3c. build prototype screens from MOCKUP.jsx under prototype/, consuming ONLY compiled
+               primitives from generated-tokens.css / tokens.d.ts (no raw hex, no off-palette [px]).
 Step 4 — Build the simulated data layer mirroring inputs.schema.json behind one interface boundary.
 Step 5 — Wire each screen to the simulated layer; make every Core User Flow walkable end-to-end with realistic data.
-Step 6 — /design-review the prototype against the expanded tokens; /design-refine ONLY flagged components.
+Step 6 — /design-review the prototype against the expanded tokens, THEN /design-refine ONLY flagged components (skip refine if no flags).
 Step 7 — Write docs/PROTOTYPE.md (flows + states + simulated-data model + swap boundary per screen).
-Step 8 — Client validation: present the running prototype; walk every flow; capture sign-off + deferrals to docs/DECISIONS_LOG.md.
+Step 8 — Client validation: present the running prototype; walk every flow; capture sign-off + deferrals to docs/DECISIONS_LOG.md. Then execute Step 8b (design baseline capture).
+Step 8b — [BASELINE CAPTURE — DESIGN] Capture the signed-off prototype render as the DESIGN baseline:
+           `npm run design:check -- --update-snapshots` in the prototype environment.
+           Stored in tests/visual/snapshots/ with label "design-baseline".
+           This baseline is referenced in Phase 5 / Phase 8 gate assertions.
+           ⚠ ONLY runs AFTER client sign-off at Step 8 — do NOT run earlier in the sequence.
 ```
 
 ```
-PHASE 3.3 GATE-CLOSURE — MANDATORY (V32.6, mirrors V32.5.1)
+PHASE 3.3 GATE-CLOSURE — MANDATORY (V32.6 + V32.8)
 Phase 3.3 cannot close — and Phase 3.5 MUST NOT begin — until ALL of these hold:
 □ /design-review returns green (OR every flag resolved via /design-refine — no "soft pass")
 □ the prototype covers EVERY Core User Flow in PRODUCT.md Section 3 (walkable end-to-end)
 □ the CLIENT has signed off on the prototype, logged to docs/DECISIONS_LOG.md
 □ docs/PROTOTYPE.md exists with the simulated→production swap boundary documented per screen
+□ design:validate + design:build passed (generated-tokens.css + tokens.d.ts committed) (V32.8 — Rule 31)
+□ DESIGN baseline captured via design:check --update-snapshots (tests/visual/snapshots/ committed) (V32.8 — Rule 31)
+□ REGISTRY DONE-CLAIM (V32.8 — Rule 32): run acceptance contract check; scan LESSONS_REGISTRY.md for
+  surface-relevant fingerprints; capture output into STATE.md evidence field {contract, check_command,
+  captured_output} before claiming phase done. An empty evidence field = structurally malformed claim.
 IF ANY item fails → Phase 3.3 = INCOMPLETE → resolve before proceeding to Phase 3.5
 ```
 
-**MODEL HOOK (V32.6 — designer-skills moves to Phase 3.3):** when `docs/DESIGN.md` is present, Opus
-dispatches a Sonnet Scout to read it (≤200 lines direct, else Governance-Extraction per R6/V32.3),
-then dispatches `/design-tokens` to **EXPAND-not-replace** the token table, builds the prototype +
-simulated layer, then `/design-review` against `docs/MOCKUP.jsx`/prototype, `/design-refine` only
-flagged components. PA's human-verified baseline stays authoritative (Rule 1) — designer-skills
-NEVER regenerate DESIGN.md or MOCKUP.jsx from scratch. If DESIGN.md is absent (no PA Step 7),
-`/design-aesthetic` may be invoked once to establish a baseline, then logged to PRODUCT.md Section
-10 per Scenario 33. **Phase 4 Parts 5-6 no longer runs the full design-system pass — it runs a
-regression `/design-review` only** (see Phase 4).
+**MODEL HOOK (V32.6 + V32.8 — designer-skills + compiled tokens at Phase 3.3):** when `docs/DESIGN.md`
+is present, Opus dispatches a Sonnet Scout to read it (≤200 lines direct, else Governance-Extraction per
+R6/V32.3), then dispatches `/design-tokens` to **EXPAND-not-replace** the token table, runs
+`design:validate` → `design:build` to emit `generated-tokens.css` + `tokens.d.ts` (three-layer bridge:
+`--sd-color-* → --primary → --color-primary`; palette disabled by explicit enumeration), builds the
+prototype screens consuming ONLY compiled primitives, then `/design-review` against `docs/MOCKUP.jsx`/
+prototype, `/design-refine` only flagged components, then captures the DESIGN baseline after client
+sign-off (Step 8b — post-sign-off only). PA's human-verified baseline stays authoritative (Rule 1) — designer-skills NEVER regenerate
+DESIGN.md or MOCKUP.jsx from scratch. If DESIGN.md is absent (no PA Step 7), `/design-aesthetic` may be
+invoked once to establish a baseline, then logged to PRODUCT.md Section 10 per Scenario 33. **Phase 4
+Parts 5-6 no longer runs the full design-system pass — it runs a regression `/design-review` + re-captures
+the PRODUCTION baseline** (see Phase 4).
 
 **If skipped** (small app, no client validation needed): log "Phase 3.3 skipped — <reason>" to
 `agent-log.md` and proceed to Phase 3.5. If a `prototype/` was still produced, the simulated→
@@ -1570,7 +1598,7 @@ Output after completion:
 
 > **⚠ CONTEXT BUDGET:** This phase GENERATES the context budget plan for Phase 4+. Apply the Universal Context Budget pre-flight (top of this file) to this phase itself — Phase 3.5 reads the full PRODUCT.md to scan complexity, so if PRODUCT.md is very large (>30K tokens), read it in sections.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(model: "sonnet") per §4. ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(subagent_type: "spec-executor") per §4 (fallback: Agent(model: "sonnet") when a task requires tools/MCPs outside spec-executor's allow-list). ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
 
 **Purpose:** Analyze PRODUCT.md complexity and predict context cost per task BEFORE
 Phase 4 starts. Generates a pre-computed execution plan that right-sizes every session
@@ -1766,8 +1794,8 @@ Based on the complexity profile and task decomposition, recommend which Claude C
 skills to activate for each phase. Skills give Claude Code domain-specific expertise
 that improves planning accuracy and code quality per session.
 
-**Skill source:** https://aiskills.powerbyte.app/ (116+ skills, 601-skill library via /scan-project)
-**Prompt reference:** https://aiskills.powerbyte.app/prompt-reference.html
+**Skill source:** Powerbyte AI Engineering Framework SPA — clone the framework repo and run `npm run dev` to browse the 600+ skill catalog locally (full library surfaced via `/scan-project`).
+**Prompt reference:** `specdrivenprompt/Prompt_References.html` in the framework repo, or run `npm run docs:up` for the offline Docker docs hub.
 
 **Installation workflow (at each phase transition):**
 1. Run `/scan-project` in Claude Code — let it run all 5 phases (scan → match →
@@ -1851,7 +1879,20 @@ Verify these supplementary skills are also active:
 | react-doctor | React diagnostics | Catch React anti-patterns (state/effects, perf, a11y, bundle size) before UI delivery — `npx react-doctor@latest`; install via `npx react-doctor@latest install` |
 | designer-skills | Design system (V32.5 · finalized at Phase 3.3 since V32.6) | The full design-system pass (`/design-tokens` EXPAND, `/design-review`, `/design-refine`) now runs at **Phase 3.3**, not here. At Parts 5-6, designer-skills runs a **regression `/design-review` only** — confirming that wiring the validated prototype to the production backend did not break the finalized visuals. Bundle: `julianoczkowski/designer-skills` (8 children) |
 
-**MODEL HOOK (V32.6 — Phase 4 Parts 5-6 = WIRE + REGRESSION; design system finalized at Phase 3.3):** Parts 5-6 no longer establishes the design system — that was locked at Phase 3.3 (`docs/PROTOTYPE.md` + expanded `docs/DESIGN.md`). Here, Opus dispatches Sonnet to **wire the validated prototype's screens to the production tRPC/Prisma backend**, swapping the Phase 3.3 simulated data layer for the real one **behind the same interface boundary** — the UI/component structure from the prototype is INHERITED, not redesigned. After wiring, dispatch a **regression `/design-review`** against `docs/MOCKUP.jsx`/the finalized tokens; `/design-refine` ONLY components the wiring visibly regressed. PA's human-verified baseline + the Phase 3.3 finalized tokens stay authoritative (Rule 1) — never regenerate. If no `prototype/` exists (Phase 3.3 was skipped), fall back to the V32.5 behavior: run the full design-system pass here against the scaffolded components. **Gate-closure (V32.5.1):** Phase 4 Parts 5-6 cannot close until the regression `/design-review` returns green (every flag resolved via `/design-refine`) AND the wired screens match the prototype's behavior. A "soft pass" is NOT permitted before Part 7 (background jobs) begins.
+**MODEL HOOK (V32.6 + V32.8 — Phase 4 Parts 5-6 = WIRE + REGRESSION + PRODUCTION BASELINE):** Parts 5-6 no longer establishes the design system — that was locked at Phase 3.3 (`docs/PROTOTYPE.md` + expanded `docs/DESIGN.md`). Here, Opus dispatches Sonnet to **wire the validated prototype's screens to the production tRPC/Prisma backend**, swapping the Phase 3.3 simulated data layer for the real one **behind the same interface boundary** — the UI/component structure from the prototype is INHERITED, not redesigned. Every screen is built ONLY from compiled primitives in `generated-tokens.css` / `tokens.d.ts` — no raw hex values, no off-palette `[px]` utilities, and no Tailwind default-palette utilities (palette disabled by explicit enumeration per Rule 31). After wiring, dispatch a **regression `/design-review`** against `docs/MOCKUP.jsx`/the finalized tokens; `/design-refine` ONLY components the wiring visibly regressed. Then: **re-capture the PRODUCTION baseline** against a deterministic fixture state (`tests/visual/fixtures/` — seeded DB snapshot or MSW-mocked responses): run `npm run design:check -- --update-snapshots` in the fixture-seeded state; commit resulting snapshots as the production baseline that Phase 5 / Phase 8 assert against. Token assertions use `getComputedStyle(el).backgroundColor` in `rgb()` form (not raw CSS-var values). PA's human-verified baseline + the Phase 3.3 finalized tokens stay authoritative (Rule 1) — never regenerate. If no `prototype/` exists (Phase 3.3 was skipped), fall back to the V32.5 behavior: run the full design-system pass here against the scaffolded components, then capture the production baseline. ```
+PHASE 4 PARTS 5-6 GATE-CLOSURE — MANDATORY (V32.5.1 + V32.8)
+Parts 5-6 cannot close — and Part 7 MUST NOT begin — until ALL of these hold:
+□ tokens-only build: every screen built ONLY from compiled primitives in generated-tokens.css /
+  tokens.d.ts (no raw hex, no off-palette [px], no Tailwind default-palette utilities)
+□ production baseline captured + committed: `design:check --update-snapshots` run against
+  deterministic fixture state (tests/visual/fixtures/); snapshots committed to repo
+□ design:check green: regression `/design-review` returns green (every wiring-introduced flag
+  resolved via `/design-refine` — no "soft pass")
+□ registry done-claim: LESSONS_REGISTRY.md scanned for surface-relevant fingerprints; check
+  output captured into STATE.md {contract, check_command, captured_output} — empty field =
+  structurally malformed claim
+IF ANY item fails → Parts 5-6 = INCOMPLETE → resolve before Part 7 (background jobs) begins
+```
 
 Note: design-auditor and frontend-design are already in Primary Group Slot 4.
 Note: react-doctor is a supplementary diagnostic (NOT a Primary Group slot) — /scan-project recommends it on a React signal after a read-only audit, installs only on approval.
@@ -1875,6 +1916,27 @@ Verify this supplementary skill is active:
 | test-fixing | Testing | Smart error grouping — systematic repair of all failing tests |
 | react-doctor | React diagnostics | Audit React for correctness/perf/a11y/bundle issues during validation — `npx react-doctor@latest` |
 
+**Dev-time profiling (always available — "which execution eats CPU/RAM?", see templates.md Rule 5b.0):**
+
+| Tool | Layer | Why |
+|------|-------|-----|
+| Chrome DevTools + `--inspect` | Profiling | `NODE_OPTIONS='--inspect' pnpm dev` → `chrome://inspect` → Performance monitor (realtime CPU/heap graph) + flamechart (names the hot function) |
+| clinic.js | Profiling | `clinic doctor`/`clinic flame` for recorded CPU/mem/event-loop reports |
+| Prisma query log | DB profiling | `log:['query']` (dev) surfaces N+1 / slow queries — the usual server CPU+latency culprit |
+
+This is the DEV answer for "is my app heavy and what's causing it." Netdata (Phase 6) is the
+PRODUCTION answer (infra health) — it cannot name the responsible function/query. Different layers.
+
+**Target-gated extended testing (tools, not skills — see templates.md Rule 5b):**
+
+| Tool | Gate | Why |
+|------|------|-----|
+| k6 (load test) | `PRODUCT.md` §10 declares throughput/latency targets OR a public API | `docker-compose.loadtest.yml` — thresholds map to exit code = Phase-5 pass/fail gate (Rule 5b.2) |
+| Maestro (mobile E2E) | `PRODUCT.md` §9 declares native mobile (Expo) | One YAML flow per core user flow; `maestro test --format junit`. Complement: catalogued `midscene-skills` for vision-driven exploratory checks (Rule 5b.3) |
+
+These are CLI/Docker tools driven by templates — NOT installable via `/scan-project`/SKILLS_DB.
+Activate only on the deployment-target signal above; otherwise skip.
+
 Note: systematic-debugging is already in superpowers (Slot 1).
 
 ### Phase 6 + 6.5 (Docker + Visual QA + Error Triage)
@@ -1882,6 +1944,11 @@ Note: systematic-debugging is already in superpowers (Slot 1).
 | Skill | Layer | Why |
 |-------|-------|-----|
 | postgres | Database | Query live DB to verify migrations, seeds, data integrity |
+
+**Production infra monitoring is OUT OF SCOPE** (see templates.md Rule 5b.1) — the separate
+Server-Setups framework owns server health/dashboards/alerting for the deployed host. Do NOT
+scaffold a monitoring service into the app's `deploy/compose/`. For dev-time "is my app heavy /
+what's the culprit," use Phase 5 / Rule 5b.0 profiling.
 
 Note: debug-issue and root-cause-tracing are already in superpowers (Slot 1) and
 code-review-graph (Slot 2). Do NOT install debug-skill separately — it conflicts
@@ -1973,7 +2040,7 @@ Options:
 
 > **⚠ CONTEXT BUDGET:** Run the Universal Context Budget pre-flight (top of this file) at the START of every Part. Estimate files + tokens. If >12 files or >80K tokens, sub-divide by module per the anti-thrashing rule below. The execution plan from Phase 3.5 pre-computes this — follow it.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) per Part. POST: Run Smart Checkpoint (§2) after each Part. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(model: "sonnet") per §4. ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
+> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) per Part. POST: Run Smart Checkpoint (§2) after each Part. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(subagent_type: "spec-executor") per §4 (fallback: Agent(model: "sonnet") when a task requires tools/MCPs outside spec-executor's allow-list). ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
 
 Each Part runs in a FRESH Claude Code session (Rule 24 — prevents context accumulation).
 Each Part stays under ~3,000 lines of context for best reliability.
@@ -3351,7 +3418,7 @@ After Phase 6 completes:        say "Feature Update" for each new feature (Phase
 
 > **⚠ CONTEXT BUDGET:** Run the Universal Context Budget pre-flight (top of this file) before starting. Estimate scope + tokens. If >12 files or >80K tokens, split validation into module groups.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
 
 ─────────────────────────────────────────────────────────
 PHASE 5 PRE-FLIGHT — CREDENTIAL COMPLETENESS GATE — MANDATORY (NEW V30)
@@ -3454,10 +3521,27 @@ Before proceeding to Phase 6, verify ALL of these:
 □ pnpm test: all tests pass
 □ pnpm build: exit 0
 □ pnpm audit --audit-level=high: 0 HIGH or CRITICAL CVEs
+□ lint-deploy.sh: exit 0 — run `bash scripts/lint-deploy.sh deploy/compose` before any staging/prod push; catches
+  the shared Traefik/Komodo footguns (compose parse, certresolver case, tls=true label, 127.0.0.1 healthcheck,
+  no build: in stage/prod, push.sh login guard, start.sh project-name, shellcheck). Fix all FAILs before Phase 6.
+□ design:check: exit 0 — run `npm run design:check` (Playwright toHaveScreenshot vs production baseline in
+  tests/visual/fixtures/). A non-zero exit = visual drift detected = GATE FAIL. Two legal reconcile paths only:
+  (1) fix the code so screenshots match the baseline; OR (2) update-design-first → recompile
+  (design:validate → design:build) → re-capture baseline as a reviewed human commit → re-run design:check.
+  No other path permitted. (V32.8 — Rule 31)
+□ REGISTRY DONE-CLAIM (V32.8 — Rule 32): scan LESSONS_REGISTRY.md for fingerprints matching Phase 5's
+  surface; capture design:check output into STATE.md evidence field {contract, check_command, captured_output}.
 IF ANY command fails → fix before proceeding → do not start Phase 6 with failing validation
+
+PHASE 5 FAILURE HANDLING (V32.8 — Rule 32): On any build/test/gate failure:
+  1. Fingerprint the failure: {scope_category, surface, symptom, check_command_that_caught_it}
+  2. Scan LESSONS_REGISTRY.md for a matching fingerprint.
+  3. IF it matches an existing entry whose standing_check should have caught it:
+     STRENGTHEN that check (update its check_location / add it to an earlier phase hook) — do not just re-fix.
+  4. IF it is novel: flag as a promotion candidate in STATE.md ("promote-to-registry: YES, scope: project|framework").
 ─────────────────────────────────────────────────────────
 
-**When all 9 pass → Phase 5 is complete. Output "✅ Phase 5 complete. Say 'Start Phase 6' in a new Claude Code session."**
+**When all 9 pass, lint-deploy.sh is green, and design:check is green → Phase 5 is complete. Output "✅ Phase 5 complete. Say 'Start Phase 6' in a new Claude Code session."**
 Human triggers Phase 6 explicitly.
 
 ---
@@ -3467,7 +3551,17 @@ Human triggers Phase 6 explicitly.
 
 > **⚠ CONTEXT BUDGET:** Run the Universal Context Budget pre-flight (top of this file) before starting. Phase 6 typically reads compose files + .env + governance docs — estimate tokens before proceeding.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+
+**⚠️ PRE-DEPLOY FOOTGUN GATE — run before any staging/prod push:**
+```bash
+bash scripts/lint-deploy.sh deploy/compose
+```
+This static linter encodes the shared Traefik/Komodo gotchas that have broken fleet deploys:
+C1 compose YAML parse · C2 certresolver lowercase · C3 websecure tls=true label · C4 127.0.0.1
+healthcheck (not localhost) · C5 no build: key in stage/prod composes · C6 push.sh login guard ·
+C7 start.sh COMPOSE_PROJECT_NAME derivation · C8 shellcheck all *.sh.
+Exit 0 = all clear. Exit 1 = fix before proceeding. Dev compose is excluded from TLS/build: checks.
 
 All `docker compose` commands run from the WSL2 Ubuntu terminal.
 Docker Desktop provides the socket natively — no DinD, no socket mounts needed.
@@ -3560,7 +3654,7 @@ Next steps:
 
 > **⚠ CONTEXT BUDGET:** Run the Universal Context Budget pre-flight (top of this file). Error triage can snowball — if fixing requires touching >12 files, split into separate fix sessions per error category.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
 
 Diagnose from these categories:
 - **ENV_MISSING** → check .env against .env.example
@@ -3608,9 +3702,13 @@ Edit PRODUCT.md → trigger Phase 7 → agents implement everything and keep gov
 > Read ONLY the PRODUCT.md sections for the current feature — NEVER the full file.
 > Use `codebase_search` (Rule 17) before opening source files.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) — classify this Feature Update's complexity before touching any files. POST: Run Smart Checkpoint (§2) on completion. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — non-allow-list files > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(model: "sonnet") per §4. ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. **V32.3 Smart Governance Hydration:** at Phase 7 start, hydrate the 9 governance docs per Rule 4 — files ≤ 200 lines direct read; files > 200 lines via Scout with Governance Extraction Schema. Opus consumes the hydration brief, not the full file. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
+> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) — classify this Feature Update's complexity before touching any files. POST: Run Smart Checkpoint (§2) on completion. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — non-allow-list files > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(subagent_type: "spec-executor") per §4 (fallback: Agent(model: "sonnet") when a task requires tools/MCPs outside spec-executor's allow-list). ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. **V32.3 Smart Governance Hydration:** at Phase 7 start, hydrate the 9 governance docs per Rule 4 — files ≤ 200 lines direct read; files > 200 lines via Scout with Governance Extraction Schema. Opus consumes the hydration brief, not the full file. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
 >
 > **MODEL HOOK (V32.5.5 — Back-Port Surface Check, Phase 7 pre-flight):** before executing the Feature Update body, Opus runs the Back-Port Surface Check — dispatch a Sonnet Scout to compare every locked decision in `docs/DECISIONS_LOG.md` against `docs/PRODUCT.md`. The Scout returns a structured report listing decisions ABSENT from PRODUCT.md (entity · decision value · log timestamp · suggested PRODUCT.md section). Opus surfaces the report at the top of phase output as **"📋 Back-Port Candidates"** — **non-blocking, informational only; it NEVER gates phase closure.** Rule 1 is unchanged: PRODUCT.md edits remain human-only — Claude Code MUST NOT write to `docs/PRODUCT.md`. If the human declines to back-port a candidate, they log `spec-divergent: <reason>` in DECISIONS_LOG.md to suppress it on the next run. The check is conditional: run the Scout ONLY when `docs/DECISIONS_LOG.md` mtime is newer than the last Back-Port Candidates report (`docs/CHANGELOG_AI.md` timestamp). On a clean state (no candidates) emit a single collapsed line — `✅ no back-port candidates` — not the full report.
+>
+> **MODEL HOOK (V32.7.3 — Design Baseline Back-Port Surface Check, Phase 7 pre-flight):** the same posture as the V32.5.5 spec check, applied to the design baseline. The Phase 3.3 hard gate (V32.6) finalizes `docs/DESIGN.md` tokens + `docs/MOCKUP.jsx` as the UI source of truth, but an owner-approved design change (palette / theme / layout) can land AFTER that gate closes — during a Phase 7 UI-delta Feature Update (also Phase 4 Parts 5-6 or Phase 8). When that happens, the live app theme drifts from the frozen baseline (the Marine-Guardian failure mode: Meta-Dark mockup frozen, shadcn-neutral re-skin shipped, baseline never updated). Before executing a UI-touching Feature Update body, Opus runs the Design Baseline Back-Port Surface Check — dispatch a Sonnet Scout to **diff the app's live theme tokens (`apps/[web]/src/app/globals.css` CSS variables + the Tailwind theme config) against the baseline tokens in `docs/DESIGN.md` / `docs/MOCKUP.jsx`** (this is the detection mechanism that closes framework TODO-21 — the per-wave `globals.css` ↔ `MOCKUP.jsx` token diff). The Scout returns a structured report listing tokens that DIVERGED (token name · baseline value · live value · file:line). Opus surfaces it at the top of phase output as **"🎨 Design Back-Port Candidates"** — **non-blocking, informational only; it NEVER gates phase closure.** The requirement on an owner-approved divergence is **INHERIT-not-REPLACE back-port**: update `docs/DESIGN.md` to the new token values AND annotate/expand `docs/MOCKUP.jsx` to reflect them (annotate/expand the existing mockup — full regenerate ONLY on a wholesale design change; the mockup stays the UI source of truth, never silently overwritten). Unlike spec files, `docs/DESIGN.md` and `docs/MOCKUP.jsx` are NOT human-only — Claude Code MAY write the back-port, but only to mirror an already-approved change, never to invent design intent (Rule 1 preserved: the design *decision* is the human's; Claude only reconciles the baseline to it). If the human intends the divergence to stay un-mirrored, they log `design-divergent: <reason>` in DECISIONS_LOG.md to suppress it on the next run. The check is conditional: run the Scout ONLY when `globals.css` or the Tailwind theme config mtime is newer than the last Design Back-Port report (`docs/CHANGELOG_AI.md` timestamp), AND the Feature Update touches UI files. On a clean state (tokens match) emit a single collapsed line — `✅ no design back-port candidates` — not the full report.
+>
+> **MODEL HOOK (V32.8 — New-Surface Mockup-First + Registry Consult, Phase 7):** **(a) New-surface rule (Rule 31):** If this Feature Update introduces a NEW UI surface (new page, new modal, new significant component not present in `prototype/` or `docs/MOCKUP.jsx`), a DESIGN/mockup update MUST happen FIRST — before any implementation code is written. Update `docs/MOCKUP.jsx` (annotate/expand — never regenerate from scratch, Rule 1) to include the new surface, run `design:validate` → `design:build` to recompile tokens, re-capture the affected baseline snapshot, then transcribe to production code. Ad-hoc UI invention (building a screen that has no corresponding mockup entry) is NOT permitted. **(b) Registry consult (Rule 32):** Before executing the Feature Update body, consult `LESSONS_REGISTRY.md` for fingerprints matching this update's target surface. **(c) Registry done-claim:** On Feature Update completion, scan `LESSONS_REGISTRY.md` for surface-relevant fingerprints; capture acceptance-check output into STATE.md `{contract, check_command, captured_output}` before claiming done. **(d) Failure handling:** On any build/test/gate failure during this Feature Update: fingerprint it → scan registry → if a standing check should have caught it, STRENGTHEN that check; if novel, flag as a promotion candidate in STATE.md.
 
 **Trigger:**
 - Via Claude Code: say "Feature Update" — it hydrates the 9 governance docs automatically (V32.3: large docs via Scout, small docs direct)
@@ -3739,6 +3837,8 @@ Before reporting Feature Update complete, verify ALL of these:
 □ STATE.md: rewritten with PHASE="Phase 7 complete", LAST_DONE=[feature name], NEXT="Feature Update or Phase 8"
 □ feat/[slug] branch squash-merged to main and deleted
 □ SocratiCode index refreshed via codebase_update
+□ IF this update added a new UI surface: docs/MOCKUP.jsx updated + design:validate/build rerun + baseline re-captured (V32.8 — Rule 31)
+□ REGISTRY DONE-CLAIM (V32.8 — Rule 32): LESSONS_REGISTRY.md scanned for surface fingerprints; acceptance check output captured in STATE.md {contract, check_command, captured_output}. Empty evidence field = malformed claim.
 IF ANY item fails → Feature Update = INCOMPLETE → fix before marking done
 ─────────────────────────────────────────────────────────
 
@@ -3751,7 +3851,7 @@ IF ANY item fails → Feature Update = INCOMPLETE → fix before marking done
 
 > **⚠ CONTEXT BUDGET:** Run the Universal Context Budget pre-flight (top of this file). Rollbacks can touch many files across modules. If the feature spans >12 files, split the rollback into module-by-module sessions: revert schema first, then routers, then UI — commit after each group.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
+> **⚠ MEMORY GOVERNANCE:** Read `.ai_prompt/memory-governance.md` first, then — PRE: Run Tiered Decomposition (§1). POST: Run Smart Checkpoint (§2) if files changed.
 
 1. Find feature entry in CHANGELOG_AI.md
 2. List all files + migrations to revert
@@ -3768,9 +3868,13 @@ IF ANY item fails → Feature Update = INCOMPLETE → fix before marking done
 
 > **⚠ CONTEXT BUDGET:** Run the Universal Context Budget pre-flight (top of this file) before every batch. Estimate files + tokens for the proposed batch. If >12 files or >80K tokens, split into per-feature sub-batches per the anti-thrashing rule below.
 >
-> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) — classify this batch before starting. POST: Run Smart Checkpoint (§2) after each sub-batch. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(model: "sonnet") per §4. ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
+> **⚠ MEMORY GOVERNANCE** (memory-governance.md): PRE: Run Tiered Decomposition (§1) — classify this batch before starting. POST: Run Smart Checkpoint (§2) after each sub-batch. MODEL: ZERO OPUS EXECUTION (V32.3). Opus's only allowed actions: (a) READ context — but any non-allow-list file > 100 lines MUST go through Scout-Sonnet (R6); **V32.3:** allow-list governance docs > 200 lines also MUST go through Scout-Sonnet with the Governance Extraction Schema (`memory-governance.md §4`) — direct Opus read of a > 200-line allow-list governance doc counts as `opus_writes` for `dispatch_ratio` purposes; (b) plan, decompose, review Sonnet output — DONE acceptance requires full diff review, review-by-summary FORBIDDEN; (c) WRITE only the R8 Allow-List (docs/STATE.md · docs/DECISIONS_LOG.md · docs/CHANGELOG_AI.md · docs/IMPLEMENTATION_MAP.md · .cline/STATE.md). ALL other file writes (code, configs, tests) MUST be dispatched via Agent(subagent_type: "spec-executor") per §4 (fallback: Agent(model: "sonnet") when a task requires tools/MCPs outside spec-executor's allow-list). ≥ 2 independent dispatches MUST be parallel in ONE Opus response — serial only with a real data dependency (R7). Before each dispatch: run `wc -l`; total ≤ 500 lines per Sonnet task; files > 300 lines need explicit line ranges. Smart Checkpoint logs `dispatch_ratio` (sonnet_writes / opus_writes ≥ 3.0; < 1.0 triggers lessons.md drift review — R9). NO exceptions. NO "last resort." NO Opus executor escalation. If about to Edit/Write a non-allow-list file, STOP and dispatch.
 >
 > **MODEL HOOK (V32.5.5 — Back-Port Surface Check, Phase 8 pre-flight):** before proposing the next build batch, Opus runs the Back-Port Surface Check — dispatch a Sonnet Scout to compare every locked decision in `docs/DECISIONS_LOG.md` against `docs/PRODUCT.md`. The Scout returns a structured report listing decisions ABSENT from PRODUCT.md (entity · decision value · log timestamp · suggested PRODUCT.md section). Opus surfaces the report at the top of the batch proposal as **"📋 Back-Port Candidates"** — **non-blocking, informational only; it NEVER gates the batch or phase closure.** Rule 1 is unchanged: PRODUCT.md edits remain human-only — Claude Code MUST NOT write to `docs/PRODUCT.md`. If the human declines to back-port a candidate, they log `spec-divergent: <reason>` in DECISIONS_LOG.md to suppress it on the next run. The check is conditional: run the Scout ONLY when `docs/DECISIONS_LOG.md` mtime is newer than the last Back-Port Candidates report (`docs/CHANGELOG_AI.md` timestamp). On a clean state (no candidates) emit a single collapsed line — `✅ no back-port candidates` — not the full report. This complements the existing PRODUCT.md ↔ IMPLEMENTATION_MAP.md structural completeness check below: completeness catches *unbuilt* declared sections, the Back-Port Check catches *answered clarifications never written back into the spec*.
+>
+> **MODEL HOOK (V32.7.3 — Design Baseline Back-Port Surface Check, Phase 8 pre-flight):** the design analogue of the V32.5.5 check above, same posture. Before proposing the next build batch, Opus runs the Design Baseline Back-Port Surface Check — dispatch a Sonnet Scout to **diff the app's live theme tokens (`apps/[web]/src/app/globals.css` CSS variables + the Tailwind theme config) against the baseline tokens in `docs/DESIGN.md` / `docs/MOCKUP.jsx`** (closes framework TODO-21 — the per-wave `globals.css` ↔ `MOCKUP.jsx` token diff). The Scout returns a structured report listing diverged tokens (token name · baseline value · live value · file:line). Opus surfaces it at the top of the batch proposal as **"🎨 Design Back-Port Candidates"** — **non-blocking, informational only; it NEVER gates the batch or phase closure.** On an owner-approved divergence the requirement is **INHERIT-not-REPLACE back-port**: update `docs/DESIGN.md` token values AND annotate/expand `docs/MOCKUP.jsx` to match (annotate/expand the existing mockup — full regenerate ONLY on a wholesale design change; the mockup stays the UI source of truth). `docs/DESIGN.md` / `docs/MOCKUP.jsx` are NOT human-only — Claude Code MAY write the back-port, but only to mirror an already-approved change, never to invent design intent (Rule 1 preserved). To leave a divergence un-mirrored, the human logs `design-divergent: <reason>` in DECISIONS_LOG.md to suppress it. Conditional: run the Scout ONLY when `globals.css` / the Tailwind theme config mtime is newer than the last Design Back-Port report (`docs/CHANGELOG_AI.md` timestamp). On a clean state emit `✅ no design back-port candidates`. Why both checks at Phase 8: the spec Back-Port Check catches answered clarifications never written back into PRODUCT.md; the Design Back-Port Check catches an approved re-skin never written back into the DESIGN.md / MOCKUP.jsx baseline.
+>
+> **MODEL HOOK (V32.8 — Registry Consult + design:check gate, Phase 8):** **(a) Work-start registry consult (Rule 32):** Before building each sub-batch, consult `LESSONS_REGISTRY.md` for fingerprints matching the batch's target surface; run any matching `standing_check` before writing code. **(b) design:check gate (Rule 31):** After each sub-batch that touches UI, run `npm run design:check` (Playwright `toHaveScreenshot` vs production baseline). A non-zero exit blocks the sub-batch done-claim. Two legal reconcile paths only: fix code OR update-design-first → `design:validate` → `design:build` → re-capture baseline as reviewed human commit. **(c) Done-claim evidence (Rule 32):** Every sub-batch done-claim must carry `{contract, check_command, captured_output}` in STATE.md. An empty evidence field is structurally malformed.
 
 Cross-references PRODUCT.md vs IMPLEMENTATION_MAP.md and proposes the next batch.
 Repeats until PRODUCT.md is fully implemented.
@@ -3872,8 +3976,21 @@ and verify:
   □ Every validation rule in the spec has a matching Zod schema
   □ Every UI element described (buttons, tables, filters, modals) exists in the page
   □ If the feature connects to another module, the integration point is wired
+  □ design:check: exit 0 — run `npm run design:check` (Playwright toHaveScreenshot vs production
+    baseline in tests/visual/fixtures/). Non-zero exit = visual drift = GATE FAIL. Two legal
+    reconcile paths: fix code, OR update-design-first → design:validate → design:build → re-capture
+    baseline as reviewed human commit → re-run design:check. (V32.8 — Rule 31)
+  □ REGISTRY DONE-CLAIM (V32.8 — Rule 32): scan LESSONS_REGISTRY.md for fingerprints matching
+    this batch's surface; capture design:check output + acceptance check into STATE.md
+    {contract, check_command, captured_output}. Empty evidence field = malformed claim.
 IF any item is missing → implement it before committing. Do NOT leave it for a future batch
 unless the human explicitly says to defer it.
+
+**Phase 8 failure handling (V32.8 — Rule 32):** On any build/test/gate failure during a sub-batch:
+  1. Fingerprint the failure: {scope_category, surface, symptom, check_command_that_caught_it}
+  2. Scan LESSONS_REGISTRY.md for a matching fingerprint.
+  3. IF matches an existing entry whose standing_check should have caught it: STRENGTHEN that check.
+  4. IF novel: flag as a promotion candidate in STATE.md ("promote-to-registry: YES").
 
 **If thrashing occurs mid-session despite sub-division:**
 1. Immediately run `/clear` to reset context
@@ -3980,7 +4097,7 @@ LOCKED DECISIONS:
   [list each locked decision from DECISIONS_LOG.md — one line each]
 
 ACTIVE DEV MODE: MODE A — WSL2 native (only supported environment)
-ACTIVE RULES: V31 — 30 rules. Rule 4 (read 9 docs first), Rule 17 (SocratiCode search), Rule 18 (typed lessons), Rule 21 (design system), Rule 22 (random ports + container naming, WSL2 native only), Rule 23 (git branching), Rule 24 (fresh context), Rule 25 (two-stage review), Rule 28 (priority ladder), Rule 29 (no fuzzy), Rule 30 (Context7). H1–H4 System Hardening active. UI Component Rules active (V29). Compact CLAUDE.md architecture active (V30). Claude Sonnet 4.6 primary (V30). Phase 2.8 Clickable Mockup Review active in Planning Assistant chat (V31).
+ACTIVE RULES: V32.8 — 32 rules. Rule 4 (read 9 docs first), Rule 17 (SocratiCode search), Rule 18 (typed lessons), Rule 21 (design system), Rule 22 (random ports + container naming, WSL2 native only), Rule 23 (git branching), Rule 24 (fresh context), Rule 25 (two-stage review), Rule 28 (priority ladder), Rule 29 (no fuzzy), Rule 30 (Context7). H1–H4 System Hardening active. UI Component Rules active (V29). Compact CLAUDE.md architecture active (V30). Claude Sonnet 4.6 primary (V30). Phase 2.8 Clickable Mockup Review active in Planning Assistant chat (V31).
 
 Which phase are you continuing from?
 ```
