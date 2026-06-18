@@ -4,12 +4,33 @@
  * prototype (prototype/src/app/globals.css :root) — Output Equivalence with the
  * GREEN design-review baseline. globals.css maps the shadcn/ui semantic vars FROM
  * these; tailwind.config.ts utilities reference these via the @yelli/ui preset.
+ *
+ * V32.8 design-drift remediation (chore/v328-design-audit):
+ *   - Fixed CRITICAL token mismatches vs docs/DESIGN.md (warning, error, brand-lavender)
+ *   - Restored brand-ochre (#e8b94a) — was absent, coral was substituted incorrectly
+ *   - Added missing surface-dark, surface-card, surface-soft, surface-strong,
+ *     surface-dark-elevated, primary-active, primary-disabled, hairline tokens
+ *   - Fixed success-strong to canonical #15803d (DESIGN.md spec)
+ *
+ * IMPORTANT: Keep inline comments OFF declarations — tokens.parity.test.ts parses
+ * each line with a tight regex that does not tolerate trailing block comments
+ * after the semicolon. Put comments on preceding lines only.
  */
 :root {
   /* Surfaces */
   --color-canvas: #fffaf0;
   --color-surface: #ffffff;
   --color-surface-elevated: #fffdfa;
+  /* warm off-white — footer CTA bands */
+  --color-surface-soft: #faf5e8;
+  /* cream card background — nav hover, feature cards */
+  --color-surface-card: #f5f0e0;
+  /* emphasized cream bands */
+  --color-surface-strong: #ebe6d6;
+  /* near-black teal — call screen background */
+  --color-surface-dark: #0a1a1a;
+  /* slightly lighter dark surface */
+  --color-surface-dark-elevated: #1a2a2a;
 
   /* Text */
   --color-text-primary: #0a0a0a;
@@ -18,19 +39,31 @@
 
   /* Primary + brand accents */
   --color-primary: #0a0a0a;
+  /* CTA hover/pressed state */
+  --color-primary-active: #1f1f1f;
+  /* disabled CTA fill */
+  --color-primary-disabled: #e5e5e5;
   --color-brand-pink: #ff4d8b;
   --color-brand-teal: #1a3a3a;
-  --color-brand-lavender: #b8a4e3;
+  /* FIXED: was #b8a4e3 (off-by-1-byte) */
+  --color-brand-lavender: #b8a4ed;
   --color-brand-peach: #ffb084;
+  /* RESTORED: was absent (coral was incorrectly substituted) */
+  --color-brand-ochre: #e8b94a;
   --color-brand-mint: #a4d4c5;
   --color-brand-coral: #ff6b5a;
+  /* border / divider lines */
+  --color-hairline: #e5e5e5;
 
   /* Semantic */
   --color-success: #22c55e;
-  --color-success-strong: #1b8a5a;
-  --color-warning: #ffb084;
+  /* FIXED: was #1b8a5a, canonical #15803d per DESIGN.md */
+  --color-success-strong: #15803d;
+  /* FIXED: was #ffb084 (same as brand-peach — semantic collision) */
+  --color-warning: #f59e0b;
   --color-warning-strong: #c45a1f;
-  --color-error: #ff8a80;
+  /* FIXED: was #ff8a80 (salmon), spec'd red per DESIGN.md */
+  --color-error: #ef4444;
   --color-error-strong: #b3261e;
 
   /* Motion */

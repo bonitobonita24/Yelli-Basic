@@ -122,10 +122,10 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-[8px] px-3 py-1.5 text-sm font-medium ${
+                className={`rounded-[8px] px-3 py-1.5 text-sm font-medium transition-colors duration-fast ${
                   active
-                    ? 'bg-surface text-text-primary'
-                    : 'text-text-secondary hover:text-text-primary'
+                    ? 'bg-surface-card text-text-primary'
+                    : 'text-text-secondary hover:bg-surface-card hover:text-text-primary'
                 }`}
               >
                 {item.label}
@@ -135,7 +135,7 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
         </nav>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex h-11 items-center gap-2 rounded-[12px] px-2 hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <DropdownMenuTrigger className="flex h-11 items-center gap-2 rounded-[12px] px-2 hover:bg-surface-card transition-colors duration-fast focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-lavender text-xs font-semibold text-text-primary">
               {initials(displayLabel)}
             </div>

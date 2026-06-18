@@ -31,8 +31,8 @@
     --accent-foreground: var(--color-text-primary);
     --destructive: var(--color-error-strong);
     --destructive-foreground: #ffffff;
-    --border: #e5e5e5;
-    --input: #e5e5e5;
+    --border: var(--color-hairline);  /* V32.8: named token, was hardcoded #e5e5e5 */
+    --input: var(--color-hairline);
     --ring: var(--color-primary);
     --radius: 12px;
   }

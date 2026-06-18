@@ -337,7 +337,7 @@ export default function ScreenAdminMembers(): React.JSX.Element {
       {visible.length > 0 && (
         <div className="hidden overflow-hidden rounded-lg border border-border bg-surface md:block">
           <Table>
-            <TableHeader className="bg-canvas">
+            <TableHeader className="bg-surface-card">
               <TableRow>
                 <TableHead className="text-text-muted">Name</TableHead>
                 <TableHead className="text-text-muted">Status</TableHead>

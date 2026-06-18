@@ -9,10 +9,14 @@ import { trpc } from '@/lib/trpc/react';
 /**
  * Active-call screen (Flow A — Place / in-call). Production port of the Phase 3.3
  * `prototype/src/screens/ScreenActiveCall.tsx` (INHERIT-not-REPLACE — the
- * immersive view is reproduced with Clay tokens + lucide icons; the few deep
- * immersive darks with no Clay token use `brand-teal`/`primary`, and on-dark text
- * uses Tailwind's `white` keyword utilities since there is no dedicated on-dark
- * text token — same residual-token posture as W7 deferral #4).
+ * immersive view is reproduced with Clay tokens + lucide icons; on-dark text uses
+ * Tailwind's `white` keyword utilities since there is no dedicated on-dark text
+ * token — same residual-token posture as W7 deferral #4).
+ *
+ * V32.8 design-drift fix (B1): background changed from bg-brand-teal (#1a3a3a,
+ * 4× too light) to bg-surface-dark (#0a1a1a) — the MOCKUP's intended near-black.
+ * Gradient corrected to match MOCKUP: from-surface-dark-elevated via-surface-dark
+ * to-primary (was from-brand-teal via-primary to-primary).
  *
  * SWAP BOUNDARY wiring (replaces the prototype's `sim.callSessions`/`sim.devices`):
  *   - `trpc.calls.byId`   — the live CallSession (also surfaces `endReason`)
@@ -60,7 +64,7 @@ function formatElapsed(totalSeconds: number): string {
 /** Shared terminal layout for the ended / not-found / forbidden states. */
 function TerminalState(props: { message: string; onExit: () => void }): React.JSX.Element {
   return (
-    <div className="grid min-h-screen place-items-center bg-brand-teal p-6 text-white">
+    <div className="grid min-h-screen place-items-center bg-surface-dark p-6 text-white">
       <div className="space-y-4 text-center">
         <div className="text-base opacity-80">{props.message}</div>
         <button
@@ -137,8 +141,8 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
   const status = connectedAtMs === null ? 'Ringing…' : formatElapsed(elapsed);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-brand-teal text-white">
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-teal via-primary to-primary" />
+    <div className="relative min-h-screen overflow-hidden bg-surface-dark text-white">
+      <div className="absolute inset-0 bg-gradient-to-br from-surface-dark-elevated via-surface-dark to-primary" />
 
       {/* Peer avatar (remote video placeholder until the call-engine lands). */}
       <div className="absolute inset-0 grid place-items-center">
