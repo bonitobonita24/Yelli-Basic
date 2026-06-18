@@ -1,5 +1,25 @@
 # Decisions Log
 
+## LOCKED: Unauth peer directory — friendly sign-in prompt (q-W2b-04 UX patch) — 2026-06-18
+
+**Decision:** `PeerDirectory` shows a friendly sign-in empty-state when `devices.list` returns
+`UNAUTHORIZED` (no session). The red `role="alert"` error is reserved for genuine load failures.
+
+**Context:** The `(app)` layout is intentionally open to every role, so unauthenticated visitors
+can reach the home page. `devices.list` is a `protectedProcedure` — it always returns
+`UNAUTHORIZED` for an unauthenticated caller. The previous code treated all errors identically
+with a scary red alert, creating a confusing UX for users who simply hadn't signed in yet.
+
+**Fix:** Detect `listQuery.error?.data?.code === 'UNAUTHORIZED'` and render a calm `text-text-muted`
+message + shadcn `Button` linking to `/login`. Non-UNAUTHORIZED errors continue to render the red
+alert. This is a UX-only change — no auth weakening, no schema change, no new feature.
+
+**q-W2b-04 status:** Full device-session feature remains DEFERRED. This patch is a surface-level
+UX improvement only. The device-session work (persistent device identity + session token) is a
+separate, future phase.
+
+---
+
 ## LOCKED: LAN signing keypair — 2026-06-16
 
 **Decision:** Generate the production minisign keypair for LAN bundle signing.

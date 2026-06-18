@@ -553,6 +553,15 @@ Reference:          https://ui.shadcn.com/docs/theming · Dark mode docs: https:
 - Webhooks for tenant events (member.created etc.)
 - n8n / OpenClaw automation workflows (none declared in Step 5 per Rule 11)
 
+**Call feature deferred (q-W2b-04):**
+- Full device-session feature (`q-W2b-04`) — persistent device identity + session token for the
+  peer directory — is intentionally deferred to a later phase.
+- **UX decision (2026-06-18):** Until that feature ships, an unauthenticated visitor who reaches
+  the peer directory (`/`) will see a friendly sign-in prompt ("Sign in to see the people you can
+  call.") instead of an error message. `PeerDirectory` detects `UNAUTHORIZED` on `devices.list`
+  and renders the calm empty-state with a link to `/login`; genuine load failures still show the
+  red error alert. This is a UX-only change — no auth weakening, no new feature.
+
 **Compliance scope (don't apply at MVP):**
 - PCI-DSS scope (no payment data — Xendit deferred to v2)
 - HIPAA scope (not a medical product; no PHI stored)

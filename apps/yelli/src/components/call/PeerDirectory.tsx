@@ -23,6 +23,7 @@
 import { Phone } from 'lucide-react';
 
 import { useCallEngine } from '@/components/call/CallEngineProvider';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { trpc } from '@/lib/trpc/react';
 
@@ -63,6 +64,19 @@ export function PeerDirectory(): React.JSX.Element {
     );
   }
   if (listQuery.isError || !listQuery.data) {
+    // Differentiate no-session (q-W2b-04 deferred) from genuine failures.
+    // An UNAUTHORIZED error means the visitor has no session — show a calm
+    // sign-in prompt instead of a scary red alert.
+    if (listQuery.error?.data?.code === 'UNAUTHORIZED') {
+      return (
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-sm text-text-muted">Sign in to see the people you can call.</p>
+          <Button asChild variant="outline" size="sm">
+            <a href="/login">Sign in</a>
+          </Button>
+        </div>
+      );
+    }
     return (
       <p role="alert" className="text-sm text-error-strong">
         Couldn&apos;t load the directory.
