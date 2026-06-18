@@ -47,17 +47,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }];
   },
-  // /login is the intuitive entry point users type; forward them to the
-  // next-auth sign-in page without a permanent redirect so it stays easy
-  // to change the destination later.
+  // /login is served by the branded login page (app/login/page.tsx).
+  // Auth.js pages.signIn = '/login' routes unauthenticated users there directly —
+  // no next.config redirect needed any more.
   async redirects() {
-    return [
-      {
-        source: '/login',
-        destination: '/api/auth/signin',
-        permanent: false,
-      },
-    ];
+    return [];
   },
 };
 
