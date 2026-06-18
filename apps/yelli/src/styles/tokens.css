@@ -4,12 +4,25 @@
  * prototype (prototype/src/app/globals.css :root) — Output Equivalence with the
  * GREEN design-review baseline. globals.css maps the shadcn/ui semantic vars FROM
  * these; tailwind.config.ts utilities reference these via the @yelli/ui preset.
+ *
+ * V32.8 design-drift remediation (chore/v328-design-audit):
+ *   - Fixed CRITICAL token mismatches vs docs/DESIGN.md (warning, error, brand-lavender)
+ *   - Restored brand-ochre (#e8b94a) — was absent, coral was substituted incorrectly
+ *   - Added missing surface-dark, surface-card, surface-soft, surface-strong,
+ *     surface-dark-elevated, primary-active, primary-disabled, hairline tokens
+ *   - Fixed success-strong to canonical #15803d (DESIGN.md spec)
+ *   - body text token aligned to DESIGN.md #3a3a3a
  */
 :root {
   /* Surfaces */
   --color-canvas: #fffaf0;
   --color-surface: #ffffff;
   --color-surface-elevated: #fffdfa;
+  --color-surface-soft: #faf5e8;    /* warm off-white — footer CTA bands */
+  --color-surface-card: #f5f0e0;    /* cream card background — nav hover, feature cards */
+  --color-surface-strong: #ebe6d6;  /* emphasized cream bands */
+  --color-surface-dark: #0a1a1a;    /* near-black teal — call screen background */
+  --color-surface-dark-elevated: #1a2a2a; /* slightly lighter dark surface */
 
   /* Text */
   --color-text-primary: #0a0a0a;
@@ -18,19 +31,23 @@
 
   /* Primary + brand accents */
   --color-primary: #0a0a0a;
+  --color-primary-active: #1f1f1f;    /* CTA hover/pressed state */
+  --color-primary-disabled: #e5e5e5;  /* disabled CTA fill */
   --color-brand-pink: #ff4d8b;
   --color-brand-teal: #1a3a3a;
-  --color-brand-lavender: #b8a4e3;
+  --color-brand-lavender: #b8a4ed;    /* FIXED: was #b8a4e3 (off-by-1-byte) → #b8a4ed */
   --color-brand-peach: #ffb084;
+  --color-brand-ochre: #e8b94a;       /* RESTORED: was absent (coral was used instead) */
   --color-brand-mint: #a4d4c5;
   --color-brand-coral: #ff6b5a;
+  --color-hairline: #e5e5e5;          /* border / divider lines */
 
   /* Semantic */
   --color-success: #22c55e;
-  --color-success-strong: #1b8a5a;
-  --color-warning: #ffb084;
+  --color-success-strong: #15803d;    /* FIXED: was #1b8a5a → canonical #15803d per DESIGN.md */
+  --color-warning: #f59e0b;           /* FIXED: was #ffb084 (same as brand-peach!) → amber */
   --color-warning-strong: #c45a1f;
-  --color-error: #ff8a80;
+  --color-error: #ef4444;             /* FIXED: was #ff8a80 (salmon) → spec'd red */
   --color-error-strong: #b3261e;
 
   /* Motion */
