@@ -9,7 +9,10 @@
     "start": "next start -p 46848",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "design:validate": "node scripts/design-validate.mjs",
+    "design:build": "node --input-type=module -e \"import StyleDictionary from 'style-dictionary'; const sd = new StyleDictionary('./sd.config.mjs'); await sd.buildAllPlatforms();\"",
+    "design:check": "node scripts/design-validate.mjs && echo 'Token source validated (run design:build to compile)'"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

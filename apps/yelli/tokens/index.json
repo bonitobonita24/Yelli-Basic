@@ -1,0 +1,38 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "color": {
+    "$type": "color",
+    "canvas":                  { "$value": "#fffaf0", "$description": "Warm cream page background" },
+    "surface":                 { "$value": "#ffffff", "$description": "Default card/panel surface" },
+    "surface-elevated":        { "$value": "#fffdfa", "$description": "Elevated popover/dropdown surface" },
+    "surface-soft":            { "$value": "#faf5e8", "$description": "Warm off-white — footer CTA bands" },
+    "surface-card":            { "$value": "#f5f0e0", "$description": "Cream feature cards, nav hover" },
+    "surface-strong":          { "$value": "#ebe6d6", "$description": "Emphasized cream bands" },
+    "surface-dark":            { "$value": "#0a1a1a", "$description": "Near-black teal — call screen background" },
+    "surface-dark-elevated":   { "$value": "#1a2a2a", "$description": "Slightly lighter dark surface" },
+
+    "text-primary":            { "$value": "#0a0a0a", "$description": "Primary text" },
+    "text-secondary":          { "$value": "#4a4a4a", "$description": "Secondary text" },
+    "text-muted":              { "$value": "#8a8a8a", "$description": "Muted / placeholder text" },
+
+    "primary":                 { "$value": "#0a0a0a", "$description": "Primary CTA fill" },
+    "primary-active":          { "$value": "#1f1f1f", "$description": "CTA hover/pressed state" },
+    "primary-disabled":        { "$value": "#e5e5e5", "$description": "Disabled CTA fill" },
+
+    "brand-pink":              { "$value": "#ff4d8b", "$description": "Brand accent — pink" },
+    "brand-teal":              { "$value": "#1a3a3a", "$description": "Brand accent — deep teal" },
+    "brand-lavender":          { "$value": "#b8a4ed", "$description": "Brand accent — lavender" },
+    "brand-peach":             { "$value": "#ffb084", "$description": "Brand accent — peach" },
+    "brand-ochre":             { "$value": "#e8b94a", "$description": "Brand accent — ochre/gold" },
+    "brand-mint":              { "$value": "#a4d4c5", "$description": "Brand accent — mint" },
+    "brand-coral":             { "$value": "#ff6b5a", "$description": "Brand accent — coral" },
+    "hairline":                { "$value": "#e5e5e5", "$description": "Border / hairline dividers" },
+
+    "success":                 { "$value": "#22c55e", "$description": "Success state" },
+    "success-strong":          { "$value": "#15803d", "$description": "Strong success / accessible green" },
+    "warning":                 { "$value": "#f59e0b", "$description": "Warning state — amber" },
+    "warning-strong":          { "$value": "#c45a1f", "$description": "Strong warning" },
+    "error":                   { "$value": "#ef4444", "$description": "Error / destructive state" },
+    "error-strong":            { "$value": "#b3261e", "$description": "Strong error — accessible red" }
+  }
+}
