@@ -46,7 +46,7 @@ RUN pnpm --filter @yelli/web build
 # ─── Stage 3: runner (minimal) ───────────────────────────────────────────
 FROM node:24-alpine AS runner
 WORKDIR /app
-RUN apk add --no-cache libc6-compat openssl tini
+RUN apk add --no-cache libc6-compat openssl tini tzdata
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000

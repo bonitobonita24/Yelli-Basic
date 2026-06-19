@@ -39,7 +39,7 @@ RUN pnpm --filter @yelli/signaling build
 # ─── Stage 3: runner (minimal — just the bundle) ──────────────────────────
 FROM node:24-alpine AS runner
 WORKDIR /app
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini tzdata
 ENV NODE_ENV=production
 ENV SIGNALING_PORT=3001
 

@@ -39,7 +39,7 @@ RUN pnpm --filter @yelli/db exec prisma generate
 # ─── Stage 3: runner ──────────────────────────────────────────────────────
 FROM node:24-alpine AS runner
 WORKDIR /repo
-RUN apk add --no-cache libc6-compat openssl tini
+RUN apk add --no-cache libc6-compat openssl tini tzdata
 ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs && \
