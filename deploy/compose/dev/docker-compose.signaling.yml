@@ -17,6 +17,7 @@ services:
       # Container always listens on 3001; SIGNALING_PORT in .env.dev is the HOST port.
       SIGNALING_PORT: "3001"
       REDIS_URL: ${REDIS_URL_INTERNAL}
+      TZ: Asia/Manila
     ports:
       - "${SIGNALING_PORT}:3001"
     networks: [app_network]

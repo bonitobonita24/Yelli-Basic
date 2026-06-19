@@ -16,6 +16,7 @@ services:
       NODE_ENV: development
       DATABASE_URL: ${DATABASE_URL_INTERNAL}
       REDIS_URL: ${REDIS_URL_INTERNAL}
+      TZ: Asia/Manila
     networks: [app_network]
     depends_on:
       postgres:

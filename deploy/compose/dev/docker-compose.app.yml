@@ -15,6 +15,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL_INTERNAL}
       REDIS_URL: ${REDIS_URL_INTERNAL}
+      TZ: Asia/Manila
     ports:
       - "${APP_PORT}:3000"
     networks: [app_network]
