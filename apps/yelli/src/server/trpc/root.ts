@@ -1,7 +1,9 @@
 import { auditRouter } from './routers/audit';
 import { brandRouter } from './routers/brand';
+import { breachRouter } from './routers/breach';
 import { callRouter } from './routers/call';
 import { devicesRouter } from './routers/devices';
+import { dsrRouter } from './routers/dsr';
 import { invitationsRouter } from './routers/invitations';
 import { pushRouter } from './routers/push';
 import { tenantsRouter } from './routers/tenants';
@@ -23,6 +25,9 @@ export const appRouter = router({
   audit: auditRouter,
   brand: brandRouter,
   push: pushRouter,
+  // V32.9 compliance routers
+  dsr: dsrRouter,
+  breach: breachRouter,
 });
 
 export type AppRouter = typeof appRouter;

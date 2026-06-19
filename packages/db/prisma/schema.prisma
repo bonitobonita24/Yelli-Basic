@@ -42,6 +42,53 @@ enum AuditTargetType {
   Invitation
   Device
   ExportJob
+  // V32.9 — compliance models
+  DataSubjectRequest
+  BreachNotificationRecord
+  ConsentLog
+}
+
+// ─── V32.9 Privacy / Compliance enums ─────────────────────────────────────────
+// PH Data Privacy Act (RA 10173) + NPC IRR — lawful bases for personal-data processing.
+enum LawfulBasis {
+  CONSENT
+  CONTRACT
+  LEGAL_OBLIGATION
+  LEGITIMATE_INTEREST
+  VITAL_INTEREST
+  PUBLIC_AUTHORITY
+}
+
+// The 6 data-subject rights under RA 10173 §16 + NPC IRR Rule XI.
+enum DsrType {
+  INFORM
+  OBJECT
+  ACCESS
+  RECTIFY
+  ERASE
+  PORT
+}
+
+enum DsrStatus {
+  RECEIVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+// Breach notification statuses (NPC Circular 16-03: 72h initial + 5 business-day written report).
+enum BreachStatus {
+  DETECTED
+  ASSESSED
+  NOTIFIED
+  REPORTED
+  CLOSED
+}
+
+enum BreachSeverity {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 // EndReason: Prisma enum values cannot contain hyphens.
@@ -77,13 +124,18 @@ model Tenant {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  users                User[]
-  devices              Device[]
-  invitations          Invitation[]
-  auditLogs            AuditLog[]
-  callSessions         CallSession[]
-  webPushSubscriptions WebPushSubscription[]
-  exportJobs           ExportJob[]
+  users                     User[]
+  devices                   Device[]
+  invitations               Invitation[]
+  auditLogs                 AuditLog[]
+  callSessions              CallSession[]
+  webPushSubscriptions      WebPushSubscription[]
+  exportJobs                ExportJob[]
+  // V32.9 compliance relations
+  consentLogs               ConsentLog[]
+  dataSubjectRequests       DataSubjectRequest[]
+  breachNotificationRecords BreachNotificationRecord[]
+  retentionPolicies         RetentionPolicy[]
 
   @@map("tenants")
 }
@@ -107,15 +159,19 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  tenant               Tenant                @relation(fields: [tenantId], references: [id])
-  devicesOwned         Device[]
-  invitationsCreated   Invitation[]
-  auditLogs            AuditLog[]
-  webPushSubscriptions WebPushSubscription[]
-  exportJobsRequested  ExportJob[]
+  tenant                      Tenant                     @relation(fields: [tenantId], references: [id])
+  devicesOwned                Device[]
+  invitationsCreated          Invitation[]
+  auditLogs                   AuditLog[]
+  webPushSubscriptions        WebPushSubscription[]
+  exportJobsRequested         ExportJob[]
   // Auth.js relations
-  sessions             Session[]
-  accounts             Account[]
+  sessions                    Session[]
+  accounts                    Account[]
+  // V32.9 compliance relations
+  consentLogs                 ConsentLog[]
+  dataSubjectRequests         DataSubjectRequest[]
+  breachNotificationsRecorded BreachNotificationRecord[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -251,6 +307,99 @@ model ExportJob {
 
   @@index([tenantId])
   @@map("export_jobs")
+}
+
+// ─── V32.9 Compliance models ──────────────────────────────────────────────────
+// PH Data Privacy Act (RA 10173) + NPC IRR.  Every model carries tenantId (L6).
+
+/// Records consent for a processing activity — one row per grant/withdrawal per purpose.
+model ConsentLog {
+  id            String      @id @default(cuid())
+  tenantId      String      @map("tenant_id")
+  userId        String      @map("user_id")
+  /// Processing activity being consented to (e.g. "analytics", "marketing-email").
+  purpose       String
+  lawfulBasis   LawfulBasis @map("lawful_basis")
+  /// Version of the privacy notice shown at grant time.
+  noticeVersion String      @map("notice_version")
+  granted       Boolean
+  grantedAt     DateTime    @default(now()) @map("granted_at")
+  withdrawnAt   DateTime?   @map("withdrawn_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, userId])
+  @@map("consent_logs")
+}
+
+/// Tracks each data-subject request (access / rectify / erase / port / inform / object).
+/// dueAt = requestedAt + 15 calendar days (NPC's reasonable response period for most DSRs).
+model DataSubjectRequest {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  userId      String    @map("user_id")
+  type        DsrType   @map("type")
+  status      DsrStatus @default(RECEIVED) @map("status")
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  /// NPC reasonable period: 15 calendar days from request receipt (comment: adjust per NPC advisory).
+  dueAt       DateTime  @map("due_at")
+  resolvedAt  DateTime? @map("resolved_at")
+  /// URL to the export artifact or action record (e.g. signed S3 URL for PORT).
+  evidenceUrl String?   @map("evidence_url")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, userId])
+  @@map("data_subject_requests")
+}
+
+/// Records a personal-data breach incident per NPC Circular 16-03.
+/// writtenReportDueAt is pre-computed at creation: detectedAt + 72h + 5 business days.
+model BreachNotificationRecord {
+  id                       String         @id @default(cuid())
+  tenantId                 String         @map("tenant_id")
+  severity                 BreachSeverity @map("severity")
+  status                   BreachStatus   @default(DETECTED) @map("status")
+  detectedAt               DateTime       @map("detected_at")
+  /// NPC must be notified within 72 hours of detection (NPC Circular 16-03 §5).
+  npcNotifiedAt            DateTime?      @map("npc_notified_at")
+  subjectsNotifiedAt       DateTime?      @map("subjects_notified_at")
+  /// Full written report due within 5 business days after the initial 72h notification.
+  /// Stored pre-computed at creation time so reminders / SLA checks are cheap.
+  writtenReportDueAt       DateTime       @map("written_report_due_at")
+  writtenReportSubmittedAt DateTime?      @map("written_report_submitted_at")
+  /// Number of data subjects whose records were exposed.
+  affectedUserCount        Int            @map("affected_user_count")
+  description              String
+  /// Nullable: system-detected breaches may have no human recorder initially.
+  recordedByUserId         String?        @map("recorded_by_user_id")
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  recordedBy User?  @relation(fields: [recordedByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, detectedAt])
+  @@map("breach_notification_records")
+}
+
+/// Per-entity retention policy. retainDays = 0 means "delete immediately after purpose expires".
+/// Legal-hold entities (e.g. AuditLog 7yr, CallSession 1yr) set legalHold=true and retainDays accordingly.
+model RetentionPolicy {
+  id         String  @id @default(cuid())
+  tenantId   String  @map("tenant_id")
+  /// Model / table this policy governs (e.g. "AuditLog", "CallSession", "User").
+  entity     String
+  retainDays Int     @map("retain_days")
+  /// True for legally-required retention (overrides DSR erase for that entity).
+  legalHold  Boolean @default(false) @map("legal_hold")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, entity])
+  @@index([tenantId])
+  @@map("retention_policies")
 }
 
 // ─── Auth.js v5 adapter tables ────────────────────────────────────────────────

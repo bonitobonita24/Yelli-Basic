@@ -52,8 +52,7 @@ function LoginForm() {
         {/* Brand mark */}
         <div className="flex flex-col items-center mb-8">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
-            style={{ backgroundColor: '#1a3a3a' }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-brand-teal"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -106,7 +105,7 @@ function LoginForm() {
                 onChange={(e) => setTenantSlug(e.target.value)}
                 required
                 disabled={pending}
-                className="h-10"
+                className="min-h-11"
               />
             </div>
 
@@ -123,7 +122,7 @@ function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={pending}
-                className="h-10"
+                className="min-h-11"
               />
             </div>
 
@@ -140,15 +139,14 @@ function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={pending}
-                className="h-10"
+                className="min-h-11"
               />
             </div>
 
             {error && (
               <p
                 role="alert"
-                className="text-sm rounded-lg px-3 py-2.5"
-                style={{ backgroundColor: '#fff0ee', color: '#b3261e' }}
+                className="text-sm rounded-lg px-3 py-2.5 bg-error/10 text-error-strong"
               >
                 {error}
               </p>
@@ -156,7 +154,7 @@ function LoginForm() {
 
             <Button
               type="submit"
-              className="w-full h-10 font-medium"
+              className="w-full min-h-11 font-medium"
               disabled={pending}
             >
               {pending ? 'Signing in…' : 'Sign in'}
@@ -166,6 +164,17 @@ function LoginForm() {
 
         <p className="text-center text-xs text-text-muted mt-6">
           Powerbyte IT Solutions &mdash; Lipa City, Philippines
+        </p>
+        {/* RA 10173: privacy notice at point of data collection (security.md R33) */}
+        <p className="text-center text-xs text-text-muted mt-2">
+          By signing in you acknowledge our{' '}
+          <a
+            href="/privacy"
+            className="underline underline-offset-2 hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-sm"
+          >
+            Privacy Policy
+          </a>
+          .
         </p>
       </div>
     </div>
