@@ -14,6 +14,7 @@ services:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL_INTERNAL}
       REDIS_URL: ${REDIS_URL_INTERNAL}
+      TZ: Asia/Manila
     # No ports — BullMQ worker, internal only.
     networks: [app_network]
     depends_on:

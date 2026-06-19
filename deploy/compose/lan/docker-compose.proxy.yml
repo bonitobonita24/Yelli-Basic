@@ -12,6 +12,8 @@ services:
     image: caddy:2-alpine
     container_name: ${COMPOSE_PROJECT_NAME}_caddy
     hostname: ${COMPOSE_PROJECT_NAME}_caddy
+    environment:
+      TZ: Asia/Manila
     # Caddy is the ONLY service that publishes ports to the host.
     # All other LAN services are internal-only for a minimal attack surface.
     ports:

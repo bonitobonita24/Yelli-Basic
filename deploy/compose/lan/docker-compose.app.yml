@@ -17,6 +17,7 @@ services:
       REDIS_URL: ${REDIS_URL_INTERNAL}
       NEXTAUTH_URL: https://${LAN_IP}
       NEXT_PUBLIC_SIGNALING_URL: wss://${LAN_IP}/ws
+      TZ: Asia/Manila
     # No host ports — Caddy is the only internet-facing service (ports 80+443).
     networks: [app_network]
     depends_on:

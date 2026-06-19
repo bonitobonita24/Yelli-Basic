@@ -27,6 +27,7 @@ services:
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN}
+      TZ: Asia/Manila
     networks: [app_network]
     depends_on:
       - app

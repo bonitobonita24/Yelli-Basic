@@ -21,6 +21,7 @@ services:
       NODE_ENV: production
       SIGNALING_PORT: "3001"
       REDIS_URL: ${REDIS_URL_INTERNAL}
+      TZ: Asia/Manila
     networks: [app_network, proxy]
     depends_on:
       valkey:

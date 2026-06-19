@@ -15,6 +15,7 @@ services:
       # Container always listens on 3001; Caddy routes /ws* to this container.
       SIGNALING_PORT: "3001"
       REDIS_URL: ${REDIS_URL_INTERNAL}
+      TZ: Asia/Manila
     # No host ports — Caddy proxies /ws* → this container on the internal network.
     networks: [app_network]
     depends_on:
