@@ -1,7 +1,17 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — LAN admin first-run `/setup` + reset script (swarm/rebuild · the two lan-admin.ts TODO mechanisms now BUILT + tested, 2026-06-14)
+## Current State — V32.9 Mega-Prompt Conformance Cross-Check PASSED (swarm/rebuild · all 4 conformance areas green, 2026-06-21)
+
+> **V32.9 conformance check DONE (2026-06-21).** Full cross-check of app against framework HEAD — zero gaps found, no code changes required.
+> • **Framework deliverables (Area 1): 22/22 in sync.** All `.ai_prompt/` files byte-identical to `specdrivenprompt/` HEAD. `CLAUDE.md` matches `CLAUDE_v31_compact.md`. `.claude/agents/spec-executor.md`, `.claude/settings.json`, `scripts/lint-deploy.sh`, `scripts/design-stop-hook.sh` all match framework source. Zero drifted or missing deliverables.
+> • **Governance docs (Area 2): ALL PRESENT.** `docs/STATE.md` ✓ · `docs/DECISIONS_LOG.md` ✓ · `docs/IMPLEMENTATION_MAP.md` ✓ · `docs/CHANGELOG_AI.md` ✓ · `.ai_prompt/LESSONS_REGISTRY.md` ✓ · memory-governance hooks in `.ai_prompt/memory-governance.md` ✓.
+> • **Security L1-L6 (Area 3): ACTIVE.** L3 RBAC: 25 files with Role/Permission references · L5 AuditLog: `packages/shared/src/audit.ts` + 28 app references · L6 Prisma tenant: `tenant_id` + `AuditLog` in schema, 42 package files + 46 app files. WCAG 2.2 AA gate: `ui-rules.md` R13 present · V32.9 compliance layer: `privacy.md` cue in CLAUDE.md Rule 33 ✓ · DSR 15-day window owner-ratified in `PRODUCT.md` ✓ · `ScreenDataPrivacy.tsx` DSR self-service ✓ · `/privacy` page with DSR statutory window ✓ · `dsr.test.ts` (29 test files, 140 total pass) ✓.
+> • **Build + tests (Area 4): GREEN.** `pnpm build --force` — 0 errors, 19 routes compiled (all ƒ Dynamic SSR), 1 benign Turbopack informational warning (no text). `pnpm test` — 29 test files / 140 tests PASS. `pnpm typecheck` — 7/7 tasks clean. `next-auth` = `5.0.0-beta.31` (prior 500 blocker resolved; SSR routes 200/307, zero 500s confirmed by clean build).
+> • **No code changes made.** App was already fully conformant. This session = verification only.
+> **NEXT unchanged:** 2 user gates remain (ScreenTenantSettings Phase-3.3 sign-off; backup S3 provisioning), then full S6 live e2e + phase-4-complete tag.
+
+## Prior State — LAN admin first-run `/setup` + reset script (swarm/rebuild · the two lan-admin.ts TODO mechanisms now BUILT + tested, 2026-06-14)
 
 > **LAN-admin-setup DONE (this session, 2026-06-14).** Closed the two gaps that
 > `apps/yelli/src/server/auth/lan-admin.ts` referenced as the intended set/reset
