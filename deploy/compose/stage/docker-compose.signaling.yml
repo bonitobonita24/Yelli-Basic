@@ -15,6 +15,9 @@ services:
     # ⚠ NO build: key — staging pulls from Docker Hub only.
     image: ${DOCKERHUB_USERNAME}/yelli-signaling:${SIGNALING_IMAGE_TAG:-staging-latest}
     container_name: ${COMPOSE_PROJECT_NAME}_signaling
+    mem_limit: 128m
+    mem_reservation: 32m
+    cpus: 0.5
     hostname: ${COMPOSE_PROJECT_NAME}_signaling
     env_file: ../../../.env.staging
     environment:
