@@ -90,6 +90,12 @@ export type SignalingHandle = {
   sendIceCandidate: (input: { to: string; sessionId: string; data: unknown }) => boolean;
   /** Send a hangup notice to the peer (cooperative end). */
   sendHangup: (input: { to: string; sessionId: string; data?: unknown }) => boolean;
+  /**
+   * Announce a screen-share to a peer within an active call (three-way feature).
+   * `data` carries the `PresentSignal` (`{ state: 'start' | 'stop', streamId }`) —
+   * relayed by the server identically to answer/ice/hangup.
+   */
+  sendPresent: (input: { to: string; sessionId: string; data: unknown }) => boolean;
 };
 
 export type UseSignalingOptions = {
@@ -223,6 +229,10 @@ export function useSignaling(opts: UseSignalingOptions): SignalingHandle {
   );
   const sendHangup = useCallback(
     (i: { to: string; sessionId: string; data?: unknown }) => sendSignal('hangup', i),
+    [sendSignal],
+  );
+  const sendPresent = useCallback(
+    (i: { to: string; sessionId: string; data: unknown }) => sendSignal('present', i),
     [sendSignal],
   );
 
@@ -415,5 +425,6 @@ export function useSignaling(opts: UseSignalingOptions): SignalingHandle {
     sendAnswer,
     sendIceCandidate,
     sendHangup,
+    sendPresent,
   };
 }
