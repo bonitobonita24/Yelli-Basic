@@ -442,6 +442,21 @@ info "Starting Yelli LAN stack..."
 "${COMPOSE_CMD[@]}" up -d --remove-orphans
 ok "Stack started."
 
+# If the LAN IP changed while a stack was ALREADY running, `up -d` re-mounts the
+# new cert files but does NOT recreate the (unchanged-spec, bind-mounted) caddy
+# container — so it keeps serving the OLD in-memory certificate. Force a reload
+# to activate the regenerated cert. Harmless no-op when caddy was just created.
+if [ "$IP_CHANGED" = true ]; then
+  info "LAN IP changed — reloading Caddy to activate the new certificate ..."
+  if "${COMPOSE_CMD[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>/dev/null; then
+    ok "Caddy reloaded — new certificate is active."
+  else
+    warn "caddy reload not available; restarting the caddy container instead ..."
+    "${COMPOSE_CMD[@]}" restart caddy
+    ok "Caddy restarted — new certificate is active."
+  fi
+fi
+
 # ─── Step (h): Wait for app health ───────────────────────────────────────────
 
 info "Waiting for app to become healthy (up to 120s) ..."
@@ -494,6 +509,8 @@ printf '\n'
 printf '  To stop the stack:\n'
 printf '    bash deploy/lan/install.sh --down\n'
 printf '\n'
-printf '  To re-run / update IP (after network change):\n'
+printf '  After a network / LAN-IP change (lightweight — reloads cert only):\n'
+printf '    bash deploy/lan/refresh-cert.sh\n'
+printf '  To re-run / rebuild the whole stack:\n'
 printf '    bash deploy/lan/install.sh --force\n'
 printf '══════════════════════════════════════════════════════════════\n\n'
