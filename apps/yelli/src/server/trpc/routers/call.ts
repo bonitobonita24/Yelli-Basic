@@ -43,6 +43,7 @@ const CALL_SESSION_SELECT = {
   id: true,
   callerDeviceId: true,
   calleeDeviceId: true,
+  thirdDeviceId: true,
   callerRoleAtCall: true,
   calleeRoleAtCall: true,
   startedAt: true,
@@ -114,26 +115,43 @@ export const callRouter = router({
 
   // ── Mutations ────────────────────────────────────────────────────────────
   /**
-   * Place a 1-on-1 call (Flow A). Snapshots both devices' current call-roles into
-   * the session, then enforces the role guard: if the caller cannot call or the
+   * Place a call (Flow A). Snapshots both devices' current call-roles into the
+   * session, then enforces the role guard: if the caller cannot call or the
    * callee cannot receive, the session is created AND immediately ended with
    * `forbidden-by-role` (server-reject enforcement — the row records the blocked
    * attempt). Otherwise it is returned ringing (connectedAt null).
+   *
+   * Optional 3rd participant (hard cap 3): pass `secondCalleeDeviceId` to ring a
+   * second callee at call-start. It is written to `thirdDeviceId` and gets its own
+   * `start` ring event. The role guard runs per-callee — ANY forbidden callee
+   * (caller-can't-call OR either callee-can't-receive) auto-rejects the whole
+   * session. The single-callee path (no `secondCalleeDeviceId`) is unchanged.
    */
   start: protectedProcedure
-    .input(z.object({ callerDeviceId: z.string().min(1), calleeDeviceId: z.string().min(1) }))
+    .input(
+      z.object({
+        callerDeviceId: z.string().min(1),
+        calleeDeviceId: z.string().min(1),
+        secondCalleeDeviceId: z.string().min(1).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
-      if (input.callerDeviceId === input.calleeDeviceId) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'A device cannot call itself.' });
+      const calleeIds = [input.calleeDeviceId];
+      if (input.secondCalleeDeviceId) calleeIds.push(input.secondCalleeDeviceId);
+      // No device may appear twice (self-call, or the same callee in both slots).
+      const allIds = [input.callerDeviceId, ...calleeIds];
+      if (new Set(allIds).size !== allIds.length) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'A device cannot appear twice in a call.' });
       }
-      // L6 scopes both lookups to the tenant — a cross-tenant id resolves to null.
-      const [caller, callee] = await Promise.all([
+      // L6 scopes every lookup to the tenant — a cross-tenant id resolves to null.
+      const [caller, ...callees] = await Promise.all([
         ctx.db.device.findUnique({ where: { id: input.callerDeviceId } }),
-        ctx.db.device.findUnique({ where: { id: input.calleeDeviceId } }),
+        ...calleeIds.map((id) => ctx.db.device.findUnique({ where: { id } })),
       ]);
-      if (!caller || !callee) {
+      if (!caller || callees.some((c) => !c)) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Caller or callee device not found.' });
       }
+      const calleeDevices = callees as NonNullable<(typeof callees)[number]>[];
       // IDOR guard (security.md #5; W1a register/setDisplayName precedent): a member
       // places a call only from a device they operate — never a client-supplied
       // device they do not own. LAN-anonymous calling (device.userId === null) is a
@@ -145,13 +163,19 @@ export const callRouter = router({
         });
       }
 
-      const forbidden = !canCall(caller.callRole) || !canReceive(callee.callRole);
+      const forbidden = !canCall(caller.callRole) || calleeDevices.some((c) => !canReceive(c.callRole));
+      // calleeIds always has ≥1 entry (zod .min(1)), so calleeDevices[0] exists.
+      const [callee, third] = calleeDevices;
+      if (!callee) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Caller or callee device not found.' });
+      }
       const now = new Date();
       const session = await ctx.db.callSession.create({
         data: {
           tenantId: ctx.tenantId,
           callerDeviceId: caller.id,
           calleeDeviceId: callee.id,
+          thirdDeviceId: third?.id ?? null,
           callerRoleAtCall: caller.callRole,
           calleeRoleAtCall: callee.callRole,
           startedAt: now,
@@ -162,14 +186,17 @@ export const callRouter = router({
         select: CALL_SESSION_SELECT,
       });
 
-      // Best-effort cross-instance fan-out (never blocks the mutation).
-      void publishCallSignal(ctx.tenantId, {
-        sessionId: session.id,
-        phase: forbidden ? 'end' : 'start',
-        callerDeviceId: caller.id,
-        calleeDeviceId: callee.id,
-        at: now.toISOString(),
-      });
+      // Best-effort cross-instance fan-out (never blocks the mutation) — one ring
+      // event per callee so each device's incoming-call query fires independently.
+      for (const c of calleeDevices) {
+        void publishCallSignal(ctx.tenantId, {
+          sessionId: session.id,
+          phase: forbidden ? 'end' : 'start',
+          callerDeviceId: caller.id,
+          calleeDeviceId: c.id,
+          at: now.toISOString(),
+        });
+      }
 
       return toApiCallSession(session);
     }),
@@ -205,6 +232,76 @@ export const callRouter = router({
     });
     return toApiCallSession(session);
   }),
+
+  /**
+   * Add a 3rd participant to a LIVE call (hard cap 3). Validates: session exists
+   * and is live (endedAt null); the seat is open (thirdDeviceId null → else
+   * `call_full`); the actor operates an existing participant device (caller or
+   * callee); the new device exists in-tenant, is owned by the actor's tenant, and
+   * passes the SAME receive-side role guard. Rejects self-add and adding a device
+   * already in the session. On success: stamps thirdDeviceId and rings the new
+   * device with a `start` signal. No new RBAC — reuses the existing call guards.
+   */
+  add: protectedProcedure
+    .input(z.object({ sessionId: z.string().min(1), calleeDeviceId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.callSession.findUnique({
+        where: { id: input.sessionId },
+        select: CALL_SESSION_SELECT,
+      });
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Call session not found.' });
+      }
+      if (existing.endedAt) {
+        throw new TRPCError({ code: 'CONFLICT', message: 'Call has already ended.' });
+      }
+      if (existing.thirdDeviceId) {
+        throw new TRPCError({ code: 'CONFLICT', message: 'call_full: this call already has 3 participants.' });
+      }
+      // Reject adding a device already in the session (caller or callee).
+      if (
+        input.calleeDeviceId === existing.callerDeviceId ||
+        input.calleeDeviceId === existing.calleeDeviceId
+      ) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Device is already in this call.' });
+      }
+      // L6 scopes every lookup to the tenant — a cross-tenant id resolves to null.
+      const [caller, callee, newDevice] = await Promise.all([
+        ctx.db.device.findUnique({ where: { id: existing.callerDeviceId } }),
+        ctx.db.device.findUnique({ where: { id: existing.calleeDeviceId } }),
+        ctx.db.device.findUnique({ where: { id: input.calleeDeviceId } }),
+      ]);
+      if (!newDevice) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Device to add not found.' });
+      }
+      // IDOR guard: only a participant (operator of the caller or callee device)
+      // may invite a 3rd party into the call.
+      if (caller?.userId !== ctx.user.id && callee?.userId !== ctx.user.id) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only a call participant can add a device.',
+        });
+      }
+      // Same receive-side role guard as the callee path: a device that cannot
+      // receive cannot be rung into the call.
+      if (!canReceive(newDevice.callRole)) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'This device cannot receive calls.' });
+      }
+      const session = await ctx.db.callSession.update({
+        where: { id: input.sessionId },
+        data: { thirdDeviceId: newDevice.id },
+        select: CALL_SESSION_SELECT,
+      });
+      // Ring the newly-added device (best-effort cross-instance fan-out).
+      void publishCallSignal(ctx.tenantId, {
+        sessionId: session.id,
+        phase: 'start',
+        callerDeviceId: session.callerDeviceId,
+        calleeDeviceId: newDevice.id,
+        at: new Date().toISOString(),
+      });
+      return toApiCallSession(session);
+    }),
 
   /**
    * End a call (Flow B reject / hang-up / timeout). Computes durationSec from
