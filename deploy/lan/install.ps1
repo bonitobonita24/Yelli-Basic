@@ -328,6 +328,25 @@ if ($down.IsPresent) {
     Write-Host "[INFO]  Starting Yelli LAN stack ..." -ForegroundColor Cyan
     docker compose --env-file .env.lan @fArgs up -d --remove-orphans
     Write-Host "[OK]    Stack started." -ForegroundColor Green
+
+    # If the LAN IP changed while a stack was ALREADY running, `up -d` re-mounts the
+    # new cert files but does NOT recreate the (unchanged-spec, bind-mounted) caddy
+    # container — so it keeps serving the OLD in-memory cert. Force a reload to
+    # activate the regenerated cert. Harmless no-op when caddy was just created.
+    if ($ipChanged) {
+        Write-Host "[INFO]  LAN IP changed — reloading Caddy to activate the new certificate ..." -ForegroundColor Cyan
+        $reloaded = $false
+        try {
+            docker compose --env-file .env.lan @fArgs exec -T caddy caddy reload --config /etc/caddy/Caddyfile 2>$null
+            if ($LASTEXITCODE -eq 0) { $reloaded = $true }
+        } catch { }
+        if (-not $reloaded) {
+            Write-Host "[WARN]  caddy reload unavailable; restarting caddy container ..." -ForegroundColor Yellow
+            docker compose --env-file .env.lan @fArgs restart caddy
+        }
+        Write-Host "[OK]    Caddy reloaded — new certificate is active." -ForegroundColor Green
+    }
+
     Write-Host ""
     Write-Host "[OK]    Access: https://$lanIp" -ForegroundColor Green
     Write-Host "[INFO]  First run: open https://$lanIp/setup to set the admin passphrase." -ForegroundColor Cyan
