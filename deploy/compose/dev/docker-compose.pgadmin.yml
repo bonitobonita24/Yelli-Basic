@@ -18,6 +18,13 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      # dpage/pgadmin4:latest rejects the dev default PGADMIN_EMAIL
+      # (yelli-dev-admin@yelli.local) because `.local` is a reserved
+      # special-use domain. Skip deliverability checks AND explicitly allow
+      # the `local` special-use label so the login email validates. Dev-only.
+      PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY: "False"
+      PGADMIN_CONFIG_GLOBALLY_DELIVERABLE: "False"
+      PGADMIN_CONFIG_ALLOW_SPECIAL_EMAIL_DOMAINS: "['local']"
       TZ: Asia/Manila
     volumes:
       - pgadmin_data:/var/lib/pgadmin
