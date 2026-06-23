@@ -2,8 +2,12 @@ import type { NextConfig } from 'next';
 
 // HTTP security headers — applied to every response (Phase 4 Part 5 mandate).
 // CSP starts permissive for dev (style/script inline for Tailwind + RSC); tighten
-// per env in a later hardening pass. connect-src is widened to ws/wss by the
-// calling-wire sessions (WebRTC signaling + STUN/TURN) — kept 'self' here.
+// per env in a later hardening pass. connect-src is widened to ws:/wss: so the
+// WebRTC signaling socket can connect: in dev it is a SEPARATE origin (the
+// signaling server runs on its own port, e.g. ws://localhost:46850/ws), which
+// 'self' does NOT cover; in LAN/Cloud signaling is same-origin wss:// behind the
+// proxy. (STUN/TURN ICE is not gated by connect-src.) Hardening follow-up: scope
+// ws:/wss: to the exact signaling origin per edition.
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -25,7 +29,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      "connect-src 'self'",
+      "connect-src 'self' ws: wss:",
       "frame-ancestors 'none'",
     ].join('; '),
   },
