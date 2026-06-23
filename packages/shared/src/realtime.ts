@@ -63,9 +63,26 @@ export type BusEvent = CallSignalEvent | RoleChangeEvent | SessionInvalidateEven
 // The server validates every inbound frame with these zod schemas; the W2b-2
 // client hook (useSignaling) builds outbound frames from the same types.
 
-/** WebRTC SDP/ICE negotiation kind. An `offer` is a call INITIATION — role-guarded. */
-export const SIGNAL_KINDS = ['offer', 'answer', 'ice', 'hangup'] as const;
+/**
+ * WebRTC SDP/ICE negotiation kind. An `offer` is a call INITIATION — role-guarded.
+ * `present` announces a presenter's screen-share stream within an ACTIVE call —
+ * relayed like answer/ice/hangup (non-initiating; defense-in-depth `canRelay`).
+ */
+export const SIGNAL_KINDS = ['offer', 'answer', 'ice', 'hangup', 'present'] as const;
 export type SignalKind = (typeof SIGNAL_KINDS)[number];
+
+/**
+ * Inner payload for a `present` signal — carried opaquely in `signalMessageSchema.data`,
+ * same routing envelope (`to`/`from`/`sessionId`) as every other kind. `start` announces
+ * a new screen-share `streamId`; `stop` retracts it.
+ */
+export const presentSignalSchema = z
+  .object({
+    state: z.enum(['start', 'stop']),
+    streamId: z.string().min(1),
+  })
+  .strict();
+export type PresentSignal = z.infer<typeof presentSignalSchema>;
 
 /** Server→client error codes. `forbidden_by_role` is the role-guard rejection (defense in depth). */
 export const SIGNAL_ERROR_CODES = [
