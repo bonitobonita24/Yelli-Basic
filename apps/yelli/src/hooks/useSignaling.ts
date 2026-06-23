@@ -41,7 +41,6 @@ import {
   type UserRole,
 } from '@yelli/shared';
 
-import { env } from '@/env';
 
 // ─── Public surface ──────────────────────────────────────────────────────────
 
@@ -126,9 +125,28 @@ const SESSION_KILL_MESSAGE = 'Session ended.' as const;
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
+// Same-origin signaling endpoint, derived at runtime. LAN and Cloud both route
+// the `/ws` path through the front proxy (Caddy / Traefik) on the SAME origin
+// that serves the app, so the browser can compute the URL from window.location
+// — no per-deployment build-time value is needed (crucial for LAN, whose IP is
+// only known at install time). Returns undefined during SSR (no window). Dev
+// overrides this via NEXT_PUBLIC_SIGNALING_URL because its standalone signaling
+// server listens on a separate host port, not behind a same-origin proxy.
+function deriveSameOriginSignalingUrl(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${window.location.host}/ws`;
+}
+
 export function useSignaling(opts: UseSignalingOptions): SignalingHandle {
   const { deviceId, getToken, enabled = true, callbacks } = opts;
-  const url = opts.url ?? env.NEXT_PUBLIC_SIGNALING_URL;
+  // Read process.env.NEXT_PUBLIC_SIGNALING_URL DIRECTLY (not via the `env`
+  // module): Next.js statically inlines the literal `process.env.NEXT_PUBLIC_*`
+  // token into the client bundle at build time, but cannot inline a property
+  // access on an aliased object (`env.X`) — that would resolve to undefined in
+  // the browser. Falls back to the same-origin runtime derivation.
+  const url =
+    opts.url ?? process.env.NEXT_PUBLIC_SIGNALING_URL ?? deriveSameOriginSignalingUrl();
 
   const [status, setStatus] = useState<SignalingStatus>('idle');
 

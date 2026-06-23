@@ -40,6 +40,18 @@ COPY . .
 # Regenerate Prisma client inside the image (matches Linux libc).
 RUN pnpm --filter @yelli/db exec prisma generate
 
+# Public (client-inlined) build-time vars. NEXT_PUBLIC_* are string-replaced
+# into the browser bundle DURING `next build` — setting them only at container
+# runtime never reaches the client. Passed as --build-arg from each env's
+# compose (dev) or CI. All optional: NEXT_PUBLIC_SIGNALING_URL is only needed
+# where signaling is NOT same-origin (dev); LAN/Cloud derive it at runtime.
+ARG NEXT_PUBLIC_SIGNALING_URL=""
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY=""
+ARG NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY=""
+ENV NEXT_PUBLIC_SIGNALING_URL=$NEXT_PUBLIC_SIGNALING_URL \
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY \
+    NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY=$NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY
+
 # Build the yelli app — emits .next/standalone + .next/static.
 RUN pnpm --filter @yelli/web build
 
