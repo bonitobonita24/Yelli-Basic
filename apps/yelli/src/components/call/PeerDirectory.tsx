@@ -27,6 +27,7 @@ import { useState } from 'react';
 import { useCallEngine } from '@/components/call/CallEngineProvider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { trpc } from '@/lib/trpc/react';
 
 /** Max callees selectable for a group call (cap 3 participants incl. self). */
@@ -72,9 +73,9 @@ export function PeerDirectory(): React.JSX.Element {
 
   if (listQuery.isPending) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
         {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} className="h-[88px] animate-pulse bg-surface" />
+          <Skeleton key={i} className="h-[88px] rounded-xl" />
         ))}
       </div>
     );
@@ -176,7 +177,7 @@ export function PeerDirectory(): React.JSX.Element {
                         aria-hidden
                         className={
                           'inline-block size-2 rounded-full ' +
-                          (online ? 'bg-success' : 'bg-text-muted/40')
+                          (online ? 'bg-success' : 'border border-text-muted/50 bg-transparent')
                         }
                       />
                       {online ? 'Online' : 'Offline'} · {peer.callRole}
@@ -187,7 +188,7 @@ export function PeerDirectory(): React.JSX.Element {
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <label
                       className={
-                        'flex cursor-pointer items-center gap-1 text-xs text-text-muted ' +
+                        'flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 text-xs text-text-muted focus-within:ring-2 focus-within:ring-ring ' +
                         (selectDisabled ? 'cursor-not-allowed opacity-40' : '')
                       }
                     >
@@ -197,7 +198,7 @@ export function PeerDirectory(): React.JSX.Element {
                         disabled={selectDisabled || !online}
                         onChange={() => toggleSelected(peer.id)}
                         aria-label={`Select ${peer.displayName || 'device'} for a group call`}
-                        className="size-4 accent-brand-teal"
+                        className="size-4 accent-brand-teal focus-visible:outline-none"
                       />
                       Group
                     </label>
@@ -206,7 +207,7 @@ export function PeerDirectory(): React.JSX.Element {
                       onClick={() => placeCall(peer.id)}
                       disabled={callDisabled}
                       aria-label={`Call ${peer.displayName || 'device'}`}
-                      className="grid size-11 place-items-center rounded-full bg-brand-teal text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      className="grid size-11 place-items-center rounded-full bg-brand-teal text-white transition-colors hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Phone className="size-5" />
                     </button>

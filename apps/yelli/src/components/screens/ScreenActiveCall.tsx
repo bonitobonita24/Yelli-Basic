@@ -1,11 +1,35 @@
 'use client';
 
-import { ArrowLeft, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, UserPlus, Video, VideoOff } from 'lucide-react';
+import { ArrowLeft, Loader2, Mic, MicOff, MonitorUp, MonitorX, PhoneOff, UserPlus, Video, VideoOff } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useCallEngine } from '@/components/call/CallEngineProvider';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import type { SignalingHandle } from '@/hooks/useSignaling';
+import { cn } from '@/lib/utils';
 import { trpc } from '@/lib/trpc/react';
+
+/** Shared focus-ring + transition recipe for the on-dark circular icon controls. */
+const ICON_CONTROL =
+  'grid place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-dark disabled:cursor-not-allowed';
+
+/**
+ * Responsive Tailwind grid columns for the face strip. Mobile-first (375px): a
+ * single column; tiles fan out to a row as the viewport widens. When a screen is
+ * being shared the faces collapse to a compact horizontal strip above the fold.
+ */
+function faceGridClass(count: number, compact: boolean): string {
+  if (compact) return 'grid auto-cols-[minmax(7rem,1fr)] grid-flow-col gap-2 overflow-x-auto';
+  if (count <= 1) return 'grid grid-cols-1 gap-3';
+  if (count === 2) return 'grid grid-cols-1 gap-3 sm:grid-cols-2';
+  return 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
+}
 
 /**
  * Active-call screen (Flow A — in-call) — now a MESH participant grid (up to 3
@@ -56,7 +80,7 @@ function TerminalState(props: { message: string; onExit: () => void }): React.JS
         <button
           type="button"
           onClick={props.onExit}
-          className="h-11 rounded-sm bg-surface px-5 text-[13px] font-semibold text-text-primary"
+          className="h-11 rounded-sm bg-surface px-5 text-[13px] font-semibold text-text-primary transition-colors hover:bg-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-dark"
         >
           Back
         </button>
@@ -96,9 +120,19 @@ function FaceTile(props: {
   stream: MediaStream | null | undefined;
   muted?: boolean;
   isSelf?: boolean;
+  /** Remote tile still negotiating media — shows a connecting indicator. */
+  connecting?: boolean;
+  /** Compact strip variant used while a screen is being shared. */
+  compact?: boolean;
 }): React.JSX.Element {
+  const connecting = !props.isSelf && !props.stream && props.connecting;
   return (
-    <div className="relative grid aspect-video min-h-[120px] place-items-center overflow-hidden rounded-lg border border-white/15 bg-surface-dark-elevated">
+    <div
+      className={cn(
+        'relative grid place-items-center overflow-hidden rounded-lg border border-white/15 bg-surface-dark-elevated',
+        props.compact ? 'aspect-video h-24 w-32 flex-shrink-0' : 'aspect-video min-h-[120px]',
+      )}
+    >
       {props.stream ? (
         <StreamVideo
           stream={props.stream}
@@ -109,61 +143,83 @@ function FaceTile(props: {
       ) : (
         <div
           aria-hidden
-          className="grid size-20 place-items-center rounded-full bg-brand-peach text-3xl text-primary"
+          className={cn(
+            'grid place-items-center rounded-full bg-brand-peach font-semibold text-primary',
+            props.compact ? 'size-10 text-base' : 'size-20 text-3xl',
+          )}
         >
           {initials(props.name) || '🙂'}
         </div>
       )}
-      <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded bg-black/50 px-1.5 py-0.5 text-[11px] text-white">
-        {props.name}
-        {props.isSelf ? ' (you)' : ''}
+
+      {connecting && (
+        <span
+          className="absolute inset-x-0 top-1.5 flex items-center justify-center gap-1.5 text-[11px] text-white/80"
+          role="status"
+        >
+          <Loader2 aria-hidden className="size-3 animate-spin" />
+          Connecting…
+        </span>
+      )}
+
+      <span className="absolute bottom-1.5 left-1.5 flex max-w-[85%] items-center gap-1 truncate rounded bg-black/55 px-1.5 py-0.5 text-[11px] text-white">
+        {props.isSelf && props.muted && <MicOff aria-hidden className="size-3 shrink-0" />}
+        <span className="truncate">
+          {props.name}
+          {props.isSelf ? ' (you)' : ''}
+        </span>
       </span>
     </div>
   );
 }
 
-/** Compact picker that lists online peers not already in the call. */
+/**
+ * Compact picker that lists online peers not already in the call. Built on the
+ * shadcn `Dialog` so it gets a focus trap, Esc-to-close, and keyboard-navigable
+ * rows for free (WCAG 2.2 AA — keyboard operability + focus management).
+ */
 function AddPersonPicker(props: {
+  open: boolean;
   excludeIds: string[];
   onPick: (deviceId: string) => void;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }): React.JSX.Element {
   const listQuery = trpc.devices.list.useQuery(undefined, { refetchInterval: 15_000 });
   const candidates = (listQuery.data ?? []).filter(
     (d) => !props.excludeIds.includes(d.id) && d.archivedAt === null,
   );
   return (
-    <div className="absolute inset-x-0 bottom-24 z-20 mx-auto w-[min(92%,28rem)] rounded-lg border border-white/15 bg-surface-dark-elevated p-3 text-white shadow-xl">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold">Add someone</span>
-        <button type="button" onClick={props.onClose} className="text-xs text-white/70 hover:text-white">
-          Close
-        </button>
-      </div>
-      {candidates.length === 0 ? (
-        <p className="py-2 text-xs text-white/60">No other devices available.</p>
-      ) : (
-        <ul className="max-h-48 space-y-1 overflow-y-auto">
-          {candidates.map((d) => (
-            <li key={d.id}>
-              <button
-                type="button"
-                onClick={() => props.onPick(d.id)}
-                className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-white/10"
-              >
-                <span
-                  aria-hidden
-                  className="grid size-7 flex-shrink-0 place-items-center rounded-full bg-brand-lavender text-[11px] font-semibold text-text-primary"
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add someone</DialogTitle>
+          <DialogDescription>Ring another device into this call.</DialogDescription>
+        </DialogHeader>
+        {candidates.length === 0 ? (
+          <p className="py-4 text-center text-sm text-text-muted">No other peers online.</p>
+        ) : (
+          <ul className="max-h-64 space-y-1 overflow-y-auto" aria-label="Devices you can add">
+            {candidates.map((d) => (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  onClick={() => props.onPick(d.id)}
+                  className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm text-text-primary transition-colors hover:bg-surface-soft focus-visible:bg-surface-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {initials(d.displayName)}
-                </span>
-                <span className="truncate">{d.displayName || 'Unnamed device'}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                  <span
+                    aria-hidden
+                    className="grid size-9 flex-shrink-0 place-items-center rounded-full bg-brand-lavender text-xs font-semibold text-text-primary"
+                  >
+                    {initials(d.displayName)}
+                  </span>
+                  <span className="truncate">{d.displayName || 'Unnamed device'}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -248,6 +304,7 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
   const remotePresent = engine.remoteMedia.length > 0;
   const participantCount = engine.participants.length || (remotePresent ? engine.remoteMedia.length + 1 : 1);
   const callFull = participantCount >= 3;
+  const sharingActive = screenPanels.length > 0;
   const excludeIds = [selfDeviceId, ...engine.remoteMedia.map((m) => m.deviceId)];
 
   return (
@@ -260,7 +317,7 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
           type="button"
           onClick={onExit}
           aria-label="Back"
-          className="grid size-11 flex-shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+          className={cn(ICON_CONTROL, 'size-11 flex-shrink-0 bg-white/10 hover:bg-white/20')}
         >
           <ArrowLeft className="size-[18px]" />
         </button>
@@ -278,14 +335,13 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
       <div className="relative z-10 flex flex-1 flex-col gap-3 overflow-y-auto px-3 pb-28 md:px-6">
         {screenPanels.length > 0 && (
           <div
-            className="grid gap-3"
-            style={{ gridTemplateColumns: `repeat(${Math.min(screenPanels.length, 2)}, minmax(0, 1fr))` }}
+            className="flex flex-col gap-3 md:flex-row md:flex-wrap"
             aria-label="Shared screens"
           >
             {screenPanels.map((panel) => (
               <div
                 key={panel.id}
-                className="relative overflow-hidden rounded-lg border border-white/15 bg-black"
+                className="relative min-w-0 flex-1 md:min-w-[20rem] overflow-hidden rounded-lg border border-white/15 bg-black"
               >
                 <StreamVideo
                   stream={panel.stream}
@@ -293,7 +349,8 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
                   label={panel.label}
                   className="max-h-[50vh] w-full bg-black object-contain"
                 />
-                <span className="absolute bottom-1.5 left-1.5 rounded bg-black/50 px-1.5 py-0.5 text-[11px] text-white">
+                <span className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded bg-black/55 px-1.5 py-0.5 text-[11px] text-white">
+                  <MonitorUp aria-hidden className="size-3 shrink-0" />
                   {panel.label}
                 </span>
               </div>
@@ -301,39 +358,43 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
           </div>
         )}
 
-        {/* Face tiles: self + each remote participant's camera. */}
-        <div
-          className="grid gap-3"
-          style={{
-            gridTemplateColumns: `repeat(${Math.min(Math.max(participantCount, 1), 2)}, minmax(0, 1fr))`,
-          }}
-          aria-label="Participants"
-        >
-          <FaceTile name={nameOf(selfDeviceId)} stream={localStream} muted isSelf />
+        {/* Face tiles: self + each remote participant's camera. Collapse to a
+            compact horizontal strip while a screen is being shared. */}
+        <div className={faceGridClass(participantCount, sharingActive)} aria-label="Participants">
+          <FaceTile
+            name={nameOf(selfDeviceId)}
+            stream={localStream}
+            muted={!micOn}
+            isSelf
+            compact={sharingActive}
+          />
           {engine.remoteMedia.map((rm) => (
             <FaceTile
               key={rm.deviceId}
               name={nameOf(rm.deviceId)}
               stream={rm.camStreamId ? engine.getStream(rm.camStreamId) : null}
+              connecting
+              compact={sharingActive}
             />
           ))}
         </div>
 
         {!remotePresent && (
-          <p className="text-center text-xs text-white/60">Waiting for the other side to connect…</p>
+          <p className="text-center text-xs text-white/60" role="status">
+            Waiting for the other side to connect…
+          </p>
         )}
       </div>
 
-      {showPicker && (
-        <AddPersonPicker
-          excludeIds={excludeIds}
-          onPick={(id) => {
-            engine.addToCall(id);
-            setShowPicker(false);
-          }}
-          onClose={() => setShowPicker(false)}
-        />
-      )}
+      <AddPersonPicker
+        open={showPicker}
+        excludeIds={excludeIds}
+        onPick={(id) => {
+          engine.addToCall(id);
+          setShowPicker(false);
+        }}
+        onOpenChange={setShowPicker}
+      />
 
       {/* Call controls. */}
       <div className="absolute bottom-0 left-0 right-0 z-10 grid place-items-center p-4 md:p-6">
@@ -343,7 +404,11 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
             onClick={() => setMicOn((v) => !v)}
             aria-label={micOn ? 'Mute microphone' : 'Unmute microphone'}
             aria-pressed={!micOn}
-            className="grid size-11 place-items-center rounded-full bg-white/15 hover:bg-white/25 md:size-12"
+            className={cn(
+              ICON_CONTROL,
+              'size-11 md:size-12',
+              micOn ? 'bg-white/15 hover:bg-white/25' : 'bg-white text-surface-dark hover:bg-white/90',
+            )}
           >
             {micOn ? <Mic className="size-[18px]" /> : <MicOff className="size-[18px]" />}
           </button>
@@ -352,7 +417,11 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
             onClick={() => setCamOn((v) => !v)}
             aria-label={camOn ? 'Turn camera off' : 'Turn camera on'}
             aria-pressed={!camOn}
-            className="grid size-11 place-items-center rounded-full bg-white/15 hover:bg-white/25 md:size-12"
+            className={cn(
+              ICON_CONTROL,
+              'size-11 md:size-12',
+              camOn ? 'bg-white/15 hover:bg-white/25' : 'bg-white text-surface-dark hover:bg-white/90',
+            )}
           >
             {camOn ? <Video className="size-[18px]" /> : <VideoOff className="size-[18px]" />}
           </button>
@@ -361,7 +430,7 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
             onClick={endCall}
             disabled={end.isPending}
             aria-label="End call"
-            className="grid h-11 w-14 place-items-center rounded-full bg-destructive hover:bg-error-strong disabled:opacity-60 md:h-12 md:w-16"
+            className={cn(ICON_CONTROL, 'h-11 w-14 bg-destructive hover:bg-error-strong disabled:opacity-60 md:h-12 md:w-16')}
           >
             <PhoneOff className="size-[18px]" />
           </button>
@@ -371,7 +440,11 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
               onClick={() => (engine.isPresenting ? engine.stopPresenting() : engine.startPresenting())}
               aria-label={engine.isPresenting ? 'Stop presenting' : 'Present your screen'}
               aria-pressed={engine.isPresenting}
-              className="grid size-11 place-items-center rounded-full bg-white/15 hover:bg-white/25 md:size-12"
+              className={cn(
+                ICON_CONTROL,
+                'size-11 md:size-12',
+                engine.isPresenting ? 'bg-white text-surface-dark hover:bg-white/90' : 'bg-white/15 hover:bg-white/25',
+              )}
             >
               {engine.isPresenting ? <MonitorX className="size-[18px]" /> : <MonitorUp className="size-[18px]" />}
             </button>
@@ -382,15 +455,15 @@ export default function ScreenActiveCall(props: Props): React.JSX.Element {
               onClick={() => setShowPicker((v) => !v)}
               aria-label="Add person to call"
               aria-pressed={showPicker}
-              className="grid size-11 place-items-center rounded-full bg-white/15 hover:bg-white/25 md:size-12"
+              className={cn(ICON_CONTROL, 'size-11 bg-white/15 hover:bg-white/25 md:size-12')}
             >
               <UserPlus className="size-[18px]" />
             </button>
           )}
         </div>
         {!engine.canPresent && (
-          <p className="mt-2 text-center text-[11px] text-white/50">
-            Screen sharing is available on desktop browsers only.
+          <p className="mt-2 text-center text-[11px] text-white/60">
+            Screen sharing is available on desktop.
           </p>
         )}
       </div>
