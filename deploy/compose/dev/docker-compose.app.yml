@@ -8,6 +8,12 @@ services:
     build:
       context: ../../..
       dockerfile: apps/yelli/Dockerfile
+      args:
+        # Dev signaling runs on a separate host port (not same-origin), so the
+        # client needs an explicit URL baked at build time. Values from .env.dev.
+        NEXT_PUBLIC_SIGNALING_URL: ${NEXT_PUBLIC_SIGNALING_URL}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+        NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY: ${NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY}
     image: yelli:dev-latest
     container_name: ${COMPOSE_PROJECT_NAME}_app
     hostname: ${COMPOSE_PROJECT_NAME}_app

@@ -23,9 +23,11 @@ const schema = z.object({
   // Public (client-exposed) — optional until the relevant features are wired.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   NEXT_PUBLIC_WEB_PUSH_PUBLIC_KEY: z.string().optional(),
-  // WS URL the client useSignaling hook connects to (e.g. `wss://yelli-basic.powerbyte.app/ws`
-  // in prod via the Traefik reverse proxy, `ws://localhost:46849/ws` in dev).
-  // Optional until W1b wires the calling screens; absent ⇒ the hook stays idle.
+  // Explicit WS URL override for the client useSignaling hook. Optional: when
+  // absent the hook derives a SAME-ORIGIN `/ws` URL from window.location at
+  // runtime (LAN `wss://<lan-ip>/ws`, Cloud `wss://<domain>/ws` — both routed
+  // through the front proxy). Set it only when signaling is NOT same-origin —
+  // e.g. dev, where the standalone server listens on `ws://localhost:46850/ws`.
   NEXT_PUBLIC_SIGNALING_URL: z.string().url().optional(),
 });
 
