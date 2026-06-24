@@ -1,33 +1,29 @@
 'use client';
 
 /**
- * Call-engine orchestrator (B1 — device-home call-engine, Flow A).
+ * Call-engine orchestrator (B1 — device-home call-engine, Flow A) — now a full
+ * MESH engine supporting up to 3 participants + screen sharing (spec 2026-06-24).
  *
  * THE single `useSignaling` instance app-wide (q-B1 contract). Folds in the
- * Step 6 session-kill PUSH handler that previously lived in SessionKillListener
- * (now removed) so the WS socket is opened exactly once per session and shared
- * across the entire (app) tree.
+ * Step 6 session-kill PUSH handler so the WS socket is opened exactly once per
+ * session and shared across the entire (app) tree.
+ *
+ * The heavy lifting — one `RTCPeerConnection` per (session, peer), glare
+ * avoidance, present-signal classification, per-peer teardown — lives in the
+ * framework-agnostic `CallMesh` engine (`./call-mesh`). This provider is a thin
+ * React shell that: instantiates the mesh once, subscribes to its immutable
+ * snapshot, forwards inbound signaling frames into it, and exposes the
+ * `CallEngineApi` consumed by PeerDirectory + ScreenActiveCall.
  *
  * Responsibilities:
- *   • Single WebSocket (`useSignaling`) — sendOffer/Answer/ICE/Hangup; receives
+ *   • Single WebSocket (`useSignaling`) — offer/answer/ICE/hangup/present; receives
  *     peer SDP/ICE + `call-signal` lifecycle + `session-invalidate` push.
- *   • RTCPeerConnection lifecycle per call session (offer → answer → ICE) plus
- *     getUserMedia and remote-stream attach to the ScreenActiveCall <video>s.
- *   • LOCKED §20 `?incoming={callSessionId}` deep-link consumer: when the URL
- *     carries that param (SW tap-through from `notificationclick` or fresh open),
- *     fetch `trpc.calls.byId`, mount `OverlayIncomingCall` with the caller's
- *     identity, then on Accept persist via `trpc.calls.connect` + sendAnswer.
- *   • Outgoing-call placement (called by PeerDirectory via the context): start
- *     trpc.calls.start, snap the role-guard (forbidden-by-role → terminal screen),
- *     getUserMedia + create offer, sendOffer, render ScreenActiveCall.
+ *   • LOCKED §20 `?incoming={callSessionId}` deep-link consumer.
+ *   • Group placement (1–2 callees), add-mid-call (ring a 3rd), present/stop.
  *   • Session-kill: signOut on the unauthorized/"Session ended." push (30s SLO).
  *
- * Loading states (ui-rules Rule 11): the overlays are short-lived imperative
- * dialogs, the active-call screen owns its own terminal states; no async list
- * surfaces here ⇒ neither Skeleton nor phantom-ui applies (matches W6b posture).
- *
- * Audit policy (per B1 brief): structured pino-shaped console logs only; the
- * server's L5 AuditLog already records the lifecycle in CallSession rows.
+ * Audit policy: structured pino-shaped console logs only; the server's L5
+ * AuditLog already records the lifecycle in CallSession rows.
  */
 
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -43,7 +39,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import type { CallSignalEvent, SignalKind } from '@yelli/shared';
+import type { CallSignalEvent, PresentSignal, SignalKind } from '@yelli/shared';
 
 import OverlayIncomingCall from '@/components/overlays/OverlayIncomingCall';
 import ScreenActiveCall from '@/components/screens/ScreenActiveCall';
@@ -51,14 +47,39 @@ import { useSignaling } from '@/hooks/useSignaling';
 import { useDeviceId } from '@/lib/device-id';
 import { trpc } from '@/lib/trpc/react';
 
+import {
+  CallMesh,
+  type MeshSnapshot,
+  type RemoteParticipantMedia,
+} from './call-mesh';
+
 // ─── Public surface ─────────────────────────────────────────────────────────
+export type { RemoteParticipantMedia } from './call-mesh';
+
 export type CallEngineApi = {
   /** Local device id (stable per browser) — null until localStorage resolves. */
   selfDeviceId: string | null;
-  /** Place a 1-on-1 call to the named peer device. Idempotent at the engine level. */
-  placeCall: (peerDeviceId: string) => void;
   /** True when a call is active (engine is mid-flow). */
   busy: boolean;
+  /** Participant device ids in the active call INCLUDING self (1..3). [] when idle. */
+  participants: string[];
+  /** Per-peer inbound media classification for the active call (excludes self). */
+  remoteMedia: RemoteParticipantMedia[];
+  /** Resolve a streamId to its live MediaStream for `<video>.srcObject` attach. */
+  getStream: (streamId: string) => MediaStream | undefined;
+  /** Local mic+cam stream (for the self tile), or null. */
+  localStream: MediaStream | null;
+  /** Local screen-share stream when presenting, or null. */
+  screenStream: MediaStream | null;
+  isPresenting: boolean;
+  /** True only when getDisplayMedia is available (desktop). UI hides Present otherwise. */
+  canPresent: boolean;
+  /** Place a call. Accepts one peer (1-on-1) or two (group, cap 3). */
+  placeCall: (peers: string | string[]) => void;
+  /** Add a 3rd participant to the active call (rings them). No-op if full/not in a call. */
+  addToCall: (peerDeviceId: string) => void;
+  startPresenting: () => void;
+  stopPresenting: () => void;
 };
 
 const CallEngineContext = createContext<CallEngineApi | null>(null);
@@ -73,8 +94,7 @@ export function useCallEngine(): CallEngineApi {
 
 const ICE_SERVERS: RTCIceServer[] = [
   // Open public STUN servers — sufficient for LAN/same-NAT and most home networks.
-  // A TURN fallback for symmetric-NAT/restrictive cases is a separate deploy concern
-  // (PRODUCT.md non-goals — Open Relay TURN listed in deploy memory).
+  // A TURN fallback for symmetric-NAT/restrictive cases is a separate deploy concern.
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
@@ -98,6 +118,14 @@ function log(
   else console.log(JSON.stringify(entry));
 }
 
+/** getDisplayMedia is desktop-only (unsupported on iOS/Android browsers). */
+function displayMediaAvailable(): boolean {
+  return (
+    typeof navigator !== 'undefined' &&
+    Boolean(navigator.mediaDevices?.getDisplayMedia)
+  );
+}
+
 async function fetchWsToken(): Promise<string | null> {
   try {
     const res = await fetch('/api/auth/ws-token', { method: 'GET', cache: 'no-store' });
@@ -109,6 +137,8 @@ async function fetchWsToken(): Promise<string | null> {
   }
 }
 
+const EMPTY_SNAPSHOT: MeshSnapshot = { participants: [], remoteMedia: [], isPresenting: false };
+
 // ─── Provider ───────────────────────────────────────────────────────────────
 
 export function CallEngineProvider({ children }: { children: ReactNode }): React.JSX.Element {
@@ -118,211 +148,180 @@ export function CallEngineProvider({ children }: { children: ReactNode }): React
   const selfDeviceId = useDeviceId();
 
   // Single WebSocket. Late-bound so we can reference `signaling.sendOffer` etc.
-  // from RTCPeerConnection event handlers without circular refs.
+  // from mesh callbacks without circular refs.
   const signalingRef = useRef<{
     sendOffer: (i: { to: string; sessionId: string; data: unknown }) => boolean;
     sendAnswer: (i: { to: string; sessionId: string; data: unknown }) => boolean;
     sendIceCandidate: (i: { to: string; sessionId: string; data: unknown }) => boolean;
     sendHangup: (i: { to: string; sessionId: string; data?: unknown }) => boolean;
+    sendPresent: (i: { to: string; sessionId: string; data: unknown }) => boolean;
   } | null>(null);
 
   // Active call state. Only one call at a time (PRODUCT.md §3 single-flow).
   const [activeCallSessionId, setActiveCallSessionId] = useState<string | null>(null);
+  // Mirror of activeCallSessionId for stable callbacks (signal router) that must
+  // read the latest value without re-subscribing — same ref-discipline as the mesh.
+  const activeCallSessionIdRef = useRef<string | null>(null);
+  activeCallSessionIdRef.current = activeCallSessionId;
   const [incomingCallSessionId, setIncomingCallSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Immutable render snapshot emitted by the mesh.
+  const [meshState, setMeshState] = useState<MeshSnapshot>(EMPTY_SNAPSHOT);
 
-  // RTCPeerConnection per active call. Map keyed by sessionId in case of races,
-  // but in steady state only ever has one entry.
-  const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  // Pending peer device id per session — needed for ICE/sendAnswer addressing.
-  const peerOfSessionRef = useRef<Map<string, string>>(new Map());
-  // Self media stream (one local capture shared across calls in the same lifecycle).
-  const localStreamRef = useRef<MediaStream | null>(null);
-  // Pending remote candidates (arrive before remoteDescription is set).
-  const pendingIceRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const canPresent = useMemo(() => displayMediaAvailable(), []);
+
+  // Pending incoming SDP offers, awaiting user Accept (Flow B). Keyed by sessionId
+  // (offer arrives from the caller before the overlay is accepted).
+  const pendingOffersRef = useRef<Map<string, RTCSessionDescriptionInit>>(new Map());
+  // Caller device per incoming session (for accept/reject addressing).
+  const incomingPeerRef = useRef<Map<string, string>>(new Map());
 
   const startMutation = trpc.calls.start.useMutation();
   const connectMutation = trpc.calls.connect.useMutation();
   const endMutation = trpc.calls.end.useMutation();
+  const addMutation = trpc.calls.add.useMutation();
+  const utils = trpc.useUtils();
 
   // ── §20 deep-link: ?incoming=<callSessionId> ───────────────────────────────
   const incomingParam = searchParams?.get('incoming') ?? null;
-  // Resolve the incoming session into a real CallSession (security + freshness).
   const incomingQuery = trpc.calls.byId.useQuery(
     { id: incomingParam ?? '' },
     { enabled: Boolean(incomingParam), refetchInterval: 5_000 },
   );
-  // Lookup the caller device for the incoming overlay.
   const incomingCallerDeviceId = incomingQuery.data?.callerDeviceId ?? '';
   const callerQuery = trpc.devices.byId.useQuery(
     { id: incomingCallerDeviceId },
     { enabled: incomingCallerDeviceId.length > 0 },
   );
 
-  // ── Local helpers ──────────────────────────────────────────────────────────
-  const closeCall = useCallback(
-    (sessionId: string) => {
-      const pc = pcsRef.current.get(sessionId);
-      if (pc) {
+  // ── The mesh engine (one instance for the provider's lifetime) ──────────────
+  const meshRef = useRef<CallMesh | null>(null);
+  if (meshRef.current === null && selfDeviceId) {
+    meshRef.current = new CallMesh({
+      selfDeviceId,
+      rtcConfig: { iceServers: ICE_SERVERS },
+      getLocalStream: async () => {
+        if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return null;
         try {
-          pc.close();
-        } catch {
-          /* noop */
+          return await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        } catch (err) {
+          log('error', 'call.media.getUserMedia.failed', { error: String(err) });
+          return null;
         }
-        pcsRef.current.delete(sessionId);
-      }
-      peerOfSessionRef.current.delete(sessionId);
-      pendingIceRef.current.delete(sessionId);
-      if (activeCallSessionId === sessionId) setActiveCallSessionId(null);
-      if (incomingCallSessionId === sessionId) setIncomingCallSessionId(null);
-    },
-    [activeCallSessionId, incomingCallSessionId],
-  );
+      },
+      getDisplayMedia: async () => {
+        if (!displayMediaAvailable()) return null;
+        try {
+          return await navigator.mediaDevices.getDisplayMedia({ video: true });
+        } catch (err) {
+          log('info', 'call.present.denied', { error: String(err) });
+          return null;
+        }
+      },
+      send: (kind, input) => {
+        const s = signalingRef.current;
+        if (!s) return false;
+        if (kind === 'offer') return s.sendOffer({ ...input, data: input.data });
+        if (kind === 'answer') return s.sendAnswer({ ...input, data: input.data });
+        if (kind === 'ice') return s.sendIceCandidate({ ...input, data: input.data });
+        if (kind === 'hangup') return s.sendHangup(input);
+        return s.sendPresent({ ...input, data: input.data });
+      },
+      onState: (snapshot) => setMeshState(snapshot),
+      log,
+    });
+  }
+
+  // Local end-of-call: when the mesh drops to just self, persist + clear UI.
+  const endActiveCall = useCallback((sessionId: string) => {
+    meshRef.current?.closeSession(sessionId);
+    endMutation.mutate({ id: sessionId, reason: 'completed' });
+    setActiveCallSessionId((cur) => (cur === sessionId ? null : cur));
+  }, [endMutation]);
+
+  // Wire the mesh's "only self remains" callback to the active-call teardown.
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    mesh.onEmptyCall = (sessionId): void => {
+      log('info', 'call.peer.allLeft', { sessionId });
+      endActiveCall(sessionId);
+    };
+  }, [endActiveCall]);
+
+  // ── Local teardown helpers ──────────────────────────────────────────────────
+  const closeCall = useCallback((sessionId: string) => {
+    meshRef.current?.closeSession(sessionId);
+    pendingOffersRef.current.delete(sessionId);
+    incomingPeerRef.current.delete(sessionId);
+    setActiveCallSessionId((cur) => (cur === sessionId ? null : cur));
+    setIncomingCallSessionId((cur) => (cur === sessionId ? null : cur));
+  }, []);
 
   const teardownAll = useCallback(() => {
-    for (const id of Array.from(pcsRef.current.keys())) closeCall(id);
-    const local = localStreamRef.current;
-    if (local) {
-      for (const t of local.getTracks()) t.stop();
-      localStreamRef.current = null;
-    }
-  }, [closeCall]);
+    meshRef.current?.teardownAll();
+    pendingOffersRef.current.clear();
+    incomingPeerRef.current.clear();
+    setActiveCallSessionId(null);
+    setIncomingCallSessionId(null);
+  }, []);
 
-  // Acquire (or reuse) the local mic+camera stream.
-  const ensureLocalStream = useCallback(async (): Promise<MediaStream | null> => {
-    if (localStreamRef.current) return localStreamRef.current;
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return null;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      localStreamRef.current = stream;
-      return stream;
-    } catch (err) {
-      log('error', 'call.media.getUserMedia.failed', { error: String(err) });
-      return null;
+  // ── Signal frame router ─────────────────────────────────────────────────────
+  const handleSignal = useCallback(async (frame: IncomingFrame): Promise<void> => {
+    const { from, sessionId, kind, data } = frame;
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    log('info', 'call.signal.in', { sessionId, kind, from });
+
+    if (kind === 'offer') {
+      // If this is an offer for the active call (e.g. a newcomer the active peer
+      // connected to, or mid-call renegotiation), answer immediately. Otherwise it
+      // is an incoming-call offer — buffer it for acceptIncoming() and ring.
+      const offer = data as RTCSessionDescriptionInit;
+      if (mesh.participants().length > 0 && mesh.participants().includes(from)) {
+        await mesh.handleOffer(sessionId, from, offer);
+        return;
+      }
+      // Could also be a renegotiation offer from an already-connected peer in the
+      // active session (track add). Treat any offer for the ACTIVE session as live.
+      if (sessionId === activeCallSessionIdRef.current) {
+        await mesh.handleOffer(sessionId, from, offer);
+        return;
+      }
+      // Incoming call — surface the overlay; apply on accept.
+      setIncomingCallSessionId(sessionId);
+      incomingPeerRef.current.set(sessionId, from);
+      pendingOffersRef.current.set(sessionId, offer);
+      return;
+    }
+    if (kind === 'answer') {
+      await mesh.handleAnswer(sessionId, from, data as RTCSessionDescriptionInit);
+      return;
+    }
+    if (kind === 'ice') {
+      await mesh.handleIce(sessionId, from, data as RTCIceCandidateInit);
+      return;
+    }
+    if (kind === 'present') {
+      mesh.handlePresent(sessionId, from, data as PresentSignal);
+      return;
+    }
+    if (kind === 'hangup') {
+      log('info', 'call.peer.hangup', { sessionId, from });
+      mesh.handleHangupFrom(sessionId, from);
+      return;
     }
   }, []);
 
-  // Construct an RTCPeerConnection wired for `sessionId` with peer `peerDeviceId`.
-  const makePc = useCallback((sessionId: string, peerDeviceId: string): RTCPeerConnection => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    peerOfSessionRef.current.set(sessionId, peerDeviceId);
-    pcsRef.current.set(sessionId, pc);
-
-    pc.onicecandidate = (ev): void => {
-      if (!ev.candidate) return;
-      const send = signalingRef.current?.sendIceCandidate;
-      if (!send) return;
-      send({ to: peerDeviceId, sessionId, data: ev.candidate.toJSON() });
-    };
-
-    pc.ontrack = (ev): void => {
-      // ScreenActiveCall remote-stream attach is via the <video> ref it owns
-      // (looked up by [data-remote-stream-target]); we set srcObject directly.
-      const target = document.querySelector<HTMLVideoElement>('[data-remote-stream-target]');
-      if (target && ev.streams[0]) target.srcObject = ev.streams[0];
-    };
-
-    pc.oniceconnectionstatechange = (): void => {
-      if (
-        pc.iceConnectionState === 'failed' ||
-        pc.iceConnectionState === 'disconnected' ||
-        pc.iceConnectionState === 'closed'
-      ) {
-        log('warn', 'call.ice.degraded', { sessionId, state: pc.iceConnectionState });
-      }
-    };
-
-    return pc;
-  }, []);
-
-  // Drain any ICE candidates that arrived before the remoteDescription was set.
-  const drainPendingIce = useCallback(async (sessionId: string): Promise<void> => {
-    const pending = pendingIceRef.current.get(sessionId);
-    if (!pending || pending.length === 0) return;
-    const pc = pcsRef.current.get(sessionId);
-    if (!pc) return;
-    for (const cand of pending) {
-      try {
-        await pc.addIceCandidate(cand);
-      } catch (err) {
-        log('warn', 'call.ice.add.failed', { sessionId, error: String(err) });
-      }
+  const handleCallSignal = useCallback((ev: CallSignalEvent) => {
+    if (ev.phase === 'start' && ev.calleeDeviceId === selfDeviceId) {
+      setIncomingCallSessionId(ev.sessionId);
+      incomingPeerRef.current.set(ev.sessionId, ev.callerDeviceId);
     }
-    pendingIceRef.current.delete(sessionId);
-  }, []);
+    if (ev.phase === 'end') closeCall(ev.sessionId);
+  }, [closeCall, selfDeviceId]);
 
-  // ── Signal frame router ────────────────────────────────────────────────────
-  const handleSignal = useCallback(
-    async (frame: IncomingFrame): Promise<void> => {
-      const { from, sessionId, kind, data } = frame;
-      log('info', 'call.signal.in', { sessionId, kind, from });
-
-      if (kind === 'offer') {
-        // Incoming call — the §20 deep-link overlay handles user consent. The
-        // SDP is buffered onto the PC the moment the user Accepts (see acceptIncoming).
-        // If we receive an offer for a session we haven't surfaced yet (race with
-        // the call-signal `start` arriving first or both racing), surface now.
-        setIncomingCallSessionId(sessionId);
-        peerOfSessionRef.current.set(sessionId, from);
-        // Stash the offer so acceptIncoming() can apply it.
-        pendingOffersRef.current.set(sessionId, data as RTCSessionDescriptionInit);
-        return;
-      }
-      if (kind === 'answer') {
-        const pc = pcsRef.current.get(sessionId);
-        if (!pc) return;
-        try {
-          await pc.setRemoteDescription(
-            new RTCSessionDescription(data as RTCSessionDescriptionInit),
-          );
-          await drainPendingIce(sessionId);
-        } catch (err) {
-          log('error', 'call.answer.apply.failed', { sessionId, error: String(err) });
-        }
-        return;
-      }
-      if (kind === 'ice') {
-        const pc = pcsRef.current.get(sessionId);
-        const cand = data as RTCIceCandidateInit;
-        if (pc && pc.remoteDescription) {
-          try {
-            await pc.addIceCandidate(cand);
-          } catch (err) {
-            log('warn', 'call.ice.add.failed', { sessionId, error: String(err) });
-          }
-        } else {
-          const list = pendingIceRef.current.get(sessionId) ?? [];
-          list.push(cand);
-          pendingIceRef.current.set(sessionId, list);
-        }
-        return;
-      }
-      if (kind === 'hangup') {
-        log('info', 'call.peer.hangup', { sessionId });
-        closeCall(sessionId);
-        return;
-      }
-    },
-    [closeCall, drainPendingIce],
-  );
-
-  // Pending incoming SDP offers, awaiting user Accept (Flow B).
-  const pendingOffersRef = useRef<Map<string, RTCSessionDescriptionInit>>(new Map());
-
-  const handleCallSignal = useCallback(
-    (ev: CallSignalEvent) => {
-      // `start` involving us as callee surfaces the ring overlay. `end` from
-      // the server (peer hung up via tRPC) tears down.
-      if (ev.phase === 'start' && ev.calleeDeviceId === selfDeviceId) {
-        setIncomingCallSessionId(ev.sessionId);
-        peerOfSessionRef.current.set(ev.sessionId, ev.callerDeviceId);
-      }
-      if (ev.phase === 'end') closeCall(ev.sessionId);
-    },
-    [closeCall, selfDeviceId],
-  );
-
-  // ── Signaling instance (THE one) ──────────────────────────────────────────
+  // ── Signaling instance (THE one) ────────────────────────────────────────────
   const signalingCallbacks = useMemo(
     () => ({
       onSignal: handleSignal,
@@ -346,112 +345,154 @@ export function CallEngineProvider({ children }: { children: ReactNode }): React
   });
   signalingRef.current = signaling;
 
-  // ── Public API: place a call ───────────────────────────────────────────────
-  const placeCall = useCallback(
-    (peerDeviceId: string): void => {
-      if (!selfDeviceId) {
-        log('warn', 'call.place.noSelf', {});
-        return;
-      }
-      if (busy) {
-        log('warn', 'call.place.busy', { peerDeviceId });
-        return;
-      }
-      if (peerDeviceId === selfDeviceId) {
-        log('warn', 'call.place.selfCall', {});
-        return;
-      }
-      setBusy(true);
-      log('info', 'call.place.start', { peerDeviceId });
+  // ── Public API: place a (group) call ────────────────────────────────────────
+  const placeCall = useCallback((peers: string | string[]): void => {
+    const peerIds = Array.from(new Set(Array.isArray(peers) ? peers : [peers]));
+    const mesh = meshRef.current;
+    if (!selfDeviceId || !mesh) {
+      log('warn', 'call.place.noSelf', {});
+      return;
+    }
+    if (busy) {
+      log('warn', 'call.place.busy', { peerIds });
+      return;
+    }
+    if (peerIds.length === 0 || peerIds.length > 2) {
+      log('warn', 'call.place.badCount', { count: peerIds.length });
+      return;
+    }
+    if (peerIds.includes(selfDeviceId)) {
+      log('warn', 'call.place.selfCall', {});
+      return;
+    }
+    setBusy(true);
+    log('info', 'call.place.start', { peerIds });
 
-      startMutation.mutate(
-        { callerDeviceId: selfDeviceId, calleeDeviceId: peerDeviceId },
-        {
-          onSuccess: async (session) => {
-            // Server-side role guard already ran. forbidden-by-role → the session
-            // comes back already-ended; show it and let the user dismiss.
-            if (session.endReason === 'forbidden-by-role') {
-              setActiveCallSessionId(session.id);
-              setBusy(false);
-              log('info', 'call.place.forbidden', { sessionId: session.id });
-              return;
-            }
-            const pc = makePc(session.id, peerDeviceId);
-            const stream = await ensureLocalStream();
-            if (stream) for (const t of stream.getTracks()) pc.addTrack(t, stream);
-            try {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              signalingRef.current?.sendOffer({
-                to: peerDeviceId,
-                sessionId: session.id,
-                data: offer,
-              });
-              setActiveCallSessionId(session.id);
-            } catch (err) {
-              log('error', 'call.offer.failed', { sessionId: session.id, error: String(err) });
-              closeCall(session.id);
-            } finally {
-              setBusy(false);
-            }
-          },
-          onError: (err) => {
-            log('error', 'call.start.tRPC.failed', { error: err.message });
+    startMutation.mutate(
+      {
+        callerDeviceId: selfDeviceId,
+        calleeDeviceId: peerIds[0]!,
+        ...(peerIds[1] ? { secondCalleeDeviceId: peerIds[1] } : {}),
+      },
+      {
+        onSuccess: async (created) => {
+          if (created.endReason === 'forbidden-by-role') {
+            setActiveCallSessionId(created.id);
             setBusy(false);
-          },
+            log('info', 'call.place.forbidden', { sessionId: created.id });
+            return;
+          }
+          try {
+            await mesh.startGroup(created.id, peerIds);
+            setActiveCallSessionId(created.id);
+          } catch (err) {
+            log('error', 'call.place.mesh.failed', { sessionId: created.id, error: String(err) });
+            closeCall(created.id);
+          } finally {
+            setBusy(false);
+          }
         },
-      );
-    },
-    [busy, closeCall, ensureLocalStream, makePc, selfDeviceId, startMutation],
-  );
+        onError: (err) => {
+          log('error', 'call.start.tRPC.failed', { error: err.message });
+          setBusy(false);
+        },
+      },
+    );
+  }, [busy, closeCall, selfDeviceId, startMutation]);
 
-  // ── Accept / Reject the §20 incoming overlay ───────────────────────────────
+  // ── Public API: add a 3rd participant to the active call ────────────────────
+  const addToCall = useCallback((peerDeviceId: string): void => {
+    const sessionId = activeCallSessionId;
+    const mesh = meshRef.current;
+    if (!sessionId || !mesh || !selfDeviceId) return;
+    if (mesh.participants().length >= 3) {
+      log('warn', 'call.add.full', { sessionId });
+      return;
+    }
+    if (peerDeviceId === selfDeviceId || mesh.participants().includes(peerDeviceId)) return;
+    log('info', 'call.add.start', { sessionId, peerDeviceId });
+    addMutation.mutate(
+      { sessionId, calleeDeviceId: peerDeviceId },
+      {
+        onSuccess: async () => {
+          try {
+            await mesh.connectToPeer(sessionId, peerDeviceId);
+          } catch (err) {
+            log('error', 'call.add.mesh.failed', { sessionId, error: String(err) });
+          }
+        },
+        onError: (err) => {
+          if (err.message.startsWith('call_full')) {
+            log('warn', 'call.add.full', { sessionId });
+          } else {
+            log('error', 'call.add.tRPC.failed', { error: err.message });
+          }
+        },
+      },
+    );
+  }, [activeCallSessionId, addMutation, selfDeviceId]);
+
+  // ── Public API: present / stop ──────────────────────────────────────────────
+  const startPresenting = useCallback((): void => {
+    const sessionId = activeCallSessionId;
+    if (!sessionId) return;
+    void meshRef.current?.startPresenting(sessionId);
+  }, [activeCallSessionId]);
+
+  const stopPresenting = useCallback((): void => {
+    const sessionId = activeCallSessionId;
+    if (!sessionId) return;
+    meshRef.current?.stopPresenting(sessionId);
+  }, [activeCallSessionId]);
+
+  // ── Accept / Reject the §20 incoming overlay ────────────────────────────────
   const acceptIncoming = useCallback(async (): Promise<void> => {
     const sessionId = incomingCallSessionId;
-    if (!sessionId) return;
-    const peerDeviceId = peerOfSessionRef.current.get(sessionId);
-    if (!peerDeviceId) return;
+    const mesh = meshRef.current;
+    if (!sessionId || !mesh || !selfDeviceId) return;
+    const callerDeviceId = incomingPeerRef.current.get(sessionId);
     setBusy(true);
     log('info', 'call.accept.start', { sessionId });
 
     try {
-      // Persist accept (server stamps connectedAt + emits 'connect' on the bus).
       await connectMutation.mutateAsync({ id: sessionId });
-      const pc = pcsRef.current.get(sessionId) ?? makePc(sessionId, peerDeviceId);
-      const offerSdp = pendingOffersRef.current.get(sessionId);
-      const stream = await ensureLocalStream();
-      if (stream) for (const t of stream.getTracks()) pc.addTrack(t, stream);
-      if (offerSdp) {
-        await pc.setRemoteDescription(new RTCSessionDescription(offerSdp));
-        pendingOffersRef.current.delete(sessionId);
-        await drainPendingIce(sessionId);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        signalingRef.current?.sendAnswer({ to: peerDeviceId, sessionId, data: answer });
+      // Resolve the FULL participant set (caller + optional third) so a newcomer
+      // connects to everyone already in the call (mesh), not just the caller.
+      const row = await utils.calls.byId.fetch({ id: sessionId });
+      const others = new Set<string>();
+      if (row) {
+        for (const id of [row.callerDeviceId, row.calleeDeviceId, row.thirdDeviceId]) {
+          if (id && id !== selfDeviceId) others.add(id);
+        }
       }
+      if (callerDeviceId) others.add(callerDeviceId);
+
+      // Apply the buffered caller offer first (if any), then connect to the rest.
+      const bufferedOffer = pendingOffersRef.current.get(sessionId);
+      if (callerDeviceId && bufferedOffer) {
+        await mesh.handleOffer(sessionId, callerDeviceId, bufferedOffer);
+        pendingOffersRef.current.delete(sessionId);
+        others.delete(callerDeviceId);
+      }
+      for (const peerId of others) {
+         
+        await mesh.connectToPeer(sessionId, peerId);
+      }
+
       setActiveCallSessionId(sessionId);
       setIncomingCallSessionId(null);
-      // Clear the §20 deep-link param so a refresh doesn't re-prompt.
       if (incomingParam === sessionId) router.replace('/');
     } catch (err) {
       log('error', 'call.accept.failed', { sessionId, error: String(err) });
     } finally {
       setBusy(false);
     }
-  }, [
-    connectMutation,
-    drainPendingIce,
-    ensureLocalStream,
-    incomingCallSessionId,
-    incomingParam,
-    makePc,
-    router,
-  ]);
+  }, [connectMutation, incomingCallSessionId, incomingParam, router, selfDeviceId, utils]);
 
   const rejectIncoming = useCallback((): void => {
     const sessionId = incomingCallSessionId;
     if (!sessionId) return;
-    const peerDeviceId = peerOfSessionRef.current.get(sessionId);
+    const peerDeviceId = incomingPeerRef.current.get(sessionId);
     setBusy(true);
     log('info', 'call.reject.start', { sessionId });
 
@@ -459,10 +500,7 @@ export function CallEngineProvider({ children }: { children: ReactNode }): React
       { id: sessionId, reason: 'declined' },
       {
         onSettled: () => {
-          if (peerDeviceId) {
-            signalingRef.current?.sendHangup({ to: peerDeviceId, sessionId });
-          }
-          pendingOffersRef.current.delete(sessionId);
+          if (peerDeviceId) signalingRef.current?.sendHangup({ to: peerDeviceId, sessionId });
           closeCall(sessionId);
           if (incomingParam === sessionId) router.replace('/');
           setBusy(false);
@@ -478,26 +516,62 @@ export function CallEngineProvider({ children }: { children: ReactNode }): React
     const data = incomingQuery.data;
     if (!data) return;
     if (data.endedAt) {
-      // Ended already (timeout / declined elsewhere) — clear the param silently.
       if (incomingParam === data.id) router.replace('/');
       return;
     }
-    if (data.calleeDeviceId !== selfDeviceId) {
-      // The deep link is not for this browser (different device on same account).
+    if (data.calleeDeviceId !== selfDeviceId && data.thirdDeviceId !== selfDeviceId) {
       router.replace('/');
       return;
     }
     setIncomingCallSessionId(data.id);
-    peerOfSessionRef.current.set(data.id, data.callerDeviceId);
+    incomingPeerRef.current.set(data.id, data.callerDeviceId);
   }, [incomingParam, incomingQuery.data, router, selfDeviceId]);
 
   // Tear everything down on unmount.
-  useEffect(() => () => teardownAll(), [teardownAll]);
+  useEffect(() => {
+    const mesh = meshRef.current;
+    return () => {
+      mesh?.teardownAll();
+    };
+  }, []);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render API ──────────────────────────────────────────────────────────────
+  const localStream = meshRef.current?.getLocalStream() ?? null;
+  const screenStream = meshRef.current?.getScreenStream() ?? null;
+  const getStream = useCallback(
+    (streamId: string): MediaStream | undefined => meshRef.current?.getStream(streamId),
+    [],
+  );
+
   const api = useMemo<CallEngineApi>(
-    () => ({ selfDeviceId, placeCall, busy }),
-    [selfDeviceId, placeCall, busy],
+    () => ({
+      selfDeviceId,
+      busy,
+      participants: meshState.participants,
+      remoteMedia: meshState.remoteMedia,
+      getStream,
+      localStream,
+      screenStream,
+      isPresenting: meshState.isPresenting,
+      canPresent,
+      placeCall,
+      addToCall,
+      startPresenting,
+      stopPresenting,
+    }),
+    [
+      selfDeviceId,
+      busy,
+      meshState,
+      getStream,
+      localStream,
+      screenStream,
+      canPresent,
+      placeCall,
+      addToCall,
+      startPresenting,
+      stopPresenting,
+    ],
   );
 
   const showIncoming = incomingCallSessionId !== null && activeCallSessionId === null;
@@ -523,13 +597,6 @@ export function CallEngineProvider({ children }: { children: ReactNode }): React
             selfDeviceId={selfDeviceId}
             signaling={{ sendHangup: signalingRef.current.sendHangup }}
             onExit={() => closeCall(activeCallSessionId)}
-          />
-          {/* Hidden remote-stream attach point — populated by pc.ontrack. */}
-          <video
-            data-remote-stream-target
-            autoPlay
-            playsInline
-            className="pointer-events-none absolute inset-0 -z-10 h-full w-full bg-brand-teal object-cover opacity-0"
           />
         </div>
       )}

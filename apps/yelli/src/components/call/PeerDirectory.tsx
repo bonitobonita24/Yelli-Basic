@@ -16,16 +16,22 @@
  *   • Online presence (PRODUCT.md: lastSeenAt within 5 min) shows a green dot;
  *     offline tiles still render but the CALL button is disabled.
  *
- * Click → `useCallEngine().placeCall(peer.id)` — the orchestrator owns the
- * RTCPeerConnection lifecycle. This component is pure presentational.
+ * Click → `useCallEngine().placeCall(...)` — the orchestrator owns the mesh
+ * RTCPeerConnection lifecycle. Single-tap places a 1-on-1 call; multi-select
+ * (up to 2 peers) starts a group call (cap 3 incl. self) via `placeCall(ids)`.
  */
 
-import { Phone } from 'lucide-react';
+import { Phone, Users } from 'lucide-react';
+import { useState } from 'react';
 
 import { useCallEngine } from '@/components/call/CallEngineProvider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { trpc } from '@/lib/trpc/react';
+
+/** Max callees selectable for a group call (cap 3 participants incl. self). */
+const MAX_GROUP_CALLEES = 2;
 
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -48,6 +54,17 @@ function isOnline(lastSeenAt: Date | string | null): boolean {
 
 export function PeerDirectory(): React.JSX.Element {
   const { selfDeviceId, placeCall, busy } = useCallEngine();
+  // Group-call multi-select: device ids chosen for a single group placement.
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const toggleSelected = (id: string): void => {
+    setSelected((cur) => {
+      if (cur.includes(id)) return cur.filter((x) => x !== id);
+      if (cur.length >= MAX_GROUP_CALLEES) return cur; // cap at 2 — ignore extra
+      return [...cur, id];
+    });
+  };
+
   const listQuery = trpc.devices.list.useQuery(undefined, {
     // Light polling keeps the directory fresh enough for presence without the
     // realtime device-event channel that lands with the broader presence work.
@@ -56,9 +73,9 @@ export function PeerDirectory(): React.JSX.Element {
 
   if (listQuery.isPending) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden>
         {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} className="h-[88px] animate-pulse bg-surface" />
+          <Skeleton key={i} className="h-[88px] rounded-xl" />
         ))}
       </div>
     );
@@ -94,54 +111,113 @@ export function PeerDirectory(): React.JSX.Element {
   const self = listQuery.data.find((d) => d.id === selfDeviceId);
   const selfCanCall = self ? self.callRole === 'caller' || self.callRole === 'both' : false;
 
+  // Selection is only meaningful for peers still present + callable; drop stale ids.
+  const validSelected = selected.filter((id) => peers.some((p) => p.id === id));
+  const groupCallDisabled = busy || !selfDeviceId || validSelected.length === 0;
+
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="People you can call">
-      {peers.map((peer) => {
-        const online = isOnline(peer.lastSeenAt);
-        const peerCanReceive = peer.callRole === 'receiver' || peer.callRole === 'both';
-        const showCall = selfCanCall && peerCanReceive;
-        const callDisabled = busy || !online || !selfDeviceId;
-        return (
-          <li key={peer.id}>
-            <Card className="flex items-center justify-between gap-3 p-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div
-                  aria-hidden
-                  className="grid size-11 flex-shrink-0 place-items-center rounded-full bg-brand-lavender text-sm font-semibold text-text-primary"
-                >
-                  {initials(peer.displayName)}
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-text-primary">
-                    {peer.displayName || 'Unnamed device'}
+    <div className="space-y-3">
+      {selfCanCall && validSelected.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+          <span className="text-sm text-text-primary">
+            {validSelected.length === 1
+              ? '1 person selected'
+              : `${validSelected.length} people selected`}
+            {validSelected.length === MAX_GROUP_CALLEES ? ' (max)' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelected([])}
+            >
+              Clear
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={groupCallDisabled}
+              onClick={() => {
+                placeCall(validSelected);
+                setSelected([]);
+              }}
+            >
+              <Users className="mr-1.5 size-4" />
+              Call {validSelected.length === 1 ? 'them' : 'group'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="People you can call">
+        {peers.map((peer) => {
+          const online = isOnline(peer.lastSeenAt);
+          const peerCanReceive = peer.callRole === 'receiver' || peer.callRole === 'both';
+          const showCall = selfCanCall && peerCanReceive;
+          const callDisabled = busy || !online || !selfDeviceId;
+          const isSelected = validSelected.includes(peer.id);
+          const selectDisabled = !isSelected && validSelected.length >= MAX_GROUP_CALLEES;
+          return (
+            <li key={peer.id}>
+              <Card className="flex items-center justify-between gap-3 p-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    aria-hidden
+                    className="grid size-11 flex-shrink-0 place-items-center rounded-full bg-brand-lavender text-sm font-semibold text-text-primary"
+                  >
+                    {initials(peer.displayName)}
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-text-muted">
-                    <span
-                      aria-hidden
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-text-primary">
+                      {peer.displayName || 'Unnamed device'}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                      <span
+                        aria-hidden
+                        className={
+                          'inline-block size-2 rounded-full ' +
+                          (online ? 'bg-success' : 'border border-text-muted/50 bg-transparent')
+                        }
+                      />
+                      {online ? 'Online' : 'Offline'} · {peer.callRole}
+                    </div>
+                  </div>
+                </div>
+                {showCall && (
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <label
                       className={
-                        'inline-block size-2 rounded-full ' +
-                        (online ? 'bg-success' : 'bg-text-muted/40')
+                        'flex min-h-11 cursor-pointer items-center gap-1.5 rounded-md px-1 text-xs text-text-muted focus-within:ring-2 focus-within:ring-ring ' +
+                        (selectDisabled ? 'cursor-not-allowed opacity-40' : '')
                       }
-                    />
-                    {online ? 'Online' : 'Offline'} · {peer.callRole}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={selectDisabled || !online}
+                        onChange={() => toggleSelected(peer.id)}
+                        aria-label={`Select ${peer.displayName || 'device'} for a group call`}
+                        className="size-4 accent-brand-teal focus-visible:outline-none"
+                      />
+                      Group
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => placeCall(peer.id)}
+                      disabled={callDisabled}
+                      aria-label={`Call ${peer.displayName || 'device'}`}
+                      className="grid size-11 place-items-center rounded-full bg-brand-teal text-white transition-colors hover:bg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Phone className="size-5" />
+                    </button>
                   </div>
-                </div>
-              </div>
-              {showCall && (
-                <button
-                  type="button"
-                  onClick={() => placeCall(peer.id)}
-                  disabled={callDisabled}
-                  aria-label={`Call ${peer.displayName || 'device'}`}
-                  className="grid size-11 flex-shrink-0 place-items-center rounded-full bg-brand-teal text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Phone className="size-5" />
-                </button>
-              )}
-            </Card>
-          </li>
-        );
-      })}
-    </ul>
+                )}
+              </Card>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

@@ -1,5 +1,30 @@
 # Implementation Map — Yelli
 
+## Feature Update — V-3way: 3-way calling + desktop screen share (2026-06-24)
+
+Branch `feat/three-way-call-screenshare` · PR #5 (stacked on #4) · dev-verified · HOLD (not merged/deployed).
+Spec: `docs/superpowers/specs/2026-06-24-three-way-call-screenshare-design.md`. PRODUCT.md scope updated first (Rule 1).
+
+- ✅ **Signal layer** — `packages/shared/src/realtime.ts`: new `present` kind + `presentSignalSchema`/`PresentSignal`
+  (screen-share stream-id announce). Relay forwards via existing `canRelay` (no server logic added). +6 schema tests.
+- ✅ **Data + API** — `CallSession.thirdDeviceId` (nullable) + migration `0004_add_third_device`; `calls.start`
+  optional 2nd callee; new `calls.add` (`call_full` → TRPCError CONFLICT); `calls.byId` returns thirdDeviceId.
+  Same role-guard + same-tenant (no new RBAC). +8 router tests.
+- ✅ **Engine** — `apps/yelli/src/components/call/call-mesh.ts` (NEW, React-free): one RTCPeerConnection per
+  (session,peer), lexicographic glare rule, present-signal screen/cam classification (race-safe), guarded
+  `onnegotiationneeded`, per-peer + full teardown. `CallEngineProvider.tsx` = thin shell exposing full
+  `CallEngineApi`. `useSignaling.sendPresent` added. +13 engine/signaling tests.
+- ✅ **UI** — `ScreenActiveCall.tsx`: N-tile face grid + screen panels + Present(desktop-only) + Add-person
+  (shadcn Dialog); `PeerDirectory.tsx`: multi-select up to 2 for group start. 375px-first responsive, WCAG 2.2
+  AA, 0 raw hex, design-auditor ~96, react-best-practices clean.
+- ✅ **CSP fix** — `next.config.ts` `connect-src 'self'` → `'self' ws: wss:` (dev signaling WS was a separate
+  origin → blocked → no call connected; verified opening end-to-end after fix).
+- **Verify:** typecheck 7/7 · 211/211 tests · migration applied · 9/9 dev containers healthy · all routes load ·
+  signaling WS confirmed (CDP 101→hello→ready). Commits: 53c75b2 16c4ae0 a49d911 12bf773 a7a14ce ba82046.
+- **Dispatch (Rule 15):** multi-agent fan-out — P1+P2 parallel, P3→P4→P5 sequential (R7).
+- **Open:** human 2-browser 3-way + screen-share gate; merge #4 then #5; staging/prod owner-gated. Pre-existing
+  (not this change): `/settings` 500 — `data_subject_requests` migration missing (drift from d639a5b).
+
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
 Filesystem: clean-slate. No apps/, packages/, deploy/, inputs.yml.

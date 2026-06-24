@@ -2,6 +2,47 @@
 
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
+### 2026-06-24 — V-3way: 3-way calling + desktop screen share (Feature Update)
+
+- Agent: CLAUDE_CODE (Opus-orchestrated, MULTI-AGENT fan-out — this session broke the standing env-structural
+  inline fallback because the work had genuine independent + sequential-dependency boundaries: P1 shared
+  signal schema + P2 DB/tRPC dispatched in PARALLEL, then P3 mesh engine (TDD) → P4 design/a11y → P5
+  verify+Playwright SEQUENTIAL; R7 fan-out warranted, unlike the worker-body singletons).
+- Why: Owner requested an optional 3rd caller acting as a presenter that can screen-share. Confirmed via
+  brainstorming: full 3-way (mesh, cap 3) + any participant can present (multiple simultaneous), web-only
+  (mobile view-only, desktop-present). PRODUCT.md previously listed group calls + screen share as MVP non-goals.
+- Governance (Rule 1 first): docs/PRODUCT.md edited BEFORE code — group calls (cap 3) + desktop screen share
+  moved into scope (Calling model + Core User Flows 1b/2b/5b); mobile-view-only / desktop-present constraint
+  recorded; identity kept as "small-group intercom, not a meeting platform". Design spec at
+  docs/superpowers/specs/2026-06-24-three-way-call-screenshare-design.md.
+- Files modified/added:
+  - docs/PRODUCT.md — scope change (Calling model, Out-of-scope, Core User Flows 1b/2b/5b, App Identity/Problem).
+  - packages/shared/src/realtime.ts — added `present` to SIGNAL_KINDS + `presentSignalSchema`/`PresentSignal`
+    (announces a screen-share MediaStream id so peers classify screen-vs-camera). Relay forwards via canRelay.
+  - packages/db/prisma/schema.prisma + migrations/0004_add_third_device — nullable `CallSession.thirdDeviceId` + FK.
+  - apps/yelli/src/server/trpc/routers/call.ts — `calls.start` optional 2nd callee; new `calls.add` (full →
+    TRPCError CONFLICT `call_full:`); `calls.byId` returns thirdDeviceId. Same role-guard + same-tenant (no new RBAC).
+  - apps/yelli/src/components/call/call-mesh.ts (NEW) — React-free CallMesh: one RTCPeerConnection per
+    (session,peer), lexicographic glare rule, present-signal classification (race-safe both orders), guarded
+    onnegotiationneeded for mid-call screen-track add, per-peer + full teardown.
+  - apps/yelli/src/components/call/CallEngineProvider.tsx — thin React shell over CallMesh; full CallEngineApi
+    (participants, remoteMedia, getStream, isPresenting, canPresent, placeCall(string|string[]), addToCall,
+    start/stopPresenting). apps/yelli/src/hooks/useSignaling.ts — added `sendPresent`.
+  - apps/yelli/src/components/screens/ScreenActiveCall.tsx — N-tile face grid + screen panels + Present
+    (desktop-only) + Add-person picker (shadcn Dialog); 375px-first responsive; WCAG 2.2 AA; 0 raw hex.
+  - apps/yelli/src/components/call/PeerDirectory.tsx — multi-select up to 2 for group start; single-tap 1-on-1 kept.
+  - apps/yelli/next.config.ts — CSP `connect-src` widened `'self'` → `'self' ws: wss:` so the dev signaling
+    WebSocket (separate origin/port) can connect; same-origin in LAN/Cloud. (Was silently blocking ALL calls in dev.)
+- Tests: +13 (12 CallMesh + 1 sendPresent) + extended calls router tests (8). Full suite 211/211 green; typecheck 7/7.
+- Verification: migration 0004 applied to dev DB (NOTE: dev does not auto-migrate on boot — `prisma migrate
+  deploy`); 9/9 dev containers healthy; Playwright all-routes sweep loads; signaling WS confirmed opening
+  end-to-end (CDP 101 → hello → ready). design-auditor ~96; react-best-practices clean.
+- HOLD: branch pushed, PR #5 (stacked on #4); NOT merged, NOT deployed (promotion owner-gated). Human gate =
+  live 2-browser 3-way + screen-share with real cam/mic.
+- Pre-existing issue surfaced (NOT this change): `/settings` 500 — `data_subject_requests` table has no
+  migration (DataSubjectRequest model added in d639a5b V32.9; migration drift on main). Left for a focused fix.
+- Commits: 53c75b2 · 16c4ae0 · a49d911 · 12bf773 · a7a14ce · ba82046
+
 ### 2026-06-21 — V32.9 Mega-Prompt Conformance Cross-Check
 
 - Agent: CLAUDE_CODE (Sonnet, autonomous fleet conformance session)

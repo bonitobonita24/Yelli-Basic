@@ -1,5 +1,35 @@
 # Decisions Log
 
+## LOCKED: 3-way calling + screen share — mesh, cap 3, minimal data model, web-only (V-3way) — 2026-06-24
+
+**Decision:** Yelli supports an optional **3rd participant** in a call and **desktop screen sharing**, with
+these locked choices (owner-confirmed via brainstorming):
+1. **Topology = full WebRTC mesh** (one RTCPeerConnection per peer-pair), **hard cap 3** — NOT an SFU. Media
+   stays peer-to-peer in both LAN and Cloud. (Beyond 3 would require an SFU = out of scope.)
+2. **3rd = a full caller** (bidirectional cam/mic with everyone) that can **also present** — not a one-way spectator.
+3. **Join = both** start-as-group (pick 1–2 callees) AND add-mid-call (`calls.add` rings a 3rd into a live call).
+4. **Multiple simultaneous screen shares** allowed (each participant has an optional screen track).
+5. **Data model minimal:** only `CallSession.thirdDeviceId` is persisted. *Who is presenting* and *a participant
+   leaving early* are deliberately **ephemeral** — carried by the `present` signal / `hangup`, never DB columns.
+6. **Web-only, desktop-present:** mobile devices join and VIEW shared screens, but the **Present** control is
+   desktop-only (`getDisplayMedia` is unsupported on mobile browsers; no native app exists). Mobile capture
+   would require a native app = out of scope (separate project).
+7. **Permissions unchanged:** reuse the existing `forbidden-by-role` guard for placing/adding/presenting; in
+   Cloud every participant must be the **same tenant**. No new RBAC.
+
+**Context:** Owner wanted "another caller (3 in 1 session) that acts like a spectator and can screen-share."
+PRODUCT.md previously listed group calls + screen share as MVP non-goals; that scope was updated FIRST (Rule 1).
+
+**Glare avoidance (impl):** for each peer-pair the lexicographically LOWER deviceId creates the offer; the
+higher waits. `onnegotiationneeded` (mid-call screen-track add) is guarded (initiator-only + signalingState
+`stable`) to avoid a double-offer race. Screen vs camera tracks are disambiguated by a `present` app-signal
+announcing the screen MediaStream id (WebRTC can't label tracks across renegotiation).
+
+**Status:** Built on `feat/three-way-call-screenshare`, PR #5 (stacked on #4). Dev-verified; live 2-browser
+3-way + screen-share is a human gate. Spec: `docs/superpowers/specs/2026-06-24-three-way-call-screenshare-design.md`.
+
+---
+
 ## LOCKED: Unauth peer directory — friendly sign-in prompt (q-W2b-04 UX patch) — 2026-06-18
 
 **Decision:** `PeerDirectory` shows a friendly sign-in empty-state when `devices.list` returns

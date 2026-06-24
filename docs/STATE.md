@@ -1,7 +1,54 @@
 # Project State — Yelli
 # Auto-generated. Never edit manually.
 
-## Current State — V32.9 Mega-Prompt Conformance Cross-Check PASSED (swarm/rebuild · all 4 conformance areas green, 2026-06-21)
+## Current State — V-3way: 3-way calling + desktop screen share BUILT & dev-verified (feat/three-way-call-screenshare · PR #5 · HOLD for human 2-browser test, 2026-06-24)
+
+> **3-WAY CALLING + SCREEN SHARE DONE (this session, 2026-06-24, full-auto).** New feature: a call can hold
+> an optional **3rd participant** (hard cap 3, full WebRTC **mesh** — no SFU, media stays P2P) and any
+> participant can **share their screen** (multiple simultaneous). Branch `feat/three-way-call-screenshare`
+> (off `fix/signaling-url-baking-and-runtime-derive`), **PR #5** (stacked on #4). NOT merged, NOT deployed.
+> Spec: `docs/superpowers/specs/2026-06-24-three-way-call-screenshare-design.md`.
+> • **Governance first (Rule 1):** `docs/PRODUCT.md` edited BEFORE code — moved *group calls (cap 3)* +
+>   *desktop screen share* out of MVP non-goals into the Calling model + Core User Flows 1b/2b/5b; recorded
+>   the mobile-view-only / desktop-present constraint. Yelli stays a small-group intercom, not a meeting platform.
+> • **6 commits:** `53c75b2` spec+PRODUCT · `16c4ae0` `present` signal kind (@yelli/shared; relay forwards via
+>   canRelay) · `a49d911` `CallSession.thirdDeviceId` + migration `0004` + `calls.start` optional 2nd callee +
+>   new `calls.add` (`call_full` CONFLICT guard) · `12bf773` React-free **`CallMesh`** engine
+>   (`apps/yelli/src/components/call/call-mesh.ts`: one RTCPeerConnection per (session,peer), lexicographic
+>   glare rule, present-signal screen/cam classification race-safe, guarded onnegotiationneeded, per-peer
+>   teardown) + `ScreenActiveCall` N-tile grid + screen panels + Present(desktop-only) + Add-person +
+>   `PeerDirectory` multi-select(2) + `useSignaling.sendPresent` · `a7a14ce` Clay-token responsive grid +
+>   WCAG 2.2 AA (0 raw hex) · `ba82046` CSP fix.
+> • **Data model minimal (owner choice):** only `thirdDeviceId String?` persisted; presenting-state +
+>   early-leave kept EPHEMERAL (present signal / hangup), not DB columns.
+> • **CSP bug found+fixed:** `connect-src 'self'` blocked the dev signaling WS (separate port = separate
+>   origin) → no call could connect; widened to `'self' ws: wss:` (`ba82046`). Same-origin in LAN/Cloud so it
+>   was masked until a dev browser-test. NOTE: dev stack does NOT auto-migrate on boot (CMD=`node server.js`) —
+>   apply migrations with `npx prisma migrate deploy` from `packages/db`.
+> • **Verified (everything automatable):** typecheck 7/7 · full suite **211/211** (13 new mesh/signaling tests;
+>   token-parity green) · migration 0004 applied to dev DB · 9/9 dev containers healthy (app :46848,
+>   signaling :46850/ws) · Playwright all-routes sweep loads (no 404/crash) · signaling WS confirmed opening
+>   end-to-end via CDP (`101 Switching Protocols` → `hello` → `ready`) after the CSP fix · design-auditor ~96 ·
+>   react-best-practices clean. **Dev stack left UP at http://localhost:46848** (`admin@mail.com`/`admin`, `_pwbt`).
+> • **Dispatch note (Rule 15):** Opus-orchestrated with **multi-agent fan-out** (broke the standing
+>   env-structural inline fallback): P1 (shared signal) + P2 (DB/tRPC) in parallel, then P3 (mesh engine, TDD) →
+>   P4 (design/a11y) → P5 (verify+Playwright) sequential — genuine independent + sequential-dependency
+>   boundaries, so fan-out WAS warranted here (unlike the worker-body singletons below).
+>
+> **⛔ NEXT SESSION — what the owner must do (this feature):**
+> 1. **HUMAN GATE — live 2-browser 3-way call + screen share** with two real browsers + camera/mic (cannot be
+>    automated). Especially verify **add-a-3rd mesh-fill reciprocity** (A adds C → C connects to BOTH A and B).
+>    Dev stack is already UP at http://localhost:46848.
+> 2. **Merge order:** PR #5 is stacked on **PR #4** (signaling-url fix it depends on) — merge #4 first, then
+>    retarget/merge #5 to `main`.
+> 3. **Staging/prod stays HELD** (owner-signal-gated) until you say so.
+> 4. **Pre-existing bug to fix separately (NOT this branch):** `/settings` 500s — `data_subject_requests` table
+>    has no migration (model added in `d639a5b` V32.9; drift on `main`). Generate + apply its migration in its
+>    own focused branch.
+> **Plus the standing 2 user gates from prior state still open:** ScreenTenantSettings Phase-3.3 sign-off;
+> backup S3 provisioning → then full S6 live e2e + phase-4-complete tag.
+
+## Prior State — V32.9 Mega-Prompt Conformance Cross-Check PASSED (swarm/rebuild · all 4 conformance areas green, 2026-06-21)
 
 > **V32.9 conformance check DONE (2026-06-21).** Full cross-check of app against framework HEAD — zero gaps found, no code changes required.
 > • **Framework deliverables (Area 1): 22/22 in sync.** All `.ai_prompt/` files byte-identical to `specdrivenprompt/` HEAD. `CLAUDE.md` matches `CLAUDE_v31_compact.md`. `.claude/agents/spec-executor.md`, `.claude/settings.json`, `scripts/lint-deploy.sh`, `scripts/design-stop-hook.sh` all match framework source. Zero drifted or missing deliverables.

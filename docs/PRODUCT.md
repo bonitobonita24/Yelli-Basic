@@ -6,7 +6,8 @@
 ## Key Decisions Summary (Step 9 closeout — read this first)
 
 - **Editions:** dual LAN (self-hosted, single implicit tenant) + Cloud (managed multi-tenant on `*.yelli-basic.powerbyte.app`); one codebase; feature parity is non-negotiable (`@dual-mode-exception` required for any exception)
-- **Calling model:** 1-on-1 WebRTC peer-to-peer media; signaling-only server; default role = receiver; CALL action hidden + server-rejected for non-caller roles
+- **Calling model:** WebRTC peer-to-peer media, signaling-only server; **1-on-1 by default, with an optional third participant (hard cap = 3) via full mesh** (3 peer connections, media still never touches the server); default role = receiver; CALL action hidden + server-rejected for non-caller roles. Same role-guard governs starting a group, being added, and presenting; Cloud requires all participants share a tenant.
+- **Screen share (V-3way, 2026-06-24):** any participant may share their screen during a call; **multiple simultaneous shares** are allowed. Browser `getDisplayMedia` is desktop-only — **mobile devices join and VIEW shared screens but cannot present** (the Present control is hidden on mobile; a native capture app is out of scope as no native app exists).
 - **Roles:** anonymous device (LAN default) / member / admin; peer admin promote/demote; last-admin guard; LAN anonymous admin gated by Argon2id passphrase + `yelli_admin_session` HttpOnly cookie
 - **Tenancy (Cloud):** subdomain routing `<slug>.yelli-basic.powerbyte.app`; slug `^[a-z][a-z0-9-]*[a-z0-9]$`, immutable, 18 reserved names; tenant-scoped via `tenantId` on every entity; V25 cross-check `session.tenantId === resolved.slug.tenantId`
 - **Deployment:** Komodo + Docker Compose; semver `:vX.Y.Z` immutable + floating `:prod` pointer; rollback = re-tag, no rebuild; daily 02:00 UTC `pg_dump` → S3 30d / Glacier IR 7d
@@ -15,7 +16,8 @@
 - **Design system:** Clay aesthetic; single `tokens.css` source for shadcn + Tailwind; Vitest token-parity test catches drift
 - **Security:** 5-step tRPC middleware chain (session → freshness → tenant-match → role → procedure guard); Super-Admin `/_pwbt/` runs isolated chain + dedicated Prisma client per V25
 - **Operations (Step 9):** GlitchTip + Docker JSON logs + Komodo log viewer; UptimeRobot 5-min probes → email + Telegram; static status page at `status.powerbyte.app`; k6 perf harness run on-demand pre-`:prod` (regression block at p95 signaling >150ms or p95 call-setup >3s)
-- **Out of scope for MVP:** group calls, recording, screen share, Xendit self-serve billing, multi-region failover, hosted statuspage, central log aggregator, APM
+- **Out of scope for MVP:** recording, calls of 4+ participants (mesh cap is 3; an SFU would be required), native mobile app / mobile screen capture, TURN provisioning, Xendit self-serve billing, multi-region failover, hosted statuspage, central log aggregator, APM
+  - *(Updated 2026-06-24, V-3way: small-group calling — up to 3 — and desktop screen share were moved IN scope; see Calling model above + Core User Flows 1b/2b/5b. Yelli remains a lightweight intercom for small groups, NOT a Jitsi-style meeting platform.)*
 
 For step-by-step lock decisions, see `DECISIONS_LOG guidance for Claude Code (Brownfield Adoption)` at the end of this document.
 
@@ -23,11 +25,11 @@ For step-by-step lock decisions, see `DECISIONS_LOG guidance for Claude Code (Br
 Name:           Yelli
 Tagline:        Video calling for your network — your LAN or our cloud, your call.
 Industry:       Communications Platform — managed cloud + self-host
-Primary users:  Two human peers, in or across networks. Tenant boundary applies in Cloud mode; absent in LAN mode.
+Primary users:  Human peers, in or across networks — typically two, optionally a third (cap 3). Tenant boundary applies in Cloud mode; absent in LAN mode.
 Owner:          Powerbyte I.T. Solutions
 
 ## Problem Statement
-Most teams default to Zoom or Meet for short, frequent video calls between two people in the same building (reception ↔ stockroom, doctor ↔ front desk, manager ↔ floor staff) — but cloud-routed calls are slow, expensive, and unnecessary for traffic that never needs to leave the network. Self-host alternatives like Jitsi are heavy and built for group meetings, not 1-on-1 intercom. Yelli ships as two editions sharing one codebase: Yelli LAN (self-hosted, no internet needed after setup) and Yelli Cloud (managed multi-tenant hosting, cross-network calling) — both 1-on-1, both white-labelable, both keeping media peer-to-peer via WebRTC.
+Most teams default to Zoom or Meet for short, frequent video calls between two people in the same building (reception ↔ stockroom, doctor ↔ front desk, manager ↔ floor staff) — but cloud-routed calls are slow, expensive, and unnecessary for traffic that never needs to leave the network. Self-host alternatives like Jitsi are heavy and built for group meetings, not 1-on-1 intercom. Yelli ships as two editions sharing one codebase: Yelli LAN (self-hosted, no internet needed after setup) and Yelli Cloud (managed multi-tenant hosting, cross-network calling) — both primarily 1-on-1 with optional small-group calling up to **3** (a lightweight intercom extension, not a full meeting platform), both white-labelable, both keeping media peer-to-peer via WebRTC mesh.
 
 ## Core User Flows
 
@@ -42,6 +44,12 @@ Most teams default to Zoom or Meet for short, frequent video calls between two p
 4. **A LAN Admin assigns a device's call role.** Admin → Devices → row → set role (Both / Caller / Receiver) → save → server persists assignment in the device registry → role-update event published on the existing WebSocket signaling channel and fanned out across signaling instances via Valkey pub/sub → all online sessions for that device receive it within 5s → caller-side UIs across the LAN re-render so the CALL button hides for any peer whose role is `receiver` (and likewise for `caller`-only peers on the receiver side). *Defaults:* every newly-joined device starts at `receiver` until an admin promotes it. *Enforcement:* defense-in-depth — UI hides forbidden CALL buttons AND the server rejects any `call.invite` whose target role forbids the action (returns `forbidden_by_role`). *Edge:* role change during an active call does not disrupt it; the new role takes effect after the call ends. *Transport edge:* if Valkey is unavailable (LAN anonymous mode without account features), broadcast falls back to in-process WebSocket fan-out — acceptable because LAN anonymous deployments run a single signaling instance by design.
 
 5. **A Member toggles mute or camera mid-call.** Tap mute icon → audio track disabled → icon updates. Same for camera. *Edge:* peer sees a "muted" indicator on top overlay; cam-off shows placeholder avatar with peer's display name initial.
+
+1b. **A Member starts a 3-way call.** Directory → multi-select up to **2** peers → CALL → both ring → as each accepts, a mesh forms (each browser holds one peer-connection per other participant). *Errors/edges:* same per-callee guards as flow 1 (offline / busy / role-forbidden / mic-cam denied) apply independently per callee; if only one of two accepts, the call proceeds as 1-on-1; selecting a 3rd beyond the cap is not offered.
+
+2b. **A Member adds a 3rd person to a live call.** In-call → **Add person** → pick an online peer → that device rings via the normal incoming overlay (flow 2) → on accept it joins the mesh, opening a peer-connection to **both** existing participants. *Errors/edges:* server is the arbiter of capacity — if the slot was just filled, the add returns `call_full` and the UI shows "Call is full"; Add person is hidden when the session already holds 3 or the actor's role forbids calling; Cloud requires the added device be the same tenant.
+
+5b. **A participant shares their screen (desktop only).** In-call on a desktop browser → **Present** → OS picker → screen track is added to every peer-connection and announced so others render it as a screen panel (not a face tile); **multiple participants may present at once**, shown side-by-side. Stop via the in-app control or the browser's native "Stop sharing." *Errors/edges:* picker cancelled/denied → no-op, stay in call; renegotiation failure → drop just the screen track, keep the call, toast the user; on mobile the Present control is hidden with a "presenting is desktop-only" hint while screen panels from others still render.
 
 ### Shared identity + admin (both editions)
 

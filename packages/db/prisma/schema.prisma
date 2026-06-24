@@ -194,6 +194,7 @@ model Device {
   owner                User?                 @relation(fields: [userId], references: [id])
   callsAsCaller        CallSession[]         @relation("CallerDevice")
   callsAsCallee        CallSession[]         @relation("CalleeDevice")
+  callsAsThird         CallSession[]         @relation("ThirdDevice")
   webPushSubscriptions WebPushSubscription[]
 
   @@index([tenantId])
@@ -248,6 +249,8 @@ model CallSession {
   tenantId         String     @map("tenant_id")
   callerDeviceId   String     @map("caller_device_id")
   calleeDeviceId   String     @map("callee_device_id")
+  /// Optional 3rd participant (hard cap 3). Null = 1-on-1 call (backward compatible).
+  thirdDeviceId    String?    @map("third_device_id")
   callerRoleAtCall CallRole   @map("caller_role_at_call")
   calleeRoleAtCall CallRole   @map("callee_role_at_call")
   startedAt        DateTime   @map("started_at")
@@ -256,9 +259,10 @@ model CallSession {
   durationSec      Int?       @map("duration_sec")
   endReason        EndReason? @map("end_reason")
 
-  tenant       Tenant @relation(fields: [tenantId], references: [id])
-  callerDevice Device @relation("CallerDevice", fields: [callerDeviceId], references: [id])
-  calleeDevice Device @relation("CalleeDevice", fields: [calleeDeviceId], references: [id])
+  tenant       Tenant  @relation(fields: [tenantId], references: [id])
+  callerDevice Device  @relation("CallerDevice", fields: [callerDeviceId], references: [id])
+  calleeDevice Device  @relation("CalleeDevice", fields: [calleeDeviceId], references: [id])
+  thirdDevice  Device? @relation("ThirdDevice", fields: [thirdDeviceId], references: [id])
 
   @@index([tenantId])
   @@index([tenantId, startedAt])
