@@ -2048,3 +2048,21 @@ Reference-only. No code from the entries below survives on the filesystem after 
                        fan-out warranted regardless; R1 deviation accepted per the standing pattern.
 - Tag status:          phase-4-complete is NOT tagged (correct — partial build).
 - Commit:              feat(phase-4-S6): Partial W8 validation — NO phase-4-complete tag
+
+## 2026-06-24 — Framework Sync V32.9 → V32.11 (chore)
+
+- Phase/task:          Framework governance sync — V32.10 compose resource limits + V32.11 shadcn/studio Pro design routing
+- Work done:           Synced 23 framework deliverable files from Powerbyte-AIEF V32.11 into Yelli-Basic.
+                       Stage 1: sync-to-project.sh copied all 23 whitelisted files to .ai_prompt/ + deploy-v31.sh.
+                       Stage 2: deploy-v31.sh overwrote CLAUDE.md, AI/Master_Prompt_v31.md; added scripts/lint-deploy.sh,
+                       scripts/design-stop-hook.sh, tests/visual/ scaffold; appended 5 .gitignore entries.
+                       Updated .gitignore to ignore *.bak files going forward.
+                       V32.10 adds: compose mem_limit / mem_reservation / cpus keys (top-level, not deploy: block).
+                       V32.11 adds: shadcn/studio Pro MCP as default design generator (/cui→/iui→/rui routing per phase).
+                       All NEVER-TOUCH paths (docs/PRODUCT.md, DECISIONS_LOG.md, CHANGELOG_AI.md, IMPLEMENTATION_MAP.md,
+                       inputs.yml, .env.*, apps/, packages/) confirmed untouched by hard safety gate.
+- Errors encountered:  none
+- Errors resolved:     none
+- Execution note (Rule 15 / V32.1): authored by Claude AIEF conductor dispatch — framework sync only, no app-source
+                       changes. Branch: chore/framework-sync-v32.11, based off origin/swarm/rebuild.
+- Commit:              chore(framework): sync Spec-Driven V32.9 → V32.11 (compose limits + shadcn/studio Pro)

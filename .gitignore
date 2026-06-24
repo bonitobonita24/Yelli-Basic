@@ -72,3 +72,11 @@ openclaw-handoff.md
 
 # Next.js generated env types (regenerated on build)
 next-env.d.ts
+
+# ─── V32.8 Design Toolkit artifacts ───
+tokens/build/
+tests/visual/__snapshots__/
+tests/visual/diff/
+
+# Framework deploy backups (created by deploy-v31.sh, not for version control)
+*.bak
