@@ -17,6 +17,7 @@ const ctx = (isAdmin: boolean) => ({
   isAdmin,
   brand: { displayName: 'Acme', slug: 'acme', logoUrl: null },
   userLabel: 'Me',
+  isCloudSession: true,
 });
 
 afterEach(cleanup);

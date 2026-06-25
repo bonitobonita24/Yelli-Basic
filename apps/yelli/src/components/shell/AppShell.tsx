@@ -58,14 +58,19 @@ function initials(label: string | null): string {
  * admin guard silently re-logged the user in on the next navigation). A hard
  * `window.location` navigation — not a client router push — guarantees the server
  * re-reads the now-cleared cookies and the RSC cache can't replay a stale admin
- * shell. We land on `/admin/login` even if the POST throws, so a transient failure
+ * shell. We land on `redirectTo` even if the POST throws, so a transient failure
  * never traps the user in an authenticated-looking shell.
+ *
+ * `redirectTo` is mode-aware: a Cloud / account-mode user returns to the `/login`
+ * account form; a LAN-anonymous admin returns to the `/admin/login` passphrase page.
+ * (Previously hardcoded to `/admin/login`, which dumped every Cloud user — including
+ * production accounts — onto the LAN passphrase screen on sign-out.)
  */
-async function signOutBothSessions(): Promise<void> {
+async function signOutBothSessions(redirectTo: string): Promise<void> {
   try {
     await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
   } finally {
-    window.location.assign('/admin/login');
+    window.location.assign(redirectTo);
   }
 }
 
@@ -154,7 +159,9 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
                 Settings
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => void signOutBothSessions()}>
+            <DropdownMenuItem
+              onClick={() => void signOutBothSessions(ctx.isCloudSession ? '/login' : '/admin/login')}
+            >
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
             </DropdownMenuItem>
