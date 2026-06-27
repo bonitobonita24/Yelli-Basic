@@ -1,5 +1,15 @@
 # CHANGELOG_AI
 
+### 2026-06-27 — fix(auth): logout returns Cloud users to /login, not the LAN admin passphrase
+
+- Agent: CLAUDE_CODE (Opus-inline). Branch `fix/logout-redirect-to-login` off `main`.
+- Why: On `main` (and every deployed/cached build derived from it), signing out always landed on `/admin/login` (the LAN admin passphrase page) — a dead end with no way to log into a different account. Root cause: `signOutBothSessions()` hardcoded `window.location.assign('/admin/login')`. A mode-aware fix (`cb9b406`) existed but was trapped on the unmerged `feat/three-way-call-screenshare` (PR #5, held for the live 3-way test) — so it never reached the deployable line. Reproduced: fresh-browser logout on the fixed dev build → `/login` ✓; `main` still hardcoded → `/admin/login`.
+- Changes:
+  - Cherry-picked `cb9b406` onto `main`: `AppShellContext.isCloudSession` (true when an Auth.js session is present) + branch the post-logout redirect — Cloud/account users → `/login`, LAN-anonymous admins → `/admin/login`. (`AppShell.tsx`, `app-context.ts`, `AppShell.test.tsx`.)
+  - **Completed the `cb9b406` follow-up:** `CallEngineProvider.onSessionKill` (force-logout via `session-invalidate`) was still hardcoded to `/admin/login` — same dead-end for a force-logged-out Cloud user. Now mode-aware: `signOut({ callbackUrl: session?.user ? '/login' : '/admin/login' })`, with `session` added to the callbacks memo deps. Safe: `useSignaling` reads callbacks via a ref, so a new callback identity does NOT reconnect the socket.
+- Verified: `tsc --noEmit` (apps/yelli) 0 errors; AppShell + call-engine tests 7/7 PASS; browser repro of the AppShell logout → `/login`.
+- Note: this is the decoupled hotfix for the deployable line. The same fix also rides inside PR #5; merging either resolves it. Merge to `main` triggers `docker-publish.yml` → staging auto-deploy (owner-gated) — owner decides when.
+
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
 ### 2026-06-21 — V32.9 Mega-Prompt Conformance Cross-Check
