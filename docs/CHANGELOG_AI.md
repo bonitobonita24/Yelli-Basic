@@ -1,5 +1,17 @@
 # CHANGELOG_AI
 
+### 2026-06-27 — fix(db): migration for V32.9 compliance tables (the /settings 500 root cause)
+
+- Agent: CLAUDE_CODE (Opus-inline, standing V32.1 env-structural fallback — single indivisible DB-migration unit, no fan-out boundary; R1 deviation accepted per the established project pattern). Branch: `fix/v329-compliance-migration` off `main` (own focused branch per the STATE.md "pre-existing bug to fix separately" directive).
+- Why: The V32.9 compliance layer (commit `d639a5b`) added 4 models + 5 enums to `schema.prisma` but **shipped no migration** — drift on `main`. At runtime this 500'd `/settings` (the DSR query hit a non-existent `data_subject_requests` table). Root-cause scope is larger than the reported symptom: `consent_logs`, `retention_policies`, and `breach_notification_records` were all equally un-migrated and would 500 next.
+- Files added:
+  - `packages/db/prisma/migrations/0005_add_v329_compliance_tables/migration.sql` — creates enums `LawfulBasis`, `DsrType`, `DsrStatus`, `BreachStatus`, `BreachSeverity`; adds 3 `AuditTargetType` values; creates tables `consent_logs`, `data_subject_requests`, `breach_notification_records`, `retention_policies` (+ indexes + FKs to `tenants`/`users`); enables **RLS (L2)** `tenant_isolation` on all 4 (parity with `0001_init`, Rule 7E).
+  - `packages/db/prisma/migrations/0005_add_v329_compliance_tables/down.sql` — reverse (policies → RLS disable → tables → enums; AuditTargetType values left in place — PG can't drop enum values).
+- Generation: `prisma migrate diff --from-url <dev DB> --to-schema-datamodel` (Prisma-exact DDL), trimmed of an unrelated `call_sessions_third_device_id_fkey` churn that belongs to the in-flight `0004_add_third_device` (feature branch), then RLS appended.
+- Numbering: `0005` (not `0004`) — `0004_add_third_device` is reserved for `feat/three-way-call-screenshare`; the two migrations are independent and both apply cleanly in any order.
+- Verification: applied `migration.sql` to the live dev DB via `prisma db execute` (additive, no reset) → post-apply `migrate diff` shows **0** compliance objects remaining (only the separate third_device FK churn) · RLS confirmed `rls=t` + 1 policy on each of the 4 tables · `dsr.test.ts` 10/10 PASS.
+- Surfaced separately (NOT fixed here — feature branch's domain): `schema.prisma` declares the third-device FK `onDelete: SetNull` but `0004_add_third_device` created it `ON DELETE RESTRICT` — a real schema↔migration drift on `feat/three-way-call-screenshare`.
+
 ## Current State — Post Clean-Slate (V32.6.1 canary rebuild, 2026-06-07)
 
 ### 2026-06-21 — V32.9 Mega-Prompt Conformance Cross-Check
