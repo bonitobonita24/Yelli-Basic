@@ -74,6 +74,24 @@ async function signOutBothSessions(redirectTo: string): Promise<void> {
   }
 }
 
+/**
+ * Where sign-out lands, by session type:
+ *   - Cloud / account session   → `/login`        (re-enter the account form)
+ *   - LAN-anonymous admin        → `/admin/login`  (re-enter the passphrase)
+ *   - Anonymous device user      → `/login`        (so they CAN sign into an account)
+ *
+ * Bug fix (2026-06-27): the prior `isCloudSession ? '/login' : '/admin/login'` lumped the
+ * anonymous device user into the LAN-admin branch and dumped them on the passphrase page
+ * with no way to reach account login. In the `!isCloudSession` branch, `isAdmin` is true
+ * ONLY for a LAN admin (a Cloud admin already has a session → first branch), so it cleanly
+ * separates the LAN admin from the plain anonymous device user.
+ */
+export function logoutRedirect(ctx: AppShellContext): string {
+  if (ctx.isCloudSession) return '/login';
+  if (ctx.isAdmin) return '/admin/login'; // LAN-anonymous admin (no session + admin)
+  return '/login'; // anonymous device user → account login
+}
+
 export function AppShell({ ctx, children }: { ctx: AppShellContext; children: ReactNode }) {
   const pathname = usePathname();
   const items = navItems(ctx.isAdmin);
@@ -160,7 +178,7 @@ export function AppShell({ ctx, children }: { ctx: AppShellContext; children: Re
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => void signOutBothSessions(ctx.isCloudSession ? '/login' : '/admin/login')}
+              onClick={() => void signOutBothSessions(logoutRedirect(ctx))}
             >
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
