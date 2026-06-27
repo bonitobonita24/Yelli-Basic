@@ -35,10 +35,17 @@ export type AppShellContext = {
   tenantId: string | null;
   userLabel: string | null;
   brand: AppShellBrand | null;
+  /**
+   * True when this request carries a Cloud / account-mode Auth.js session (vs a
+   * LAN-anonymous admin cookie). Drives where sign-out lands: Cloud users return to
+   * the `/login` account form, LAN admins to the `/admin/login` passphrase page.
+   */
+  isCloudSession: boolean;
 };
 
 export async function resolveAppShellContext(): Promise<AppShellContext> {
   const session = await auth();
+  const isCloudSession = Boolean(session?.user);
 
   let tenantId: string | null = session?.user?.tenantId ?? null;
   let isAdmin = session?.user?.role === 'admin';
@@ -63,5 +70,5 @@ export async function resolveAppShellContext(): Promise<AppShellContext> {
     if (tenant) brand = tenant;
   }
 
-  return { isAdmin, tenantId, userLabel, brand };
+  return { isAdmin, tenantId, userLabel, brand, isCloudSession };
 }

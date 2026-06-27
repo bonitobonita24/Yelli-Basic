@@ -332,10 +332,17 @@ export function CallEngineProvider({ children }: { children: ReactNode }): React
         log('warn', 'signaling.error', { code: e.code, message: e.message }),
       onSessionKill: () => {
         teardownAll();
-        void signOut({ callbackUrl: '/admin/login' });
+        // Mode-aware redirect (mirrors AppShell sign-out / app-context.isCloudSession):
+        // a force-logged-out Cloud / account-mode user returns to the `/login` account
+        // form; a LAN-anonymous admin returns to the `/admin/login` passphrase page.
+        // Previously hardcoded to `/admin/login`, which dumped Cloud users on the LAN
+        // passphrase screen with no way back to account login (cb9b406 follow-up).
+        // Safe to depend on `session`: useSignaling reads callbacks via a ref, so a new
+        // callback identity does NOT tear down / reconnect the socket.
+        void signOut({ callbackUrl: session?.user ? '/login' : '/admin/login' });
       },
     }),
-    [handleSignal, handleCallSignal, teardownAll],
+    [handleSignal, handleCallSignal, teardownAll, session],
   );
 
   const signaling = useSignaling({
